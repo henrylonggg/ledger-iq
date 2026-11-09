@@ -39,7 +39,14 @@ app.use(express.static(path.join(__dirname, '../frontend/public')));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  let xlsxOk = false;
+  try { require('xlsx'); xlsxOk = true; } catch {}
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    deps: { xlsx: xlsxOk },
+    model: 'gpt-4o-mini'
+  });
 });
 
 // ─── Demo analysis endpoint ───────────────────────────────────────────────────
@@ -156,16 +163,32 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
       const file = req.files[i];
       emit('progress', { step: 'parsing', pct: 10 + (i / req.files.length) * 25, message: `Parsing ${file.originalname}…` });
 
-      const result = await parseFile(file.originalname, file.buffer);
+      let result;
+      try {
+        result = await parseFile(file.originalname, file.buffer);
+      } catch (parseEx) {
+        emit('log', { type: 'err', message: `${file.originalname}: PARSE EXCEPTION — ${parseEx.message}` });
+        result = { filename: file.originalname, docType: 'Financial Document', transactions: [], count: 0, parseError: parseEx.message };
+      }
       parsedFiles.push(result);
       totalTx += result.count;
 
-      emit('log', {
-        type: result.parseError ? 'warn' : 'ok',
-        message: result.parseError
-          ? `${file.originalname}: parse warning — ${result.parseError}`
-          : `${file.originalname}: extracted ${result.count} line items`
-      });
+      // Log sheet-level breakdown for multi-sheet files
+      if (result.sheetSummary) {
+        const used   = result.sheetSummary.filter(s => !s.skipped && s.count > 0);
+        const skipped = result.sheetSummary.filter(s => s.skipped);
+        emit('log', { type: result.count > 0 ? 'ok' : 'warn',
+          message: `${file.originalname}: extracted ${result.count} items across ${used.length} sheets` +
+            (skipped.length ? ` (skipped: ${skipped.map(s=>s.name).join(', ')})` : '')
+        });
+      } else {
+        emit('log', {
+          type: result.parseError ? 'warn' : 'ok',
+          message: result.parseError
+            ? `${file.originalname}: parse warning — ${result.parseError}`
+            : `${file.originalname}: extracted ${result.count} line items`
+        });
+      }
     }
 
     // ── STEP 2: Compute backend stats ──────────────────────────────────────

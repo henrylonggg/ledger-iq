@@ -657,6 +657,25 @@ tr:hover td { background: var(--ink2); }
   0%   { opacity: 0; transform: translateX(20px); }
   100% { opacity: 1; transform: translateX(0); }
 }
+/* ─── NARRATIVE GATE ──────────────────────────────────────── */
+.narrative-gate {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 48px 24px; text-align: center;
+  border: 1px dashed var(--line2); border-radius: 8px;
+  background: var(--ink2);
+}
+.ng-icon  { font-size: 32px; opacity: .6; }
+.ng-title { font-size: 14px; font-weight: 600; color: var(--bright); }
+.ng-sub   { font-size: 12px; color: var(--dim); max-width: 320px; line-height: 1.6; }
+.ng-btn   {
+  margin-top: 6px; padding: 9px 24px;
+  background: var(--teal); color: var(--ink);
+  border: none; border-radius: 6px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  cursor: pointer; letter-spacing: .04em;
+  transition: filter .15s, transform .1s;
+}
+.ng-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
 
 /* Background: deep radial glow behind left column */
 .ld-glow {
@@ -1459,7 +1478,10 @@ tr:hover td { background: var(--ink2); }
       </div>
 
       <div class="panel full">
-        <div class="panel-label">Summary</div>
+        <div class="panel-label" style="display:flex;align-items:center;justify-content:space-between;">
+          Summary
+          <button class="ng-btn" style="font-size:10px;padding:5px 14px;" onclick="generateNarrative()">Generate Narrative</button>
+        </div>
         <div class="prose" id="dash-narrative"></div>
       </div>
     </div>
@@ -1505,11 +1527,17 @@ tr:hover td { background: var(--ink2); }
   <div class="page" id="page-narrative">
     <div class="narrative-page">
       <div class="panel">
-        <div class="panel-label">Analyst narrative</div>
+        <div class="panel-label" style="display:flex;align-items:center;justify-content:space-between;">
+          Analyst narrative
+          <button class="ng-btn" style="font-size:10px;padding:5px 14px;" onclick="generateNarrative()">↺ Regenerate</button>
+        </div>
         <div class="prose" id="narrative-full"></div>
       </div>
       <div class="panel">
-        <div class="panel-label">Methodology &amp; limitations</div>
+        <div class="panel-label" style="display:flex;align-items:center;justify-content:space-between;">
+          Executive summary &amp; methodology
+          <button class="ng-btn" style="font-size:10px;padding:5px 14px;" onclick="generateSummary()">↺ Regenerate</button>
+        </div>
         <div class="prose" id="methodology"></div>
       </div>
     </div>

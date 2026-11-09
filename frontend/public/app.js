@@ -100,10 +100,10 @@ function recalcMetrics() {
     rejBar.style.display = 'none';
   }
 
-  // Re-render dashboard panels so flags, categories & narrative reflect review state
+  // Re-render dashboard panels so categories & flags reflect review state
   renderDashboardPanels();
-  renderNarrative();
-  checkAllReviewed();
+  updateNarrativePage();
+  updateExportBtn();
 }
 
 // ═══════════════════════════════════
@@ -273,14 +273,89 @@ async function startAnalysis() {
 }
 
 // ═══════════════════════════════════
+// GENERATED NARRATIVE STATE
+// narrative/summary must be regenerated whenever review state changes
+// ═══════════════════════════════════
+let generatedNarrative  = null;  // { text, adjScore, rejectedIds, approvedIds }
+let generatedSummary    = null;  // { text, adjScore, rejectedIds }
+
+function reviewStateKey() {
+  // A fingerprint of current review decisions — used to detect staleness
+  return Object.entries(reviewSt).sort().map(([k,v]) => k + ':' + v).join('|');
+}
+
+function markNarrativeStale() {
+  generatedNarrative = null;
+  generatedSummary   = null;
+  updateNarrativePage();
+  updateExportBtn();
+}
+
+function updateExportBtn() {
+  const btn = document.getElementById('btn-export');
+  if (!btn) return;
+  const ready = generatedNarrative && generatedSummary;
+  btn.disabled = !ready;
+  btn.title    = ready ? 'Export finalized report' : 'Generate narrative & summary first';
+  btn.style.opacity = ready ? '1' : '0.4';
+}
+
+// ═══════════════════════════════════
+// DYNAMIC CATEGORY SCORE CALCULATION
+// ═══════════════════════════════════
+function getAdjustedCategories() {
+  if (!report) return [];
+  const r = report;
+
+  // Map each transaction to its category by type keywords
+  const catMap = {
+    'Revenue Quality':    ['revenue', 'cogs & margin', 'revenue recognition'],
+    'EBITDA Quality':     ['ebitda adj', 'non-recurring', 'owner compensation', 'sga'],
+    'Working Capital':    ['accounts receivable', 'accounts payable', 'inventory', 'cash flow'],
+    'Balance Sheet':      ['debt & leverage', 'balance sheet', 'real estate / leases', 'tax'],
+    'Accounting Quality': ['capex & fixed assets', 'technology', 'contractors'],
+    'Operational Risk':   ['vendor risk', 'insurance & risk', 'human capital'],
+  };
+
+  return (r.categories || []).map(c => {
+    const keywords = catMap[c.name] || [];
+    // Find transactions belonging to this category
+    const catTxns = (r.transactions || []).filter(t => {
+      const type = (t.type || '').toLowerCase();
+      return keywords.some(k => type.includes(k));
+    });
+
+    if (!catTxns.length) return c; // no matching txns — keep original score
+
+    // Compute score adjustment: rejected items in this category improve the score (risk reduced)
+    // approved items keep their weight
+    let adj = 0;
+    catTxns.forEach(t => {
+      const st = t.needsReview ? (reviewSt[t.id] || 'pending') : 'auto';
+      if (st === 'rejected') {
+        // Rejecting a risk item removes it from scoring — small score boost per item
+        const boost = t.severity === 'red' ? 4 : t.severity === 'yellow' ? 2 : 0;
+        adj += boost;
+      }
+    });
+
+    const newScore = Math.min(99, Math.round((c.score || 0) + adj));
+    const newColor = newScore >= 70 ? 'green' : newScore >= 45 ? 'yellow' : 'red';
+    return { ...c, score: newScore, color: newColor };
+  });
+}
+
+// ═══════════════════════════════════
 // DASHBOARD PANEL RENDERS
 // ═══════════════════════════════════
 function renderDashboardPanels(r) {
   if (!r) r = report;
   if (!r) return;
 
-  // Categories with basis info
-  document.getElementById('cat-stack').innerHTML = (r.categories || []).map(c => {
+  const adjCats = getAdjustedCategories();
+
+  // Categories with live-adjusted scores and basis info
+  document.getElementById('cat-stack').innerHTML = adjCats.map(c => {
     const col = c.color === 'green' ? 'var(--emerald)' : c.color === 'red' ? 'var(--crimson)' : 'var(--amber)';
     const sc = c.score || 0;
     const basisHtml = c.basis
@@ -297,68 +372,132 @@ function renderDashboardPanels(r) {
     </div>`;
   }).join('');
 
-  // Flags
-  document.getElementById('flags-box').innerHTML = (r.flags || []).map(f => `
+  // Active flags only (excluding flags tied to rejected transactions)
+  const rejectedIds = new Set(
+    Object.entries(reviewSt).filter(([,v]) => v === 'rejected').map(([k]) => k)
+  );
+  const activeFlags = (r.flags || []).filter(f => {
+    // Check if this flag maps to a rejected transaction by title keyword match
+    const matchedTx = (r.transactions || []).find(t =>
+      rejectedIds.has(t.id) &&
+      f.title && t.item &&
+      (f.title.toLowerCase().includes(t.item.toLowerCase().slice(0,20)) ||
+       t.item.toLowerCase().includes(f.title.toLowerCase().slice(0,20)))
+    );
+    return !matchedTx;
+  });
+
+  document.getElementById('flags-box').innerHTML = activeFlags.map(f => `
     <div class="flag ${f.severity || 'yellow'}">
       <div><span class="flag-title">${esc(f.title || '')}</span><span class="flag-detail">${esc(f.detail || '')}</span></div>
     </div>`).join('');
 }
 
-function renderNarrative(r) {
-  if (!r) r = report;
-  if (!r) return;
+function updateNarrativePage() {
+  // Narrative page always shows either generated content or a "Generate" prompt
   const narrativeEl = document.getElementById('dash-narrative');
-  if (!narrativeEl) return;
-  let html = '';
-  if (r.dataScope) {
-    html += `<p style="font-family:var(--mono);font-size:10.5px;color:var(--teal);margin-bottom:10px;border-left:2px solid var(--teal);padding-left:8px">${esc(r.dataScope)}</p>`;
+  const nFull       = document.getElementById('narrative-full');
+  const meth        = document.getElementById('methodology');
+
+  if (generatedNarrative) {
+    // Show generated narrative
+    const r = report;
+    let html = '';
+    if (r?.dataScope) {
+      html += `<p style="font-family:var(--mono);font-size:10.5px;color:var(--teal);margin-bottom:10px;border-left:2px solid var(--teal);padding-left:8px">${esc(r.dataScope)}</p>`;
+    }
+    const nHtml = generatedNarrative.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+    if (narrativeEl) narrativeEl.innerHTML = html + nHtml;
+    if (nFull)       nFull.innerHTML = nHtml;
+  } else {
+    const staleHtml = `<div class="narrative-gate">
+      <div class="ng-icon">📋</div>
+      <div class="ng-title">Narrative not yet generated</div>
+      <div class="ng-sub">Review your items, then click Generate to build the narrative based on your current approve/reject decisions.</div>
+      <button class="ng-btn" onclick="generateNarrative()">Generate Narrative</button>
+    </div>`;
+    if (narrativeEl) narrativeEl.innerHTML = staleHtml;
+    if (nFull) nFull.innerHTML = staleHtml;
   }
-  const nHtml = (r.narrative || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
-  html += nHtml;
-  narrativeEl.innerHTML = html;
-  const nFull = document.getElementById('narrative-full');
-  if (nFull) nFull.innerHTML = nHtml;
-  const meth = document.getElementById('methodology');
-  if (meth) meth.innerHTML = (r.methodology || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+
+  if (generatedSummary) {
+    const sHtml = generatedSummary.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+    if (meth) meth.innerHTML = sHtml;
+  } else {
+    const staleHtml2 = `<div class="narrative-gate">
+      <div class="ng-icon">📊</div>
+      <div class="ng-title">Executive Summary not yet generated</div>
+      <div class="ng-sub">Generate a fresh summary reflecting your current review decisions.</div>
+      <button class="ng-btn" onclick="generateSummary()">Generate Summary</button>
+    </div>`;
+    if (meth) meth.innerHTML = staleHtml2;
+  }
 }
 
-// Auto-save export when all reviewed items are no longer pending
-let _exportTriggered = false;
-function checkAllReviewed() {
-  if (!report || _exportTriggered) return;
-  const reviewable = (report.transactions || []).filter(t => t.needsReview);
-  if (!reviewable.length) return;
-  const anyPending = reviewable.some(t => (reviewSt[t.id] || 'pending') === 'pending');
-  if (!anyPending) {
-    _exportTriggered = true;
-    // Re-render narrative with current state before export
-    renderNarrative(report);
-    showExportReady();
-  }
+function generateNarrative() {
+  if (!report) return;
+  const r = report;
+  const rejected = (r.transactions || []).filter(t => t.needsReview && reviewSt[t.id] === 'rejected');
+  const approved = (r.transactions || []).filter(t => t.needsReview && reviewSt[t.id] === 'approved');
+  const adjCats  = getAdjustedCategories();
+
+  // Build a dynamic narrative based on current review state
+  const rejNames = rejected.map(t => t.item).slice(0,5).join('; ');
+  const rejNote  = rejected.length
+    ? `\n\nFollowing analyst review, ${rejected.length} item(s) were excluded from the final scoring as disputed or unconfirmed: ${rejNames}. These exclusions have been reflected in the adjusted score and category ratings above.`
+    : '\n\nAll flagged items were confirmed by the reviewing analyst and are reflected in the final score.';
+
+  const weakCats = adjCats.filter(c => c.score < 45).map(c => c.name);
+  const catNote  = weakCats.length
+    ? `The weakest areas of earnings quality are ${weakCats.join(', ')}, each scoring below 45/100 after review adjustments.`
+    : 'No category scored below the 45/100 threshold after review adjustments.';
+
+  const narrative = r.narrative + rejNote + '\n\n' + catNote;
+
+  generatedNarrative = { text: narrative, stateKey: reviewStateKey() };
+  updateNarrativePage();
+  updateExportBtn();
+
+  // Show brief confirmation
+  showToast('Narrative generated — reflects current review decisions');
 }
 
-function showExportReady() {
-  // Show a prominent notification that export is ready
-  const existing = document.getElementById('export-ready-banner');
-  if (existing) return;
-  const banner = document.createElement('div');
-  banner.id = 'export-ready-banner';
-  banner.style.cssText = `
-    position:fixed;top:60px;right:20px;z-index:500;
-    background:linear-gradient(135deg,#0D2235,#0A1A28);
-    border:1px solid var(--teal);border-radius:8px;
-    padding:14px 18px;max-width:280px;
-    box-shadow:0 8px 32px rgba(12,206,212,.2);
-    animation:slideInRight .3s ease;
-  `;
-  banner.innerHTML = `
-    <div style="font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:.1em;margin-bottom:6px;">REVIEW COMPLETE</div>
-    <div style="font-size:13px;font-weight:600;color:var(--bright);margin-bottom:4px;">All items reviewed</div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:12px;">Report & narrative are finalized. Ready to export.</div>
-    <button onclick="banner_export()" style="width:100%;background:var(--teal);color:var(--ink);border:none;border-radius:5px;padding:7px 12px;font-weight:700;font-size:11px;cursor:pointer;font-family:var(--mono);">⬇ Export Final Report</button>
-    <button onclick="document.getElementById('export-ready-banner').remove()" style="width:100%;background:transparent;color:var(--dim);border:none;padding:4px;font-size:10px;cursor:pointer;margin-top:4px;">dismiss</button>
-  `;
-  document.body.appendChild(banner);
+function generateSummary() {
+  if (!report) return;
+  const r = report;
+  const rejected = (r.transactions || []).filter(t => t.needsReview && reviewSt[t.id] === 'rejected');
+  const adjCats  = getAdjustedCategories();
+
+  // Compute current adjusted score
+  let adjScore = r.score || 0;
+  const redRej = rejected.filter(t => t.severity === 'red').length;
+  const ylwRej = rejected.filter(t => t.severity === 'yellow').length;
+  adjScore = Math.min(100, Math.round(adjScore + redRej * 3 + ylwRej * 1.5));
+  const riskTier = adjScore >= 70 ? 'LOW RISK' : adjScore >= 45 ? 'MODERATE RISK' : 'HIGH RISK';
+
+  const catLines = adjCats.map(c =>
+    `${c.name}: ${c.score}/100 (${c.score >= 70 ? 'Strong' : c.score >= 45 ? 'Moderate' : 'Weak'})`
+  ).join('\n');
+
+  const summary =
+    `EXECUTIVE SUMMARY — QUALITY OF EARNINGS ANALYSIS\nAcme Manufacturing Inc. | FY2022–2024 | ${r._meta?.filesProcessed ?? 18} Documents Analyzed\n\nFINAL QoE SCORE: ${adjScore}/100 — ${riskTier}\n\nAfter analyst review of all ${(r.transactions||[]).filter(t=>t.needsReview).length} flagged items (${rejected.length} rejected, ${(r.transactions||[]).filter(t=>t.needsReview&&reviewSt[t.id]==='approved').length} approved), the adjusted Quality of Earnings score is ${adjScore}/100, placing Acme Manufacturing in the ${riskTier} tier.\n\nCATEGORY SCORES (POST-REVIEW):\n${catLines}\n\n` + r.methodology;
+
+  generatedSummary = { text: summary, stateKey: reviewStateKey(), adjScore };
+  updateNarrativePage();
+  updateExportBtn();
+
+  showToast('Executive summary generated');
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+    background:#0CCED4;color:#060A14;padding:8px 20px;border-radius:20px;
+    font-family:var(--mono);font-size:11px;font-weight:700;z-index:9999;
+    animation:slideInRight .2s ease;pointer-events:none;white-space:nowrap;`;
+  t.textContent = '✓  ' + msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
 }
 
 function banner_export() {
@@ -418,11 +557,13 @@ function finishReport() {
 
   renderDashboardPanels(r);
 
-  // Data scope + narrative
-  renderNarrative(r);
+  // Narrative starts locked — user must click Generate
+  generatedNarrative = null;
+  generatedSummary   = null;
+  updateNarrativePage();
+  updateExportBtn();
 
   // Token usage — after panels render
-  checkAllReviewed();
   if (r._meta?.tokenUsage) {
     const u = r._meta.tokenUsage;
     document.getElementById('tok-in').textContent    = u.inputTokens?.toLocaleString();
@@ -512,9 +653,10 @@ function doReview(id, newState) {
   // Toggle: clicking the already-active button returns to pending
   const cur = reviewSt[id] || 'pending';
   reviewSt[id] = (cur === newState) ? 'pending' : newState;
+  markNarrativeStale();   // any review change invalidates generated narrative/summary
   renderReview();
   renderTxTable();
-  // recalcMetrics is called inside renderReview already, skip double call
+  // recalcMetrics is called inside renderReview already
 }
 
 function setFilter(f, btn) {
@@ -565,6 +707,10 @@ function renderTxTable() {
 // ═══════════════════════════════════
 async function exportReport() {
   if (!report) return;
+  if (!generatedNarrative || !generatedSummary) {
+    showToast('Generate narrative & summary before exporting');
+    return;
+  }
   const r = report;
 
   const btn = document.getElementById('btn-export');
@@ -587,8 +733,9 @@ async function exportReport() {
     };
 
     // Use only *active* (non-rejected) transactions for the export
-    const activeTxns = getActiveTransactions();
-    const scoreColor = r.score >= 70 ? C.emerald : r.score >= 45 ? C.amber : C.crimson;
+    const activeTxns  = getActiveTransactions();
+    const exportScore = generatedSummary?.adjScore ?? r.score;
+    const scoreColor  = exportScore >= 70 ? C.emerald : exportScore >= 45 ? C.amber : C.crimson;
 
     function styleHeader(row, bgHex, fgHex, bold, sz) {
       row.eachCell({ includeEmpty: true }, cell => {
@@ -630,7 +777,7 @@ async function exportReport() {
     scoreRow.height = 36;
     ws1.getCell(`B${scoreRow.number}`).value = 'QoE SCORE';
     ws1.getCell(`B${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.muted } };
-    ws1.getCell(`C${scoreRow.number}`).value = r.score + ' / 100';
+    ws1.getCell(`C${scoreRow.number}`).value = exportScore + ' / 100';
     ws1.getCell(`C${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 20, color: { argb: 'FF' + scoreColor } };
     ws1.getCell(`E${scoreRow.number}`).value = 'RISK TIER';
     ws1.getCell(`E${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.muted } };
@@ -659,7 +806,8 @@ async function exportReport() {
     catHdr.height = 22;
     styleHeader(catHdr, C.navy3, C.teal, true, 10);
 
-    for (const cat of (r.categories || [])) {
+    const exportCats = getAdjustedCategories();
+    for (const cat of exportCats) {
       const col  = cat.color === 'green' ? C.emerald : cat.color === 'red' ? C.crimson : C.amber;
       const sc   = cat.score || 0;
       const stars = sc >= 80 ? '●●●●●' : sc >= 60 ? '●●●●○' : sc >= 40 ? '●●●○○' : sc >= 20 ? '●●○○○' : '●○○○○';
@@ -800,7 +948,8 @@ async function exportReport() {
       ws.addRow([]);
     }
 
-    addNarrSection(ws4, 'ANALYST NARRATIVE', r.narrative);
+    addNarrSection(ws4, 'ANALYST NARRATIVE', generatedNarrative?.text || r.narrative);
+    addNarrSection(ws4, 'EXECUTIVE SUMMARY', generatedSummary?.text || r.methodology);
     addNarrSection(ws4, 'METHODOLOGY', r.methodology);
     if (r._meta?.tokenUsage) {
       addNarrSection(ws4, 'MODEL USAGE',
@@ -833,7 +982,7 @@ async function exportReport() {
     styleHeader(catDataHdr, C.navy3, C.teal, true, 10);
     catDataHdr.height = 22;
 
-    for (const cat of (r.categories || [])) {
+    for (const cat of exportCats) {
       const sc  = cat.score || 0;
       const col = cat.color === 'green' ? C.emerald : cat.color === 'red' ? C.crimson : C.amber;
       const row = ws5.addRow([cat.name, sc, sc >= 70 ? 'Strong' : sc >= 45 ? 'Moderate' : 'Weak']);
@@ -1014,6 +1163,7 @@ async function exportReport() {
 // ═══════════════════════════════════
 function resetAll() {
   files = []; report = null; reviewSt = {}; filterMode = 'all'; _exportTriggered = false;
+  generatedNarrative = null; generatedSummary = null;
   document.getElementById('export-ready-banner')?.remove();
   document.getElementById('file-list').innerHTML = '';
   document.getElementById('log-box').innerHTML   = '';

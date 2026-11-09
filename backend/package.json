@@ -14,7 +14,7 @@
     "pdf-parse": "^1.1.1",
     "csv-parse": "^5.5.3",
     "xlsx": "^0.18.5",
-    "@anthropic-ai/sdk": "^0.27.0",
+    "openai": "^4.52.0",
     "dotenv": "^16.4.5"
   }
 }

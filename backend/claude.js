@@ -1,13 +1,13 @@
 /**
- * claude.js — The ONLY file that calls Claude.
+ * claude.js — The ONLY file that calls OpenAI.
  * Receives a pre-parsed, pre-classified summary from parser.js.
  * Claude scores ONLY based on what documents were actually uploaded.
  * Missing document types do NOT penalize the score.
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
 
-// ─── All QoE document categories Claude understands ──────────────────────────
+// ─── All QoE document categories ─────────────────────────────────────────────
 const ALL_DOC_CATEGORIES = [
   'Income Statement', 'Balance Sheet', 'Cash Flow Statement',
   'General Ledger', 'Trial Balance', 'Audited Financials',
@@ -21,7 +21,6 @@ const ALL_DOC_CATEGORIES = [
   'CapEx & Fixed Assets', 'Monthly Financials', 'Financial Document'
 ];
 
-// Map doc types to QoE categories for the prompt context
 const DOC_TO_QOE_CATEGORY = {
   'Income Statement':          'Revenue Quality, EBITDA Quality',
   'Monthly Financials':        'Revenue Quality, EBITDA Quality',
@@ -54,14 +53,9 @@ const DOC_TO_QOE_CATEGORY = {
   'Tax Audit Records':         'Tax Quality',
 };
 
-/**
- * Build a compact summary for Claude from parsed files.
- * Includes what documents WERE uploaded so Claude can calibrate its analysis.
- */
 function buildClaudeSummary(parsedFiles) {
   const allTx = parsedFiles.flatMap(f => f.transactions);
 
-  // Group transactions by type
   const byType = {};
   for (const t of allTx) {
     if (!byType[t.type]) byType[t.type] = [];
@@ -85,14 +79,13 @@ function buildClaudeSummary(parsedFiles) {
   const redItems    = allTx.filter(t => t.severity === 'red');
   const yellowItems = allTx.filter(t => t.severity === 'yellow');
 
-  // Which doc types were uploaded
   const uploadedDocTypes = [...new Set(parsedFiles.map(f => f.docType || 'Financial Document'))];
   const missingDocTypes  = ALL_DOC_CATEGORIES.filter(d => !uploadedDocTypes.includes(d) && d !== 'Financial Document');
 
   return {
     totalTransactions: allTx.length,
     uploadedDocTypes,
-    missingDocTypes: missingDocTypes.slice(0, 20), // just for context, not for penalization
+    missingDocTypes: missingDocTypes.slice(0, 20),
     files: parsedFiles.map(f => ({
       name:       f.filename,
       docType:    f.docType || 'Financial Document',
@@ -111,22 +104,17 @@ function buildClaudeSummary(parsedFiles) {
   };
 }
 
-/**
- * scoreWithClaude — sends compact summary, gets back full QoE report.
- * Score is RELATIVE to documents provided — no penalty for missing files.
- */
 async function scoreWithClaude(parsedFiles, apiKey) {
-  const client  = new Anthropic({ apiKey });
+  const client  = new OpenAI({ apiKey });
   const summary = buildClaudeSummary(parsedFiles);
   const allTx   = parsedFiles.flatMap(f => f.transactions);
 
-  // Build the available-data context string for the prompt
   const docContext = summary.uploadedDocTypes.map(d => {
     const qoeLink = DOC_TO_QOE_CATEGORY[d] || 'General';
     return `  • ${d} → informs: ${qoeLink}`;
   }).join('\n');
 
-  const system = `You are a senior Quality of Earnings (QoE) analyst at a Big Four transaction advisory firm.
+  const systemPrompt = `You are a senior Quality of Earnings (QoE) analyst at a Big Four transaction advisory firm.
 
 The backend has parsed and pre-classified every line item from the uploaded financial documents. You do NOT re-parse anything.
 
@@ -164,7 +152,7 @@ Score only categories for which uploaded documents provide evidence:
 - Balance Sheet: balance sheets, debt schedules, fixed assets
 - Accounting Quality: audited financials, general ledger, trial balance, tax returns
 
-If a category has NO uploaded data, omit it from the categories array — do NOT score it 50 or guess.
+If a category has NO uploaded data, omit it from the categories array.
 
 ═══ RESPONSE FORMAT ═══
 Respond ONLY with valid JSON — no markdown fences, no commentary:
@@ -180,7 +168,7 @@ Respond ONLY with valid JSON — no markdown fences, no commentary:
   "flags": [
     { "severity": "<red|yellow|green>", "title": "<short title>", "detail": "<1–2 sentences>" }
   ],
-  "narrative": "<4–6 paragraph analyst narrative — be specific about what documents were reviewed and what they revealed>",
+  "narrative": "<4–6 paragraph analyst narrative>",
   "methodology": "<2 paragraphs: document types reviewed, what could and could not be evaluated, confidence in findings>",
   "transactions": [
     {
@@ -211,14 +199,17 @@ ${allTx.map((t, i) =>
   `${i + 1}. "${t.label}" | type:${t.type} | amount:${t.formattedAmount} | change:${t.pctChange !== null ? t.pctChange.toFixed(1) + '%' : 'n/a'} | heuristic:${t.severity}${t.meta ? ' | meta:' + JSON.stringify(t.meta) : ''}`
 ).join('\n')}`;
 
-  const response = await client.messages.create({
-    model:      'claude-sonnet-4-6',
-    max_tokens: 8000,
-    system,
-    messages:   [{ role: 'user', content: userMessage }]
+  const response = await client.chat.completions.create({
+    model:       'gpt-4o',
+    max_tokens:  8000,
+    temperature: 0.2,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user',   content: userMessage  }
+    ]
   });
 
-  const raw = response.content?.find(b => b.type === 'text')?.text || '';
+  const raw = response.choices?.[0]?.message?.content || '';
 
   let parsed;
   try {
@@ -226,13 +217,13 @@ ${allTx.map((t, i) =>
   } catch {
     const m = raw.match(/\{[\s\S]+\}/);
     if (m) parsed = JSON.parse(m[0]);
-    else throw new Error('Claude returned invalid JSON — raw: ' + raw.slice(0, 300));
+    else throw new Error('OpenAI returned invalid JSON — raw: ' + raw.slice(0, 300));
   }
 
   const usage = {
-    inputTokens:  response.usage?.input_tokens  || 0,
-    outputTokens: response.usage?.output_tokens || 0,
-    totalTokens:  (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0)
+    inputTokens:  response.usage?.prompt_tokens     || 0,
+    outputTokens: response.usage?.completion_tokens || 0,
+    totalTokens:  response.usage?.total_tokens      || 0
   };
 
   return { report: parsed, usage };

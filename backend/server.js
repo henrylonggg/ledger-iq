@@ -41,8 +41,8 @@ app.get('/api/health', (req, res) => {
 app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
   const apiKey = req.headers['x-api-key'] || req.body?.apiKey;
 
-  if (!apiKey || !apiKey.startsWith('sk-ant-')) {
-    return res.status(401).json({ error: 'Valid Anthropic API key required (x-api-key header)' });
+  if (!apiKey || !apiKey.startsWith('sk-')) {
+    return res.status(401).json({ error: 'Valid OpenAI API key required (starts with sk-)' });
   }
 
   if (!req.files || req.files.length === 0) {

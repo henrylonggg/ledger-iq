@@ -92,12 +92,12 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
     emit('progress', { step: 'stats', pct: 45, message: 'Heuristic classification complete' });
 
     // ── STEP 3: Claude scores confidence + QoE (the only Claude call) ──────
-    emit('progress', { step: 'claude', pct: 50, message: 'Sending structured summary to Claude for scoring…' });
-    emit('log', { type: 'info', message: `Sending ${totalTx} pre-classified items to Claude for confidence scoring…` });
+    emit('progress', { step: 'claude', pct: 50, message: 'Sending structured summary to GPT-4o for scoring…' });
+    emit('log', { type: 'info', message: `Sending ${totalTx} pre-classified items to GPT-4o for confidence scoring…` });
 
     const { report, usage } = await scoreWithClaude(parsedFiles, apiKey);
 
-    emit('log', { type: 'ok', message: `Claude scoring complete — ${usage.totalTokens} tokens used (${usage.inputTokens} in / ${usage.outputTokens} out)` });
+    emit('log', { type: 'ok', message: `GPT-4o scoring complete — ${usage.totalTokens} tokens used (${usage.inputTokens} in / ${usage.outputTokens} out)` });
     emit('progress', { step: 'claude', pct: 90, message: 'Scoring complete — building report…' });
 
     // ── STEP 4: Merge backend heuristics into final report ──────────────────

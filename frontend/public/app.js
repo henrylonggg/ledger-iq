@@ -921,16 +921,13 @@ const DEMO_REPORT = {
 const DEMO_STORAGE_KEY = 'ledgeriq_demo_v1';
 
 function loadDemo() {
-  // 1. Always show something immediately — cached real result or hardcoded fallback
+  // 1. Show cached real result if available (permanent — never expires)
   let usedCache = false;
   try {
     const cached = localStorage.getItem(DEMO_STORAGE_KEY);
     if (cached) {
-      const { ts, data } = JSON.parse(cached);
-      if (Date.now() - ts < 7 * 24 * 60 * 60 * 1000) {
-        report = data;
-        usedCache = true;
-      }
+      const { data } = JSON.parse(cached);
+      if (data) { report = data; usedCache = true; }
     }
   } catch {}
 
@@ -939,8 +936,8 @@ function loadDemo() {
   finishReport();
   showDemoBanner();
 
-  // 2. Silently refresh with real GPT-4o mini in background (doesn't block UI)
-  setTimeout(refreshDemoInBackground, 500);
+  // 2. Only hit the API if there is no cached result at all — saves API calls on every refresh
+  if (!usedCache) setTimeout(refreshDemoInBackground, 500);
 }
 
 function showDemoBanner() {

@@ -373,8 +373,20 @@ function finishReport() {
   if (!report) return;
   const r = report;
 
+  // Pre-populate review state: most items approved, a few rejected (demo realistic defaults)
+  // Items rejected = ones most likely disputed by seller or excluded by analyst
+  const DEMO_REJECTED = new Set([
+    'adj-personal-expenses-gl',      // personal expenses — often disputed by seller
+    'custom-project-nonrecurring',   // seller typically argues these are recurring
+    'deferred-rev-swing',            // timing argument — seller disputes Q4 acceleration
+    'warranty-reserve-change',       // seller argues methodology is consistent
+    'sales-commission-structure',    // seller argues this is normalized compensation
+  ]);
   reviewSt = {};
-  (r.transactions || []).forEach(t => { if (t.needsReview) reviewSt[t.id] = 'pending'; });
+  (r.transactions || []).forEach(t => {
+    if (!t.needsReview) return;
+    reviewSt[t.id] = DEMO_REJECTED.has(t.id) ? 'rejected' : 'approved';
+  });
 
   const score   = Math.max(0, Math.min(100, r.score || 0));
   const pending = Object.values(reviewSt).filter(s => s === 'pending').length;
@@ -455,11 +467,16 @@ function renderReview() {
     const conf = t.confidence || 0;
     const cc   = conf >= 75 ? 'var(--emerald)' : conf >= 50 ? 'var(--amber)' : 'var(--crimson)';
     const sev  = t.severity || 'yellow';
+    const stPill = st === 'approved'
+      ? `<span class="pill green" style="font-size:9px">✓ approved</span>`
+      : st === 'rejected'
+        ? `<span class="pill red" style="font-size:9px">✕ rejected</span>`
+        : `<span class="pill review" style="font-size:9px">pending</span>`;
     return `
     <div class="rv sev-${sev} st-${st}" id="rv-${t.id}">
       <div class="rv-body">
         <div class="rv-info">
-          <div class="rv-title">${esc(t.item||'')} <span class="pill ${sev}">${sev}</span>${st !== 'pending' ? `<span class="pill ${st === 'approved' ? 'green' : 'red'}">${st}</span>` : ''}</div>
+          <div class="rv-title">${esc(t.item||'')} <span class="pill ${sev}">${sev}</span> ${stPill}</div>
           <div class="rv-desc">${esc(t.finding||'')}</div>
           <div class="rv-chips">
             ${t.amount && t.amount !== 'N/A' ? `<span class="chip-amt">${esc(t.amount)}</span>` : ''}
@@ -467,8 +484,8 @@ function renderReview() {
           </div>
         </div>
         <div class="rv-actions">
-          <button class="rv-btn rv-approve ${st === 'approved' ? 'active' : ''}" onclick="doReview('${t.id}', '${st === 'approved' ? 'pending' : 'approved'}')" title="${st === 'approved' ? 'Undo approval' : 'Accept — counts toward score'}">✓</button>
-          <button class="rv-btn rv-reject  ${st === 'rejected' ? 'active' : ''}" onclick="doReview('${t.id}', '${st === 'rejected' ? 'pending' : 'rejected'}')" title="${st === 'rejected' ? 'Undo rejection' : 'Reject — excluded from score'}">✕</button>
+          <button class="rv-btn rv-approve ${st === 'approved' ? 'active' : ''}" onclick="doReview('${t.id}', 'approved')" title="Approve — confirm this finding counts toward score">✓</button>
+          <button class="rv-btn rv-reject  ${st === 'rejected' ? 'active' : ''}" onclick="doReview('${t.id}', 'rejected')" title="Reject — exclude from score">✕</button>
         </div>
       </div>
       <div class="conf-row">
@@ -491,11 +508,13 @@ function toggleR(id) {
   else                               { el.style.display = 'block'; tog.textContent = '▾ GPT-4o mini reasoning'; }
 }
 
-function doReview(id, action) {
-  reviewSt[id] = action;
+function doReview(id, newState) {
+  // Toggle: clicking the already-active button returns to pending
+  const cur = reviewSt[id] || 'pending';
+  reviewSt[id] = (cur === newState) ? 'pending' : newState;
   renderReview();
   renderTxTable();
-  recalcMetrics();
+  // recalcMetrics is called inside renderReview already, skip double call
 }
 
 function setFilter(f, btn) {

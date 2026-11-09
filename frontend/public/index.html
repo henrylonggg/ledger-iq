@@ -551,8 +551,10 @@ button { cursor: pointer; font-family: var(--ui); }
 .rv.sev-red    { border-left: 2px solid var(--crimson); }
 .rv.sev-yellow { border-left: 2px solid var(--amber);   }
 .rv.sev-green  { border-left: 2px solid var(--emerald); }
-.rv.st-approved { opacity: .5; }
-.rv.st-rejected { opacity: .4; }
+.rv.st-approved { border-left-color: var(--emerald) !important; background: rgba(16,185,129,.04); }
+.rv.st-rejected { opacity: .38; filter: grayscale(.4); }
+.rv-btn.rv-approve.active { background: var(--emerald) !important; color: #000 !important; border-color: var(--emerald) !important; }
+.rv-btn.rv-reject.active  { background: var(--crimson) !important; color: #fff !important; border-color: var(--crimson) !important; }
 .rv-body { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; }
 .rv-info { flex: 1; min-width: 0; }
 .rv-title { font-size: 13px; font-weight: 600; color: var(--bright); margin-bottom: 3px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }

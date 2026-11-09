@@ -2,8 +2,8 @@
  * server.js — Express API server
  *
  * Routes:
- *   POST /api/analyze   — upload files, parse, score with GPT-4o
- *   GET  /api/demo      — run real GPT-4o analysis on built-in demo files (key server-side)
+ *   POST /api/analyze   — upload files, parse, score with GPT-4o mini
+ *   GET  /api/demo      — run real GPT-4o mini analysis on built-in demo files (key server-side)
  *   GET  /api/health    — health check
  *   GET  /              — serves frontend
  */
@@ -50,7 +50,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // ─── Demo analysis endpoint ───────────────────────────────────────────────────
-// Runs a real GPT-4o analysis on the built-in demo files.
+// Runs a real GPT-4o mini analysis on the built-in demo files.
 // The API key lives only on the server — it is never sent to or from the client.
 app.get('/api/demo', async (req, res) => {
   if (!DEMO_API_KEY) {
@@ -101,12 +101,12 @@ app.get('/api/demo', async (req, res) => {
     emit('log', { type: 'ok', message: `Heuristics: ${stats.redCount} red, ${stats.yellowCount} yellow, ${stats.greenCount} green` });
     emit('progress', { step: 'stats', pct: 45, message: 'Heuristic classification complete' });
 
-    emit('progress', { step: 'claude', pct: 50, message: 'Sending to GPT-4o for scoring…' });
-    emit('log', { type: 'info', message: `Sending ${totalTx} pre-classified items to GPT-4o…` });
+    emit('progress', { step: 'claude', pct: 50, message: 'Sending to GPT-4o mini for scoring…' });
+    emit('log', { type: 'info', message: `Sending ${totalTx} pre-classified items to GPT-4o mini…` });
 
     const { report, usage } = await scoreWithClaude(parsedFiles, DEMO_API_KEY);
 
-    emit('log', { type: 'ok', message: `GPT-4o complete — ${usage.totalTokens} tokens used` });
+    emit('log', { type: 'ok', message: `GPT-4o mini complete — ${usage.totalTokens} tokens used` });
     emit('progress', { step: 'claude', pct: 90, message: 'Scoring complete — building report…' });
 
     report._meta = {
@@ -201,12 +201,12 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
     emit('progress', { step: 'stats', pct: 45, message: 'Heuristic classification complete' });
 
     // ── STEP 3: Claude scores confidence + QoE (the only Claude call) ──────
-    emit('progress', { step: 'claude', pct: 50, message: 'Sending structured summary to GPT-4o for scoring…' });
-    emit('log', { type: 'info', message: `Sending ${totalTx} pre-classified items to GPT-4o for confidence scoring…` });
+    emit('progress', { step: 'claude', pct: 50, message: 'Sending structured summary to GPT-4o mini for scoring…' });
+    emit('log', { type: 'info', message: `Sending ${totalTx} pre-classified items to GPT-4o mini for confidence scoring…` });
 
     const { report, usage } = await scoreWithClaude(parsedFiles, apiKey);
 
-    emit('log', { type: 'ok', message: `GPT-4o scoring complete — ${usage.totalTokens} tokens used (${usage.inputTokens} in / ${usage.outputTokens} out)` });
+    emit('log', { type: 'ok', message: `GPT-4o mini scoring complete — ${usage.totalTokens} tokens used (${usage.inputTokens} in / ${usage.outputTokens} out)` });
     emit('progress', { step: 'claude', pct: 90, message: 'Scoring complete — building report…' });
 
     // ── STEP 4: Merge backend heuristics into final report ──────────────────

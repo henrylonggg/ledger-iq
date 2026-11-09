@@ -1,0 +1,50 @@
+Inventory Schedule - Acme Manufacturing Inc.,12/31/2022,12/31/2023,12/31/2024
+(All figures in USD),,,
+,,,
+INVENTORY DETAIL BY CATEGORY,,,
+  Raw Materials,285000,342000,428000
+  Work-in-Process (WIP),148000,182000,241000
+  Finished Goods,210000,268000,342000
+  Supplies & Consumables,42000,48000,54000
+  Obsolete / Reserved (net of reserve),-38000,-52000,-89000
+,,,
+  TOTAL INVENTORY (net),647000,788000,976000
+,,,
+INVENTORY RESERVES DETAIL,,,
+  Beginning Reserve,22000,38000,52000
+  Additions to Reserve (expense),28000,32000,61000
+  Write-offs Against Reserve,-12000,-18000,-24000
+  Ending Reserve,38000,52000,89000
+,,,
+NOTE: Obsolescence reserve increased 71% YoY ($52K to $89K). Management attributes,,,
+to slower-moving product lines (Legacy Series). No formal reserve policy on file.,,,
+,,,
+INVENTORY TURNOVER ANALYSIS,FY2022,FY2023,FY2024
+  Cost of Goods Sold,2607500,2965000,3464000
+  Average Inventory,569000,717500,882000
+  Inventory Turns,4.59x,4.13x,3.93x
+  Days Inventory Outstanding (DIO),79.5 days,88.3 days,92.9 days
+  Industry Benchmark DIO,65-75 days,65-75 days,65-75 days
+,,,
+NOTE: Inventory turns declining 3 consecutive years. DIO of 93 days vs. 65-75 day,,,
+industry benchmark suggests excess inventory build or slowing sales velocity.,,,
+,,,
+FINISHED GOODS DETAIL - December 31 2024,Units,Unit Cost,Total Value,Months on Hand
+  Premium Series (high-margin),1842,$118,$217,356,2.1 months
+  Standard Series (core product),3285,$64,$210,240,3.8 months
+  Legacy Series (aging / slow-moving),2940,$31,$91,140,8.4 months
+  Custom Orders (pre-sold),820,$94,$76,880,Contracted
+,,,
+  Total Finished Goods (gross),,,$595,616,
+  Less: Obsolescence Reserve (Legacy Series),,,(-$89,000),
+  Total Finished Goods (net),,,$506,616,
+,,,
+LOCATION DETAIL - December 31 2024,Value,% of Total,,
+  Main Facility (owned),641000,65.7%,,
+  Warehouse A - 3rd Party (Elk Grove),189000,19.4%,,
+  Warehouse B - 3rd Party (Joliet),108000,11.1%,,
+  In-Transit,38000,3.9%,,
+  TOTAL,976000,100%,,
+,,,
+NOTE: 3rd party warehouse arrangements are month-to-month with no long-term contracts.,,,
+Warehouse A lease is up for renegotiation in Q2 2025 with anticipated 15-20% rate increase.,,,

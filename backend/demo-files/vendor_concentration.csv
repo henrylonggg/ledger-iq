@@ -1,0 +1,62 @@
+Vendor Concentration & Procurement Analysis - Acme Manufacturing Inc.,FY2022,FY2023,FY2024
+(All figures in USD),,,
+,,,
+TOP 15 VENDORS BY SPEND,FY2022,FY2023,FY2024
+  Midwest Steel Supply Co.,485000,562000,648000
+  Anderson Consulting Group (Related Party),240000,240000,240000
+  Logistics Partners Inc.,188000,214000,246000
+  Alliance Chemical Corp.,142000,168000,195000
+  Precision Parts LLC,118000,145000,178000
+  National Packaging Solutions,88000,102000,118000
+  Westlake Accounting Partners LLP,42000,58000,74000
+  Tri-State Equipment Corp.,38000,45000,62000
+  Greenfield Plastics,42000,48000,55000
+  Summit Industrial Gases,28000,32000,38000
+  Meridian Legal Group,18000,24000,32500
+  Marketing Solutions Inc.,22000,28000,35000
+  Carson Electrical Supply,15000,18000,22000
+  Western Fasteners & Hardware,12000,15000,20000
+  IT Support & Cloud Services,24000,30000,38000
+  All Other Vendors,106000,131000,174500
+,,,
+  TOTAL VENDOR SPEND,1608000,1860000,2176000
+,,,
+CONCENTRATION METRICS,FY2022,FY2023,FY2024
+  Top 1 Vendor (Midwest Steel) % of Total Spend,30.2%,30.2%,29.8%
+  Top 3 Vendors % of Total Spend,56.8%,54.6%,52.5%
+  Top 5 Vendors % of Total Spend,76.0%,73.6%,70.3%
+  Number of Active Vendors,38,44,51
+,,,
+VENDOR DEPENDENCY ANALYSIS,,,
+  Midwest Steel Supply Co.:,,,
+    Single-source supplier for primary raw material (grade 304 stainless),,,
+    No formal long-term contract in place - annual pricing negotiation,,,
+    Lead time: 6-8 weeks on custom orders,,,
+    Quoted FY2025 price increase: 10-14%,,,
+    Alternative qualified vendors: None currently (qualification takes 3-6 months),,,
+,,,
+  Anderson Consulting Group (Related Party):,,,
+    Owned by Robert Anderson - brother-in-law of CEO James Anderson,,,
+    Contract not competitively bid - relationship-based arrangement,,,
+    Services described as "strategic advisory" - no detailed SOW on file,,,
+    Has been invoiced $20K/month for 36+ consecutive months,,,
+    No documented deliverables or performance metrics,,,
+    Termination: Would require 90-day notice per informal agreement,,,
+,,,
+  Alliance Chemical Corp.:,,,
+    Sole approved supplier for industrial coatings per product certification,,,
+    Customer product certifications require this specific coating formulation,,,
+    Switching cost: Loss of 3 product certifications ($420K annual revenue at risk),,,
+,,,
+CONTRACT STATUS - MAJOR VENDORS,Contract Type,Term,Price Protection,Single Source?
+  Midwest Steel Supply Co.,Annual spot pricing,1 year,None,YES - primary
+  Anderson Consulting Group,Month-to-month informal,N/A,N/A,Related party
+  Logistics Partners Inc.,Annual contract,12 months,Fixed for term,No (3 alternatives)
+  Alliance Chemical Corp.,Annual supply agreement,12 months,2% cap,YES - certified
+  Precision Parts LLC,Purchase order basis,Per PO,None,No (2 alternatives)
+,,,
+PROCUREMENT RISK SUMMARY,,,
+  Single-source exposure (Midwest Steel alone): ~30% of total COGS,,,
+  Related-party spend as % of total vendor spend: 11.0% (FY2024),,,
+  Vendors without formal contracts: 7 of top 15,,,
+  Vendors with no price protection: 9 of top 15,,,

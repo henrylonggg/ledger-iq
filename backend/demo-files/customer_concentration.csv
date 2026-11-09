@@ -1,0 +1,51 @@
+Customer Concentration & Revenue Analysis - Acme Manufacturing Inc.,FY2022,FY2023,FY2024
+(All figures in USD),,,
+,,,
+TOP 10 CUSTOMERS BY REVENUE,,,
+,FY2022 Revenue,FY2023 Revenue,FY2024 Revenue
+  Acme Retail Group,890000,1020000,1180000
+  Northfield Distributors,680000,742000,810000
+  Pacific Trading Group,420000,395000,340000
+  Great Lakes Industrial,310000,385000,490000
+  SunCoast Manufacturing,285000,310000,328000
+  Prairie Home Supplies,220000,268000,310000
+  Midwest Industrial Partners,195000,220000,245000
+  Harrison Distribution LLC,180000,195000,0
+  Apex Supply Chain Corp.,155000,188000,215000
+  Western Industrial Group,0,0,185000
+  All Other Customers (combined),415000,757000,1307000
+,,,
+  TOTAL REVENUE,4750000,5480000,6410000
+,,,
+CONCENTRATION ANALYSIS,FY2022,FY2023,FY2024
+  Top 1 Customer % of Revenue,18.7%,18.6%,18.4%
+  Top 3 Customers % of Revenue,41.9%,39.3%,36.3%
+  Top 5 Customers % of Revenue,52.7%,51.3%,48.0%
+  Top 10 Customers % of Revenue,91.3%,86.2%,79.6%
+  Number of Active Customers,42,56,74
+,,,
+CONTRACT STATUS - TOP CUSTOMERS,Contract Type,Expiration,Annual Value,Auto-Renew?
+  Acme Retail Group,Multi-year MSA,June 2026,$1.18M,Yes - 90 day notice
+  Northfield Distributors,Annual PO,December 2025,$810K,No - bid each year
+  Pacific Trading Group,Month-to-month,N/A,$340K,No contract - AT RISK
+  Great Lakes Industrial,Multi-year MSA,March 2027,$490K,Yes - 60 day notice
+  SunCoast Manufacturing,Annual PO,September 2025,$328K,No - bid each year
+,,,
+NOTABLE ISSUES,,,
+  Harrison Distribution LLC: Customer lost in FY2024 - went to competitor on price.,,,
+  Revenue impact: -$195K vs. FY2023. No contract was in place.,,,
+,,,
+  Pacific Trading Group: Revenue declining 3 consecutive years (-19% total).,,,
+  Currently month-to-month. CFO of Pacific Trading contacted competitor in Q3 2024.,,,
+  At risk of full loss estimated $340K revenue impact in FY2025.,,,
+,,,
+  Customer Count Growth: Active customers grew from 42 to 74 (+76%) over 3 years,,,
+  driven by sales team expansion. However average revenue per new customer is,,,
+  significantly lower ($18K) vs. legacy customers ($92K).,,,
+,,,
+CUSTOMER CREDIT QUALITY,Credit Limit,Balance 12/31/24,Utilization,Past Due?
+  Acme Retail Group,$1,500,000,$215,000,14.3%,No
+  Northfield Distributors,$1,000,000,$112,000,11.2%,No
+  Pacific Trading Group,$500,000,$80,000,16.0%,$35K over 90d
+  Great Lakes Industrial,$750,000,$65,000,8.7%,No
+  SunCoast Manufacturing,$500,000,$48,000,9.6%,No

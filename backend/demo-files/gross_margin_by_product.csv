@@ -1,0 +1,66 @@
+Gross Margin Analysis by Product Line - Acme Manufacturing Inc.,FY2022,FY2023,FY2024
+(All figures in USD),,,
+,,,
+REVENUE BY PRODUCT LINE,FY2022,FY2023,FY2024
+  Premium Series (high-margin manufactured goods),1425000,1680000,1920000
+  Standard Series (core volume product),2010000,2210000,2430000
+  Legacy Series (older SKUs - declining),820000,660000,490000
+  Custom / Project Work (non-recurring),0,480000,830000
+  Service & Maintenance Contracts,310000,250000,520000
+  Other / Miscellaneous,185000,200000,220000
+,,,
+  TOTAL REVENUE,4750000,5480000,6410000
+,,,
+COST OF GOODS SOLD BY PRODUCT LINE,FY2022,FY2023,FY2024
+  Premium Series,712500,840000,998400
+  Standard Series,1206000,1348100,1555200
+  Legacy Series,598600,508200,392000
+  Custom / Project Work,0,384000,689000
+  Service & Maintenance Contracts,62000,52500,124800
+  Other / Miscellaneous,28400,32200,42000
+,,,
+  TOTAL COGS,2607500,3164000,3801400
+,,,
+GROSS PROFIT BY PRODUCT LINE,FY2022,FY2023,FY2024
+  Premium Series,712500,840000,921600
+  Standard Series,804000,861900,874800
+  Legacy Series,221400,151800,98000
+  Custom / Project Work,0,96000,141000
+  Service & Maintenance Contracts,248000,197500,395200
+  Other / Miscellaneous,156600,167800,178000
+,,,
+  TOTAL GROSS PROFIT,2142500,2315000,2608600
+,,,
+GROSS MARGIN % BY PRODUCT LINE,FY2022,FY2023,FY2024
+  Premium Series,50.0%,50.0%,48.0%
+  Standard Series,40.0%,39.0%,36.0%
+  Legacy Series,27.0%,23.0%,20.0%
+  Custom / Project Work,N/A,20.0%,17.0%
+  Service & Maintenance Contracts,80.0%,79.0%,76.0%
+  Blended Gross Margin,45.1%,42.2%,40.7%
+,,,
+KEY OBSERVATIONS,,,
+1. MARGIN COMPRESSION: Blended gross margin declining 440bps over 3 years (45.1% to 40.7%).,,,
+   Driven by: (a) mix shift toward lower-margin Custom/Project work,,,
+              (b) raw material cost increases not fully passed through,,,
+              (c) Legacy Series negative mix effect,,,
+,,,
+2. CUSTOM PROJECT GROWTH: Custom/Project revenue grew from $0 to $830K (+173%) in 2 years.,,,
+   This is non-recurring revenue at 17% gross margin vs 48%+ for core products.,,,
+   Mix shift is diluting reported gross margins meaningfully.,,,
+,,,
+3. LEGACY SERIES WIND-DOWN: Revenue declining -40% over period with margins falling.,,,
+   Management has not formalized a sunset plan. Inventory risk as units age.,,,
+,,,
+4. SERVICE REVENUE BRIGHT SPOT: Service & Maintenance grew from $310K to $520K (+68%),,,
+   at 76% gross margin. Highest-quality revenue segment.,,,
+,,,
+PRICING & COST DRIVERS,FY2022,FY2023,FY2024
+  Average Steel Input Cost ($/ton),842,968,1024
+  Labor Cost per Unit (Standard Series),$18.40,$19.80,$21.20
+  Freight Cost as % of Revenue,3.2%,3.8%,4.4%
+  Price Increases Implemented,0.0%,2.5%,3.0%
+  Input Cost Increases (est.),4.5%,8.2%,6.8%
+,,,
+NOTE: Input costs have outpaced price increases for 3 consecutive years.,,,
+Management has not fully offset commodity inflation with pricing.,,,

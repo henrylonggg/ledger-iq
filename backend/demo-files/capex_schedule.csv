@@ -1,0 +1,50 @@
+Capital Expenditure Schedule - Acme Manufacturing Inc.,FY2022,FY2023,FY2024
+(All figures in USD),,,
+,,,
+CAPEX BY CATEGORY,,,
+  Machinery & Production Equipment,180000,210000,265000
+  Facility Improvements / Build-out,42000,68000,95000
+  Vehicles & Fleet,28000,0,32000
+  IT Infrastructure & Hardware,18000,24000,38000
+  Software & Licenses (capitalized),45000,38000,72000
+  Furniture & Fixtures,0,0,16000
+  Other,,,0
+,,,
+  TOTAL CAPEX,313000,340000,518000
+  Less: Proceeds from Asset Sales,0,-22000,0
+  Net CapEx,313000,318000,518000
+,,,
+CAPEX VS. DEPRECIATION,FY2022,FY2023,FY2024
+  Total CapEx,313000,340000,518000
+  Total Depreciation & Amortization,284000,296000,312000
+  CapEx / D&A Ratio,1.10x,1.15x,1.66x
+  Maintenance CapEx (estimated),160000,170000,185000
+  Growth CapEx (estimated),153000,170000,333000
+,,,
+NOTE: FY2024 CapEx spike (+52% YoY) driven by two major items:,,,
+1. New CNC machining center ($185K) - installed Q3 2024,,,
+2. ERP system implementation ($142K capitalized of $210K total project),,,
+,,,
+FY2024 SIGNIFICANT PROJECTS,Budget,Actual,Status,ROI Estimate
+  CNC Machining Center - Line 3 Expansion,175000,187500,Complete,22-28% IRR per mgmt
+  ERP System (Microsoft Dynamics 365),210000,224000,In progress (65% complete),Efficiency gains
+  Roof Replacement - Main Facility,85000,95000,Complete,N/A (maintenance)
+  Fork Lift Replacement (2 units),32000,32000,Complete,N/A (replacement)
+  R&D Lab Expansion,78000,0,CANCELLED,N/A
+,,,
+NOTE: ERP implementation is 35% over initial budget and not yet complete.,,,
+Remaining estimated spend in FY2025: $75K-$120K. Total project cost likely $300K+.,,,
+,,,
+PROPERTY PLANT & EQUIPMENT ROLLFORWARD,,,
+,Gross PP&E,Accum. Depr.,Net PP&E
+  Balance 12/31/2021,3240000,-1180000,2060000
+  Balance 12/31/2022,3553000,-1399000,2154000
+  Balance 12/31/2023,3875000,-1621000,2254000
+  Balance 12/31/2024,4318000,-1927000,2391000
+,,,
+  Useful Lives Used:,,,
+    Buildings & Improvements,25-40 years,,
+    Machinery & Equipment,5-15 years,,
+    Vehicles,5 years,,
+    Computers & IT,3-5 years,,
+    Software,3-7 years,,

@@ -1,0 +1,43 @@
+Accounts Payable Aging Report - Acme Manufacturing Inc. - As of December 31 2024,Current (0-30),31-60 Days,61-90 Days,Over 90 Days,Total,Notes
+,,,,,
+TRADE PAYABLES
+  Midwest Steel Supply Co.,285000,42000,,,327000,Primary raw material supplier
+  Precision Parts LLC,118000,28000,15000,,161000,Sub-assembly components
+  Alliance Chemical Corp.,94000,,,94000,Industrial coatings & solvents
+  Logistics Partners Inc.,67000,12000,,,79000,Freight & distribution
+  National Packaging Solutions,45000,8000,4500,,57500,Packaging materials
+  Tri-State Equipment Corp.,38000,,,38000,Maintenance parts
+  Greenfield Plastics,29000,6000,,,35000,Raw material - plastics
+  Summit Industrial Gases,22000,,,22000,Manufacturing gases
+  Western Fasteners & Hardware,18500,3200,,,21700,Assembly hardware
+  Carson Electrical Supply,16000,,,16000,Electrical components
+,,,,,
+  Subtotal - Trade Payables,732500,99200,19500,,851200,
+,,,,,
+PROFESSIONAL SERVICES & OTHER
+  Anderson Consulting Group (Related Party),60000,60000,60000,60000,240000,FLAGGED: Related-party management fees; $20K/month; SEE NOTE 1
+  Westlake Accounting Partners LLP,18500,,,18500,Annual audit & tax prep
+  Meridian Legal Group,12000,8500,,,20500,General counsel retainer + disputes
+  Marketing Solutions Inc.,14000,7000,,,21000,
+  IT Support & Cloud Services (various),9500,,,9500,
+,,,,,
+  Subtotal - Professional Services,114000,75500,60000,60000,309500,
+,,,,,
+TOTAL ACCOUNTS PAYABLE,846500,174700,79500,60000,1160700,
+,,,,,
+AGING ANALYSIS,,,,,
+  % Current (0-30 days),72.9%,,,,
+  % Overdue (31+ days),27.1%,,,,
+  % Over 90 days,5.2%,,,,
+  Days Payable Outstanding (DPO) - FY2024,51 days,,,,Benchmark: 45-55 days (manufacturing)
+  Days Payable Outstanding (DPO) - FY2023,44 days,,,,DPO increasing YoY
+  Days Payable Outstanding (DPO) - FY2022,39 days,,,,
+,,,,,
+NOTE 1 - RELATED PARTY PAYABLE: Anderson Consulting Group is owned by Robert Anderson,,,,,
+who is the brother-in-law of CEO James Anderson. Contract was not competitively bid.,,,,,
+Management fee of $20K/month ($240K/year) for "strategic advisory services".,,,,,
+No formal service agreement was provided to auditors. This payable has been outstanding,,,,,
+60-90+ days on a rolling basis suggesting possible cash flow constraint.,,,,,
+,,,,,
+NOTE 2 - VENDOR CONCENTRATION: Top 3 vendors represent 50.1% of total AP balance.,,,,,
+Midwest Steel Supply has verbally indicated potential price increases of 8-12% in 2025.,,,,,

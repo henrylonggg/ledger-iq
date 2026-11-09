@@ -1,0 +1,58 @@
+General Ledger Sample - Selected Accounts - Acme Manufacturing Inc.,,,,,
+Period: January 1 2024 - December 31 2024,,,,,
+NOTE: This is a representative sample of high-risk GL accounts flagged for review.,,,,,
+,,,,,
+ACCOUNT: 6150 - Consulting & Professional Fees,,,,,
+Date,Vendor,Description,Amount,Approved By,Notes
+1/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - January,$20,000,J. Anderson,Related party - owner brother-in-law
+2/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - February,$20,000,J. Anderson,Related party
+2/28/2024,Meridian Legal Group,Outside counsel - employment matter,$8,500,J. Anderson,
+3/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - March,$20,000,J. Anderson,Related party
+3/22/2024,Various contractors,Q1 1099 consulting services,$28,400,R. Anderson,
+4/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - April,$20,000,J. Anderson,Related party
+5/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - May,$20,000,J. Anderson,Related party
+5/31/2024,Various contractors,Q2 1099 consulting services,$31,200,R. Anderson,Contractor headcount growing
+6/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - June,$20,000,J. Anderson,Related party
+7/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - July,$20,000,J. Anderson,Related party
+8/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - August,$20,000,J. Anderson,Related party
+8/31/2024,Various contractors,Q3 1099 consulting services,$34,800,R. Anderson,
+9/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - September,$20,000,J. Anderson,Related party
+10/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - October,$20,000,J. Anderson,Related party
+10/31/2024,Meridian Legal Group,Outside counsel - vendor dispute,$12,000,J. Anderson,
+11/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - November,$20,000,J. Anderson,Related party
+11/30/2024,Various contractors,Q4 1099 consulting services,$38,200,R. Anderson,
+12/15/2024,Anderson Consulting Group,Monthly strategic advisory fee - December,$20,000,J. Anderson,Related party
+,,,,,
+ACCOUNT 6150 TOTAL FY2024,,$372,100,,,
+,,,,,
+ACCOUNT: 6500 - Travel Meals & Entertainment,,,,,
+Date,Vendor,Description,Amount,Approved By,Notes
+1/8/2024,Marriott Hotels,Hotel - J. Anderson - Chicago,$485,Self-approved,
+1/14/2024,American Airlines,Flights - J. Anderson + spouse - Miami,$2,200,Self-approved,FLAGGED: spouse travel
+2/19/2024,Capital Grille - Chicago,Client dinner - 2 persons,$380,J. Anderson,
+3/5/2024,Grand Wailea Resort,Hotel - J. Anderson family - Hawaii,$4,800,Self-approved,FLAGGED: family resort stay
+4/12/2024,Topgolf Chicago,Team event - sales team 12 persons,$2,200,R. Anderson,
+5/22/2024,Various,Trade show expenses - IMTS,$3,400,J. Anderson,Legitimate
+6/15/2024,Delta Airlines,Flights - M. Anderson - New York,$890,Self-approved,
+7/4/2024,Morton's Steakhouse,Dinner - J. Anderson + family,$680,Self-approved,FLAGGED: family meal
+8/8/2024,Various,Client entertainment Q3,$4,200,J. Anderson,
+9/12/2024,Marriott Bonvoy,Hotel upgrades - J. Anderson,$380,Self-approved,
+10/18/2024,Chicago Bulls tickets (suite),Client entertainment - 8 persons,$3,600,J. Anderson,
+11/22/2024,Various,Holiday gifts - customers,$4,800,J. Anderson,
+12/14/2024,Four Seasons Chicago,Holiday party - company,$12,400,J. Anderson,
+12/20/2024,Delta Airlines,Flights - J. Anderson + 2 family,$3,800,Self-approved,FLAGGED: appears personal
+,,,,,
+ACCOUNT 6500 TOTAL FY2024,,$44,215,,,
+  Items flagged as potentially personal: ~$12,000-$15,000,,,
+,,,,,
+ACCOUNT: 1200 - Intercompany / Related Party Receivables,,,,,
+Date,Transaction,Amount,Counterparty,Status,Notes
+3/31/2024,Anderson Family LLC - advance,$50,000,Anderson Family LLC,Outstanding,No formal loan agreement
+6/30/2024,Anderson Family LLC - additional advance,$75,000,Anderson Family LLC,Outstanding,No interest being charged
+9/30/2024,Anderson Family LLC - additional advance,$25,000,Anderson Family LLC,Outstanding,
+12/31/2024,Balance - Anderson Family LLC,$250,000,Anderson Family LLC,Outstanding,Interest-free; no maturity date
+,,,,,
+NOTE: Total related-party receivable from Anderson Family LLC is $250K as of year-end.,,,
+No formal loan agreement exists. No interest is being charged or accrued.,,,
+Management states this will be "settled at closing" - no documentation provided.,,,
+This receivable does not appear on the balance sheet provided to buyers - INVESTIGATE.,,,

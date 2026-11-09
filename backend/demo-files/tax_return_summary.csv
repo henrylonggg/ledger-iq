@@ -1,0 +1,55 @@
+Federal Tax Return Summary - Acme Manufacturing Inc. (Form 1120S),FY2022,FY2023,FY2024
+S-Corporation - Pass-Through Entity,,,
+,,,
+INCOME RECONCILIATION (Book vs. Tax),,,
+  Book Net Income (per financial statements),368250,448500,430500
+  Adjustments: Book-Tax Differences,,,
+    Accelerated Depreciation (Section 179 / Bonus),- 185000,-162000,-198000
+    Book Depreciation Add-Back,284000,296000,312000
+    Non-deductible Meals & Entertainment,8500,10200,12800
+    Non-deductible Penalties & Fines,0,4500,2200
+    Life Insurance Premiums (officer-owned),18000,18000,22000
+    Related-Party Management Fee (reclassified),240000,240000,240000
+    Section 263A UNICAP Adjustment,12000,15000,18000
+    Other Permanent Differences,3500,2800,4100
+,,,
+  TAXABLE INCOME (K-1 to shareholders),749250,873000,843600
+,,,
+NOTE: Large difference between book income ($430K) and taxable income ($844K) in FY2024,,,
+is primarily driven by: (1) accelerated bonus depreciation unwinding, and,,,
+(2) related-party management fee reclassification indicating IRS challenged deductibility.,,,
+,,,
+SCHEDULE K-1 DISTRIBUTIONS TO SHAREHOLDERS,FY2022,FY2023,FY2024
+  James Anderson (CEO - 60% owner),449550,523800,506160
+  Margaret Anderson (COO - 25% owner),187188,218250,210900
+  Robert Anderson (VP - 15% owner),112313,130950,126540
+  Total K-1 Income Allocated,749051,873000,843600
+,,,
+OWNER DISTRIBUTIONS VS. TAX LIABILITY,FY2022,FY2023,FY2024
+  Total K-1 Taxable Income (pass-through),749051,873000,843600
+  Estimated Combined Federal + State Tax Rate,32%,32%,32%
+  Estimated Tax Liability on Pass-Through Income,239696,279360,269952
+  Actual Cash Distributions Made,180000,240000,280000
+  Distribution Surplus / (Shortfall),(59696),(39360),10048
+,,,
+NOTE: FY2022 and FY2023 distributions were BELOW estimated tax liability.,,,
+Shareholders may have needed to fund tax payments from personal funds.,,,
+FY2024 is first year distributions roughly match tax liability.,,,
+,,,
+STATE TAX FILINGS,States Filed,Nexus Basis,Issues Noted
+  Illinois (HQ),Yes,Commercial Domicile,None
+  Indiana,Yes,Physical Presence (warehouse),None
+  Wisconsin,Yes,Economic Nexus (>$100K sales),New FY2024
+  Ohio,Yes,Economic Nexus (>$100K sales),New FY2024
+  Michigan,Under Review,Possible Economic Nexus,FLAGGED - possible unreported nexus exposure
+  Minnesota,No Filing,Sales ~$68K,Below threshold (review advised)
+,,,
+NOTE: Michigan nexus determination is under review. If nexus established retroactively,,,
+for FY2022-FY2024, estimated tax exposure is $45K-$80K plus penalties and interest.,,,
+,,,
+OPEN TAX YEARS / AUDIT STATUS,,,
+  FY2021: Closed (statute expired),,,
+  FY2022: Open - standard statute,,,
+  FY2023: Open - standard statute,,,
+  FY2024: Open - return filed September 2025 (extension),,,
+  IRS Audit History: No federal audits in past 5 years,,,

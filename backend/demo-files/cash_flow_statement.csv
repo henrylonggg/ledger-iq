@@ -1,0 +1,57 @@
+Cash Flow Statement - Acme Manufacturing Inc.,FY2022,FY2023,FY2024
+(All figures in USD),,,
+,,,
+OPERATING ACTIVITIES,,,
+  Net Income,368250,448500,430500
+  Adjustments to Reconcile Net Income:,,,
+    Depreciation & Amortization,284000,296000,312000
+    Amortization of Debt Issuance Costs,8500,8500,8500
+  Changes in Working Capital:,,,
+    (Increase) Decrease in Accounts Receivable,-82000,-148000,-210000
+    (Increase) Decrease in Inventory,-95000,-118000,-165000
+    (Increase) Decrease in Prepaid Expenses,-12000,-8500,-19000
+    Increase (Decrease) in Accounts Payable,88000,142000,224000
+    Increase (Decrease) in Accrued Liabilities,22000,18500,34000
+    Increase (Decrease) in Deferred Revenue,45000,62000,-28000
+,,,
+  Net Cash Provided by Operating Activities,626750,701500,587000
+,,,
+INVESTING ACTIVITIES,,,
+  Purchase of Property Plant & Equipment,-285000,-340000,-418000
+  Proceeds from Sale of Equipment,0,22000,0
+  Purchase of Intangible Assets (software),-45000,-38000,-72000
+  Security Deposits (net),-5000,0,8000
+,,,
+  Net Cash Used in Investing Activities,-335000,-356000,-482000
+,,,
+FINANCING ACTIVITIES,,,
+  Borrowings on Revolving Credit Facility,850000,1120000,1380000
+  Repayments on Revolving Credit Facility,-510000,-870000,-1080000
+  Repayments on Term Loan,-320000,-350000,-370000
+  Repayments on Equipment Financing,-52000,-43000,-46000
+  Owner Distributions / Dividends Paid,-180000,-240000,-280000
+  Proceeds from Owner Loan (Related Party),500000,0,0
+  Repayment of Owner Loan (Related Party),0,0,0
+,,,
+  Net Cash Provided by (Used in) Financing Activities,288000,-383000,-396000
+,,,
+,,,
+NET INCREASE (DECREASE) IN CASH,579750,-37500,-291000
+Cash at Beginning of Period,-299750,280000,242500
+Cash at End of Period,280000,242500,-48500
+,,,
+NOTE: FY2024 ending cash balance is NEGATIVE (-$48,500) before revolver draw. ,,,
+The company drew an additional $300K on the revolver in late December 2024 to fund,,,
+operations. Adjusted year-end cash balance is $251,500 after revolver adjustment.,,,
+,,,
+KEY METRICS,FY2022,FY2023,FY2024
+  Free Cash Flow (OCF less CapEx),341750,361500,169000
+  FCF Margin,7.2%,6.6%,2.6%
+  Cash Conversion Cycle (days),82,91,108
+  Operating Cash Flow / Net Income,1.70x,1.56x,1.36x
+,,,
+NOTES:,,,
+1. Working capital deterioration: AR growing faster than revenue (+49% vs +14%),,,
+2. Revolver usage increasing as operating cash flow declines,,,
+3. Owner distributions of $280K paid in FY2024 despite FCF compression,,,
+4. $500K owner loan received FY2022 remains outstanding (0% interest - related party),,,

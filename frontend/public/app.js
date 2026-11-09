@@ -237,11 +237,15 @@ function finishReport() {
   document.getElementById('k-queue').textContent = pending;
   document.getElementById('k-flags').textContent = redCt;
 
-  // Ring arc
+  // Ring arc (r=50, circumference=314)
   document.getElementById('ring-num').textContent = score;
   const arc = document.getElementById('score-arc');
-  arc.style.stroke = score >= 70 ? 'var(--emerald)' : score >= 45 ? 'var(--amber)' : 'var(--crimson)';
-  setTimeout(() => { arc.style.strokeDashoffset = 201 - (score / 100) * 201; }, 200);
+  const arcColor = score >= 70 ? 'var(--emerald)' : score >= 45 ? 'var(--amber)' : 'var(--crimson)';
+  arc.style.stroke = arcColor;
+  setTimeout(() => { arc.style.strokeDashoffset = 314 - (score / 100) * 314; }, 200);
+  // Grade label inside ring
+  const gradeEl = document.getElementById('ring-grade');
+  if (gradeEl) { gradeEl.textContent = r.grade || ''; gradeEl.style.color = arcColor; }
 
   // Grade color
   const g = r.grade || '';
@@ -250,10 +254,12 @@ function finishReport() {
   // Categories
   document.getElementById('cat-stack').innerHTML = (r.categories || []).map(c => {
     const col = c.color === 'green' ? 'var(--emerald)' : c.color === 'red' ? 'var(--crimson)' : 'var(--amber)';
+    const sc = c.score || 0;
     return `<div class="cat-row">
+      <div class="cat-badge" style="background:${col};box-shadow:0 0 6px ${col}44"></div>
       <span class="cat-name">${esc(c.name)}</span>
-      <div class="cat-track"><div class="cat-fill" style="width:${c.score||0}%;background:${col}"></div></div>
-      <span class="cat-num" style="color:${col}">${c.score || 0}</span>
+      <div class="cat-track"><div class="cat-fill" style="width:${sc}%;background:${col}"></div></div>
+      <span class="cat-num" style="color:${col}">${sc}</span>
     </div>`;
   }).join('');
 

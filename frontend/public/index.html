@@ -62,7 +62,7 @@ html, body {
 button { cursor: pointer; font-family: var(--ui); }
 
 /* ─── SHELL ───────────────────────────────────────────────── */
-.shell { display: flex; min-height: 100vh; }
+.shell { display: flex; height: 100vh; overflow: hidden; }
 .sidebar {
   width: 220px;
   background: var(--ink1);
@@ -70,12 +70,10 @@ button { cursor: pointer; font-family: var(--ui); }
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
   height: 100vh;
   overflow-y: auto;
 }
-.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 
 /* ─── BRAND ───────────────────────────────────────────────── */
 .brand {
@@ -271,8 +269,8 @@ button { cursor: pointer; font-family: var(--ui); }
 .btn-sm { padding: 5px 10px; font-size: 11.5px; }
 
 /* ─── PAGES ───────────────────────────────────────────────── */
-.page { display: none; flex: 1; overflow-y: auto; padding: 24px; }
-.page.active { display: block; }
+.page { display: none; flex: 1; overflow-y: auto; padding: 24px; min-height: 0; }
+.page.active { display: flex; flex-direction: column; }
 
 /* ─── UPLOAD PAGE ─────────────────────────────────────────── */
 .upload-shell {
@@ -450,25 +448,44 @@ button { cursor: pointer; font-family: var(--ui); }
 .panel-label { font-family: var(--mono); font-size: 9.5px; color: var(--dim); letter-spacing: .1em; margin-bottom: 14px; }
 
 /* ─── SCORE RING ──────────────────────────────────────────── */
-.ring-flex { display: flex; gap: 20px; align-items: flex-start; }
-.ring-wrap { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+.ring-flex { display: flex; gap: 24px; align-items: center; }
+.ring-wrap { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
 .ring-wrap svg { transform: rotate(-90deg); }
 .ring-center {
   position: absolute; inset: 0;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   font-family: var(--mono);
+  gap: 2px;
 }
-.ring-num { font-size: 20px; font-weight: 500; color: var(--bright); line-height: 1; }
-.ring-den { font-size: 9px; color: var(--dim); margin-top: 1px; }
+.ring-num { font-size: 32px; font-weight: 700; color: var(--bright); line-height: 1; letter-spacing: -.03em; }
+.ring-den { font-size: 10px; color: var(--dim); }
+.ring-grade {
+  font-size: 9.5px; letter-spacing: .08em;
+  font-family: var(--mono); margin-top: 1px;
+}
 
 /* ─── CATEGORIES ──────────────────────────────────────────── */
-.cat-stack { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-.cat-row { display: flex; align-items: center; gap: 8px; }
-.cat-name { font-size: 11.5px; color: var(--muted); width: 128px; flex-shrink: 0; }
-.cat-track { flex: 1; height: 3px; background: var(--ink3); border-radius: 2px; overflow: hidden; }
+.cat-stack { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.cat-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px;
+  background: var(--ink2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  transition: border-color .15s;
+}
+.cat-row:hover { border-color: var(--line2); }
+.cat-name { font-size: 11.5px; color: var(--muted); width: 120px; flex-shrink: 0; }
+.cat-track { flex: 1; height: 4px; background: var(--ink3); border-radius: 2px; overflow: hidden; }
 .cat-fill { height: 100%; border-radius: 2px; transition: width .9s ease; }
-.cat-num { font-family: var(--mono); font-size: 11px; width: 28px; text-align: right; flex-shrink: 0; }
+.cat-num {
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  width: 32px; text-align: right; flex-shrink: 0;
+}
+.cat-badge {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}
 
 /* ─── FLAGS ───────────────────────────────────────────────── */
 .flag {
@@ -592,8 +609,9 @@ tr:hover td { background: var(--ink2); }
 .bar-fill { height: 100%; border-radius: 2px; }
 
 /* ─── NARRATIVE PAGE ──────────────────────────────────────── */
-.narrative-page { max-width: 680px; }
+.narrative-page { max-width: 760px; }
 .narrative-page .panel + .panel { margin-top: 10px; }
+.narrative-page .prose { font-size: 13.5px; line-height: 1.9; }
 
 /* ─── EMPTY ───────────────────────────────────────────────── */
 .empty {
@@ -625,7 +643,7 @@ tr:hover td { background: var(--ink2); }
   position: fixed; inset: 0; z-index: 9999;
   background: var(--ink);
   display: flex; flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 #page-landing.exit {
   animation: landingExit .55s cubic-bezier(.4,0,.2,1) forwards;
@@ -697,11 +715,9 @@ tr:hover td { background: var(--ink2); }
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 50%) minmax(0, 50%);
-  align-items: center;
-  padding: 0 7% 0 7%;
+  align-items: start;
+  padding: 20px 7% 40px 7%;
   gap: 40px;
-  min-height: 0;
-  overflow: hidden;
 }
 
 /* Left column */
@@ -1378,24 +1394,25 @@ tr:hover td { background: var(--ink2); }
         <div class="panel-label">Score breakdown</div>
         <div class="ring-flex">
           <div class="ring-wrap">
-            <svg width="80" height="80" viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="32" fill="none" stroke="#182236" stroke-width="5.5"/>
-              <circle cx="40" cy="40" r="32" fill="none" id="score-arc"
-                stroke="var(--teal)" stroke-width="5.5"
-                stroke-dasharray="201" stroke-dashoffset="201"
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#182236" stroke-width="7"/>
+              <circle cx="60" cy="60" r="50" fill="none" id="score-arc"
+                stroke="var(--teal)" stroke-width="7"
+                stroke-dasharray="314" stroke-dashoffset="314"
                 stroke-linecap="round"
                 style="transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)"/>
             </svg>
             <div class="ring-center">
               <span class="ring-num" id="ring-num">—</span>
               <span class="ring-den">/100</span>
+              <span class="ring-grade" id="ring-grade"></span>
             </div>
           </div>
           <div class="cat-stack" id="cat-stack"></div>
         </div>
       </div>
 
-      <div class="panel" style="overflow-y:auto; max-height:260px">
+      <div class="panel" style="overflow-y:auto; max-height:320px">
         <div class="panel-label">Key findings</div>
         <div id="flags-box"></div>
       </div>

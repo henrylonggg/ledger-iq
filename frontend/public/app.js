@@ -137,20 +137,51 @@ function showProgressPage() {
   setProg(0, 'Starting analysis…', 'Connecting to backend');
 }
 
+// Wake the Render server and wait up to 60s for it to respond
+async function wakeBackend() {
+  const TIMEOUT = 60000;
+  const start   = Date.now();
+  addLog('Connecting to backend…', 'info');
+  setProg(2, 'Waking server…', 'Cold-start may take ~30s on first use');
+
+  while (Date.now() - start < TIMEOUT) {
+    try {
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 8000);
+      const r    = await fetch(`${API_BASE}/api/health`, { signal: ctrl.signal });
+      clearTimeout(tid);
+      if (r.ok) { addLog('Backend ready.', 'ok'); return true; }
+    } catch { /* still waking */ }
+    const elapsed = Math.round((Date.now() - start) / 1000);
+    addLog(`Server starting… (${elapsed}s)`, 'info');
+    setProg(3 + Math.min(elapsed, 25), `Waking server… ${elapsed}s`, 'Render cold-start in progress');
+    await new Promise(r => setTimeout(r, 4000));
+  }
+  throw new Error('Backend did not respond within 60 seconds. Try again.');
+}
+
 async function startAnalysis() {
   if (!files.length) return;
 
   showProgressPage();
-  addLog('Connecting to backend…', 'info');
 
   try {
+    await wakeBackend();
+
+    addLog('Uploading files…', 'info');
+    setProg(30, 'Uploading files…');
+
     const fd = new FormData();
     for (const f of files) fd.append('files', f);
 
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 300000); // 5 min max
     const resp = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
-      body: fd
+      body: fd,
+      signal: ctrl.signal
     });
+    clearTimeout(tid);
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
@@ -410,32 +441,401 @@ function renderTxTable() {
 // ═══════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════
-function exportReport() {
+// ─── Professional Excel Export ────────────────────────────────────────────────
+async function exportReport() {
   if (!report) return;
   const r = report;
-  const lines = [
-    'LEDGER IQ — QUALITY OF EARNINGS REPORT', '='.repeat(60), '',
-    `Score: ${r.score}/100   Grade: ${r.grade}`,
-    `Verdict: ${r.verdict}`, '',
-    'Categories', '-'.repeat(40),
-    ...(r.categories||[]).map(c => `  ${c.name.padEnd(28)} ${c.score}/100`), '',
-    'Key Findings', '-'.repeat(40),
-    ...(r.flags||[]).map(f => `  [${(f.severity||'').toUpperCase()}] ${f.title}\n         ${f.detail}`), '',
-    'Analyst Narrative', '-'.repeat(40), r.narrative||'', '',
-    'Methodology', '-'.repeat(40), r.methodology||'', '',
-    'Transaction Detail', '-'.repeat(40),
-    ...(r.transactions||[]).map(t => {
-      const st = t.needsReview ? (reviewSt[t.id]||'PENDING').toUpperCase() : 'AUTO';
-      return `  [${(t.severity||'').toUpperCase()}] ${t.item}  (${t.amount||'N/A'})\n  Type:${t.type} | Change:${t.pctChange!=null?t.pctChange.toFixed(1)+'%':'—'} | Conf:${t.confidence}% | Review:${st}\n  Finding: ${t.finding}\n  Rec: ${t.recommendation}\n  Reasoning: ${t.confidenceReasoning}\n`;
-    }), '',
-    r._meta?.tokenUsage ? `Token usage: ${r._meta.tokenUsage.totalTokens} total (${r._meta.tokenUsage.inputTokens} in / ${r._meta.tokenUsage.outputTokens} out)` : '',
-    'Exported: ' + new Date().toLocaleString()
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'LedgerIQ-QoE-' + new Date().toISOString().slice(0,10) + '.txt';
-  a.click();
+
+  // Show brief status
+  const btn = document.getElementById('btn-export');
+  const origTxt = btn.textContent;
+  btn.textContent = 'Building…'; btn.disabled = true;
+
+  try {
+    const wb = new ExcelJS.Workbook();
+    wb.creator  = 'LedgerIQ';
+    wb.created  = new Date();
+    wb.modified = new Date();
+
+    // ── Palette ──────────────────────────────────────────────────────────────
+    const C = {
+      navy:    '060A14',
+      navy2:   '0D1626',
+      navy3:   '182236',
+      teal:    '0CCED4',
+      tealDim: '0A9EA3',
+      bright:  'E8F0FF',
+      muted:   '6B7FA3',
+      dim:     '3D4F6E',
+      emerald: '10B981',
+      amber:   'F59E0B',
+      crimson: 'EF4444',
+      white:   'FFFFFF',
+      black:   '000000',
+      rowAlt:  '0D1A2B',
+    };
+
+    const scoreColor = r.score >= 70 ? C.emerald : r.score >= 45 ? C.amber : C.crimson;
+
+    // Helper: apply header style to a row
+    function styleHeader(row, bgHex, fgHex, bold, sz) {
+      row.eachCell({ includeEmpty: true }, cell => {
+        cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + bgHex } };
+        cell.font   = { name: 'Calibri', bold: bold !== false, size: sz || 11, color: { argb: 'FF' + (fgHex || C.bright) } };
+        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+      });
+    }
+
+    function styleCellBorder(cell, edgeHex) {
+      const e = { style: 'thin', color: { argb: 'FF' + (edgeHex || C.dim) } };
+      cell.border = { top: e, left: e, bottom: e, right: e };
+    }
+
+    function colFill(cell, hex) {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + hex } };
+    }
+
+    function sevColor(sev) {
+      return sev === 'red' ? C.crimson : sev === 'yellow' ? C.amber : C.emerald;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHEET 1 — EXECUTIVE SUMMARY
+    // ══════════════════════════════════════════════════════════════════════════
+    const ws1 = wb.addWorksheet('Executive Summary', {
+      properties: { tabColor: { argb: 'FF' + C.teal } }
+    });
+    ws1.views = [{ state: 'frozen', ySplit: 1 }];
+
+    // Top banner
+    ws1.mergeCells('A1:H1');
+    const banner = ws1.getCell('A1');
+    banner.value = '  LEDGER IQ  —  QUALITY OF EARNINGS REPORT';
+    banner.font  = { name: 'Calibri', bold: true, size: 16, color: { argb: 'FF' + C.teal } };
+    banner.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } };
+    banner.alignment = { vertical: 'middle', horizontal: 'left' };
+    ws1.getRow(1).height = 36;
+
+    // Date / meta row
+    ws1.mergeCells('A2:H2');
+    const metaCell = ws1.getCell('A2');
+    metaCell.value = `  Generated: ${new Date().toLocaleString()}   |   Files: ${r._meta?.filesProcessed ?? '—'}   |   Transactions: ${r._meta?.totalTransactions ?? (r.transactions?.length ?? '—')}`;
+    metaCell.font  = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.muted } };
+    metaCell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy2 } };
+    metaCell.alignment = { vertical: 'middle', horizontal: 'left' };
+    ws1.getRow(2).height = 20;
+
+    ws1.addRow([]);
+
+    // ── Score block ──────────────────────────────────────────────────────────
+    const scoreRow = ws1.addRow(['', 'QoE SCORE', r.score + ' / 100', '', 'GRADE', r.grade || '—', '', 'VERDICT']);
+    scoreRow.height = 28;
+    ['B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(col => {
+      const c = ws1.getCell(scoreRow.number + col.charCodeAt(0) - 'A'.charCodeAt(0) > 0 ? `${col}${scoreRow.number}` : `A${scoreRow.number}`);
+    });
+    ws1.getCell(`B${scoreRow.number}`).value = 'QoE SCORE';
+    ws1.getCell(`B${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.muted } };
+    ws1.getCell(`C${scoreRow.number}`).value = r.score + ' / 100';
+    ws1.getCell(`C${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 20, color: { argb: 'FF' + scoreColor } };
+    ws1.getCell(`E${scoreRow.number}`).value = 'GRADE';
+    ws1.getCell(`E${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.muted } };
+    ws1.getCell(`F${scoreRow.number}`).value = r.grade || '—';
+    ws1.getCell(`F${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 20, color: { argb: 'FF' + scoreColor } };
+
+    ws1.addRow([]);
+
+    // ── Verdict block ────────────────────────────────────────────────────────
+    ws1.mergeCells(`B${ws1.rowCount + 1}:H${ws1.rowCount + 1}`);
+    const verdictLbl = ws1.lastRow;
+    verdictLbl.getCell('B').value = 'VERDICT';
+    verdictLbl.getCell('B').font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.teal } };
+    verdictLbl.height = 18;
+
+    ws1.mergeCells(`B${ws1.rowCount + 1}:H${ws1.rowCount + 4}`);
+    const verdRow = ws1.lastRow;
+    verdRow.getCell('B').value = r.verdict || '';
+    verdRow.getCell('B').font  = { name: 'Calibri', size: 11, color: { argb: 'FF' + C.bright } };
+    verdRow.getCell('B').alignment = { wrapText: true, vertical: 'top' };
+    verdRow.getCell('B').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy3 } };
+    ws1.getRow(ws1.rowCount).height = 72;
+
+    ws1.addRow([]);
+
+    // ── Category scores table ────────────────────────────────────────────────
+    const catHdr = ws1.addRow(['', 'CATEGORY', 'SCORE', 'RATING', 'COLOR', '', '', '']);
+    catHdr.height = 22;
+    styleHeader(catHdr, C.navy3, C.teal, true, 10);
+
+    for (const cat of (r.categories || [])) {
+      const col  = cat.color === 'green' ? C.emerald : cat.color === 'red' ? C.crimson : C.amber;
+      const sc   = cat.score || 0;
+      const stars = sc >= 80 ? '●●●●●' : sc >= 60 ? '●●●●○' : sc >= 40 ? '●●●○○' : sc >= 20 ? '●●○○○' : '●○○○○';
+      const row  = ws1.addRow(['', cat.name, sc, stars, '']);
+      row.height = 20;
+      row.getCell('B').font = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
+      row.getCell('C').font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FF' + col } };
+      row.getCell('D').font = { name: 'Calibri', size: 10, color: { argb: 'FF' + col } };
+      row.getCell('B').fill = row.getCell('C').fill = row.getCell('D').fill =
+        { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (ws1.rowCount % 2 === 0 ? C.navy2 : C.navy3) } };
+
+      // Thin bar using in-cell data bar approximation via border trick
+      const barCell = ws1.getCell(`E${row.number}`);
+      barCell.value = '';
+      barCell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + col } };
+      ws1.mergeCells(`E${row.number}:${String.fromCharCode('E'.charCodeAt(0) + Math.round(sc/5))}${row.number}`);
+    }
+
+    // ── Column widths ────────────────────────────────────────────────────────
+    ws1.getColumn('A').width = 3;
+    ws1.getColumn('B').width = 32;
+    ws1.getColumn('C').width = 12;
+    ws1.getColumn('D').width = 14;
+    ws1.getColumn('E').width = 8;
+    ws1.getColumn('F').width = 8;
+    ws1.getColumn('G').width = 8;
+    ws1.getColumn('H').width = 40;
+    ws1.properties.defaultRowHeight = 18;
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHEET 2 — FLAGS & FINDINGS
+    // ══════════════════════════════════════════════════════════════════════════
+    const ws2 = wb.addWorksheet('Flags & Findings', {
+      properties: { tabColor: { argb: 'FF' + C.crimson } }
+    });
+    ws2.views = [{ state: 'frozen', ySplit: 2 }];
+
+    ws2.mergeCells('A1:G1');
+    const f1banner = ws2.getCell('A1');
+    f1banner.value = '  FLAGS & KEY FINDINGS';
+    f1banner.font  = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } };
+    f1banner.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } };
+    f1banner.alignment = { vertical: 'middle' };
+    ws2.getRow(1).height = 32;
+
+    const flagHdrRow = ws2.addRow(['SEV', 'TITLE', 'DETAIL', 'CATEGORY', 'IMPACT', '', '']);
+    flagHdrRow.height = 22;
+    styleHeader(flagHdrRow, C.navy3, C.teal, true, 10);
+
+    for (const flag of (r.flags || [])) {
+      const sev  = (flag.severity || 'yellow').toLowerCase();
+      const col  = sevColor(sev);
+      const row  = ws2.addRow([sev.toUpperCase(), flag.title || '', flag.detail || '', flag.category || '', flag.impact || '']);
+      row.height = 48;
+      row.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + col } };
+      row.getCell(1).font  = { name: 'Calibri', bold: true, size: 9, color: { argb: 'FF' + C.black } };
+      row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell(2).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + col } };
+      row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
+      row.getCell(3).font  = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
+      row.getCell(3).alignment = { wrapText: true, vertical: 'top' };
+      row.getCell(4).font  = { name: 'Calibri', size: 9, color: { argb: 'FF' + C.muted } };
+      row.getCell(5).font  = { name: 'Calibri', size: 9, color: { argb: 'FF' + C.muted } };
+      [1,2,3,4,5].forEach(ci => {
+        row.getCell(ci).fill = row.getCell(ci).fill || { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (ws2.rowCount % 2 === 0 ? C.navy2 : C.navy3) } };
+        if (ci > 1) row.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (row.number % 2 === 0 ? C.navy2 : C.navy3) } };
+      });
+    }
+
+    ws2.getColumn(1).width = 8;
+    ws2.getColumn(2).width = 36;
+    ws2.getColumn(3).width = 60;
+    ws2.getColumn(4).width = 24;
+    ws2.getColumn(5).width = 24;
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHEET 3 — TRANSACTION DETAIL
+    // ══════════════════════════════════════════════════════════════════════════
+    const ws3 = wb.addWorksheet('Transaction Detail', {
+      properties: { tabColor: { argb: 'FF' + C.amber } }
+    });
+    ws3.views = [{ state: 'frozen', ySplit: 2 }];
+
+    ws3.mergeCells('A1:J1');
+    const t1banner = ws3.getCell('A1');
+    t1banner.value = '  TRANSACTION DETAIL';
+    t1banner.font  = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } };
+    t1banner.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } };
+    t1banner.alignment = { vertical: 'middle' };
+    ws3.getRow(1).height = 32;
+
+    const txHdr = ws3.addRow(['SEV', 'LINE ITEM', 'TYPE', 'AMOUNT', '% CHG', 'CONF %', 'REVIEW', 'FINDING', 'RECOMMENDATION', 'REASONING']);
+    txHdr.height = 22;
+    styleHeader(txHdr, C.navy3, C.teal, true, 9);
+
+    const txns = r.transactions || [];
+    for (const tx of txns) {
+      const sev   = (tx.severity || 'green').toLowerCase();
+      const col   = sevColor(sev);
+      const revSt = tx.needsReview ? (reviewSt[tx.id] || 'pending').toUpperCase() : 'AUTO';
+      const pct   = tx.pctChange != null ? (tx.pctChange > 0 ? '+' : '') + tx.pctChange.toFixed(1) + '%' : '—';
+      const row   = ws3.addRow([
+        sev.toUpperCase(), tx.item || '', tx.type || '', tx.formattedAmount || tx.amount || '',
+        pct, (tx.confidence || 0) + '%', revSt,
+        tx.finding || '', tx.recommendation || '', tx.confidenceReasoning || ''
+      ]);
+      row.height = 52;
+
+      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + col } };
+      row.getCell(1).font = { name: 'Calibri', bold: true, size: 8, color: { argb: 'FF' + C.black } };
+      row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      const bgHex = row.number % 2 === 0 ? C.navy2 : C.navy3;
+      for (let ci = 2; ci <= 10; ci++) {
+        row.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + bgHex } };
+        row.getCell(ci).alignment = { wrapText: true, vertical: 'top' };
+        row.getCell(ci).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + C.bright } };
+      }
+      row.getCell(2).font = { name: 'Calibri', bold: true, size: 9, color: { argb: 'FF' + col } };
+      row.getCell(4).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + C.bright }, bold: true };
+      row.getCell(5).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + (tx.pctChange > 50 ? C.crimson : tx.pctChange > 15 ? C.amber : C.bright) } };
+      row.getCell(6).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + ((tx.confidence || 0) >= 80 ? C.emerald : (tx.confidence || 0) >= 50 ? C.amber : C.crimson) } };
+      row.getCell(7).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + (revSt === 'AUTO' ? C.muted : C.amber) } };
+    }
+
+    // Auto-filter
+    ws3.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2 + txns.length, column: 10 } };
+
+    ws3.getColumn(1).width  = 7;
+    ws3.getColumn(2).width  = 32;
+    ws3.getColumn(3).width  = 18;
+    ws3.getColumn(4).width  = 14;
+    ws3.getColumn(5).width  = 9;
+    ws3.getColumn(6).width  = 9;
+    ws3.getColumn(7).width  = 10;
+    ws3.getColumn(8).width  = 44;
+    ws3.getColumn(9).width  = 44;
+    ws3.getColumn(10).width = 44;
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHEET 4 — ANALYST NARRATIVE & METHODOLOGY
+    // ══════════════════════════════════════════════════════════════════════════
+    const ws4 = wb.addWorksheet('Narrative & Method', {
+      properties: { tabColor: { argb: 'FF' + C.tealDim } }
+    });
+
+    ws4.mergeCells('A1:D1');
+    const n1banner = ws4.getCell('A1');
+    n1banner.value = '  ANALYST NARRATIVE & METHODOLOGY';
+    n1banner.font  = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } };
+    n1banner.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } };
+    n1banner.alignment = { vertical: 'middle' };
+    ws4.getRow(1).height = 32;
+
+    ws4.addRow([]);
+
+    function addNarrSection(ws, title, body) {
+      const hRow = ws.addRow([title]);
+      hRow.getCell(1).font  = { name: 'Calibri', bold: true, size: 12, color: { argb: 'FF' + C.teal } };
+      hRow.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy3 } };
+      hRow.height = 24;
+
+      const bodyText = (body || '').trim();
+      // Split into paragraphs
+      const paras = bodyText.split(/\n\n+/);
+      for (const para of paras) {
+        ws.mergeCells(`A${ws.rowCount + 1}:D${ws.rowCount + 1}`);
+        const bRow = ws.addRow([para.trim()]);
+        bRow.getCell(1).font      = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
+        bRow.getCell(1).alignment = { wrapText: true, vertical: 'top' };
+        bRow.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy2 } };
+        bRow.height = Math.max(60, Math.ceil(para.length / 100) * 15);
+      }
+      ws.addRow([]);
+    }
+
+    addNarrSection(ws4, 'ANALYST NARRATIVE', r.narrative);
+    addNarrSection(ws4, 'METHODOLOGY', r.methodology);
+
+    if (r._meta?.tokenUsage) {
+      addNarrSection(ws4, 'MODEL USAGE',
+        `Total tokens: ${r._meta.tokenUsage.totalTokens}\nInput: ${r._meta.tokenUsage.inputTokens}\nOutput: ${r._meta.tokenUsage.outputTokens}\nFiles analyzed: ${r._meta.filesProcessed}`
+      );
+    }
+
+    ws4.getColumn('A').width = 50;
+    ws4.getColumn('B').width = 20;
+    ws4.getColumn('C').width = 20;
+    ws4.getColumn('D').width = 20;
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHEET 5 — SCORE CHART DATA (drives a chart in Excel)
+    // ══════════════════════════════════════════════════════════════════════════
+    const ws5 = wb.addWorksheet('Score Data', {
+      properties: { tabColor: { argb: 'FF' + C.emerald } }
+    });
+
+    ws5.mergeCells('A1:C1');
+    ws5.getCell('A1').value = '  CATEGORY SCORE BREAKDOWN';
+    ws5.getCell('A1').font  = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } };
+    ws5.getCell('A1').fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } };
+    ws5.getRow(1).height = 32;
+
+    const catDataHdr = ws5.addRow(['Category', 'Score', 'Rating']);
+    styleHeader(catDataHdr, C.navy3, C.teal, true, 10);
+    catDataHdr.height = 22;
+
+    for (const cat of (r.categories || [])) {
+      const sc  = cat.score || 0;
+      const col = cat.color === 'green' ? C.emerald : cat.color === 'red' ? C.crimson : C.amber;
+      const row = ws5.addRow([cat.name, sc, sc >= 70 ? 'Strong' : sc >= 45 ? 'Moderate' : 'Weak']);
+      row.height = 20;
+      row.getCell(1).font = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
+      row.getCell(2).font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FF' + col } };
+      row.getCell(3).font = { name: 'Calibri', size: 10, color: { argb: 'FF' + col } };
+      [1,2,3].forEach(ci => {
+        row.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (row.number % 2 === 0 ? C.navy2 : C.navy3) } };
+      });
+    }
+
+    // Overall score row
+    ws5.addRow([]);
+    const totRow = ws5.addRow(['OVERALL QoE SCORE', r.score, r.grade]);
+    totRow.height = 24;
+    totRow.getCell(1).font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FF' + C.teal } };
+    totRow.getCell(2).font = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + scoreColor } };
+    totRow.getCell(3).font = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + scoreColor } };
+    [1,2,3].forEach(ci => {
+      totRow.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy3 } };
+    });
+
+    // Add a bar chart for category scores
+    const chart = wb.addChart('bar', {
+      title: { name: 'Category Score Breakdown' },
+      series: [{
+        name: 'Score',
+        xValues: { sheetName: 'Score Data', address: `$A$3:$A$${2 + (r.categories || []).length}` },
+        yValues: { sheetName: 'Score Data', address: `$B$3:$B$${2 + (r.categories || []).length}` }
+      }],
+      axes: { category: { type: 'catAx' }, value: { type: 'valAx' } }
+    });
+    // ExcelJS chart API is limited — we do it via addChart on the sheet
+    if (ws5.addChart) {
+      try { ws5.addChart(chart, 'E3'); } catch {}
+    }
+
+    ws5.getColumn(1).width = 36;
+    ws5.getColumn(2).width = 10;
+    ws5.getColumn(3).width = 12;
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // WRITE & DOWNLOAD
+    // ══════════════════════════════════════════════════════════════════════════
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url    = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href       = url;
+    a.download   = `LedgerIQ-QoE-${new Date().toISOString().slice(0,10)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error('Export error:', err);
+    alert('Export failed: ' + err.message);
+  } finally {
+    btn.textContent = origTxt;
+    btn.disabled    = false;
+  }
 }
 
 // ═══════════════════════════════════

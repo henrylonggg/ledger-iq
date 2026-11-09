@@ -332,10 +332,8 @@ function renderReview() {
           </div>
         </div>
         <div class="rv-actions">
-          ${st === 'pending'
-            ? `<button class="btn btn-sm btn-approve" onclick="doReview('${t.id}','approved')">Approve</button>
-               <button class="btn btn-sm btn-reject"  onclick="doReview('${t.id}','rejected')">Reject</button>`
-            : `<span class="sp sp-${st}">${st}</span>`}
+          <button class="rv-btn rv-approve ${st === 'approved' ? 'active' : ''}" onclick="doReview('${t.id}', '${st === 'approved' ? 'pending' : 'approved'}')" title="${st === 'approved' ? 'Undo approval' : 'Approve'}">✓</button>
+          <button class="rv-btn rv-reject  ${st === 'rejected' ? 'active' : ''}" onclick="doReview('${t.id}', '${st === 'rejected' ? 'pending' : 'rejected'}')" title="${st === 'rejected' ? 'Undo rejection' : 'Reject'}">✕</button>
         </div>
       </div>
       <div class="conf-row">

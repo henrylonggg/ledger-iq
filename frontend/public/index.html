@@ -697,7 +697,7 @@ tr:hover td { background: var(--ink2); }
     <div class="upload-shell">
       <div class="upload-eyebrow">Quality of Earnings</div>
       <h1 class="upload-heading">Drop your financials.<br/>Get a full QoE report.</h1>
-      <p class="upload-sub">Upload income statements, cash flows, revenue schedules, or balance sheets. The backend parses everything — Claude is called once to score confidence and compute the earnings quality grade.</p>
+      <p class="upload-sub">Upload any combination of financial documents. The backend auto-detects each document type and parses it — Claude scores based only on what you provide. Missing files don't hurt the score.</p>
 
       <div class="terminal-drop" id="drop">
         <input type="file" id="file-input" multiple accept=".csv,.pdf,.xlsx,.xls,.txt" onchange="addFiles(this.files)"/>
@@ -707,12 +707,14 @@ tr:hover td { background: var(--ink2); }
         </div>
         <div class="td-inner">
           <div class="td-prompt">drop files here or click to browse</div>
-          <div class="td-desc">Income statements · Balance sheets · Cash flows · Revenue schedules</div>
+          <div class="td-desc">P&amp;L · Balance sheet · AR/AP · Bank statements · Tax returns · Payroll · Debt schedules · and more</div>
           <div class="td-formats">
             <span class="td-fmt">PDF</span>
             <span class="td-fmt">CSV</span>
             <span class="td-fmt">XLSX</span>
             <span class="td-fmt">TXT</span>
+            <span class="td-fmt">XLS</span>
+            <span class="td-fmt">∞ files</span>
           </div>
         </div>
       </div>
@@ -933,6 +935,13 @@ function renderFiles() {
     </div>`;
   }).join('');
 }
+// Update file count in button label
+function updateFileCount() {
+  const ct = files.length;
+  document.getElementById('analyze-txt').textContent = ct === 0 ? 'Add files to begin'
+    : !getKey().startsWith('sk-ant-') || getKey().length < 25 ? 'Enter your API key'
+    : `Analyze ${ct} file${ct !== 1 ? 's' : ''}`;
+}
 function sz(b) { return b < 1024 ? b + 'B' : b < 1048576 ? (b/1024).toFixed(1) + 'KB' : (b/1048576).toFixed(1) + 'MB'; }
 
 function updateBtn() {
@@ -1090,9 +1099,15 @@ function finishReport() {
       <div><span class="flag-title">${esc(f.title || '')}</span><span class="flag-detail">${esc(f.detail || '')}</span></div>
     </div>`).join('');
 
+  // Data scope banner
+  if (r.dataScope) {
+    document.getElementById('dash-narrative').innerHTML =
+      `<p style="font-family:var(--mono);font-size:10.5px;color:var(--teal);margin-bottom:10px;border-left:2px solid var(--teal);padding-left:8px">${esc(r.dataScope)}</p>`;
+  }
+
   // Narrative
   const nHtml = (r.narrative || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
-  document.getElementById('dash-narrative').innerHTML = nHtml;
+  document.getElementById('dash-narrative').innerHTML += nHtml;
   document.getElementById('narrative-full').innerHTML = nHtml;
   document.getElementById('methodology').innerHTML   = (r.methodology || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
 

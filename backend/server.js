@@ -38,7 +38,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // ─── Main analysis endpoint ───────────────────────────────────────────────────
-app.post('/api/analyze', upload.array('files', 10), async (req, res) => {
+app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
   const apiKey = req.headers['x-api-key'] || req.body?.apiKey;
 
   if (!apiKey || !apiKey.startsWith('sk-ant-')) {

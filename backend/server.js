@@ -16,6 +16,8 @@ const path     = require('path');
 const fs       = require('fs');
 const { parseFile, computeStats } = require('./parser');
 const { scoreWithClaude }         = require('./claude');
+const { router: authRouter, requireAuth } = require('./auth');
+const usersDb  = require('./users');
 
 // Server-side demo API key — never sent to the client
 const DEMO_API_KEY = process.env.DEMO_API_KEY || '';
@@ -33,6 +35,10 @@ const upload = multer({
 
 app.use(cors());
 app.use(express.json());
+
+// Auth + user routes
+app.use('/api/auth', authRouter);
+app.use('/api/user', authRouter);
 
 // Serve frontend
 app.use(express.static(path.join(__dirname, '../frontend/public')));
@@ -142,6 +148,24 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
     return res.status(400).json({ error: 'No files uploaded' });
   }
 
+  // Credit check: if user is authenticated, verify they have credits
+  const authHeader = req.headers.authorization || '';
+  let authedUser = null;
+  if (authHeader.startsWith('Bearer ')) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const JWT_SECRET = process.env.JWT_SECRET || 'ledgeriq-dev-secret-change-me';
+      const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
+      authedUser = usersDb.findById(decoded.id);
+    } catch { /* invalid token — treat as unauthenticated */ }
+  }
+  if (authedUser !== null && authedUser.credits <= 0) {
+    return res.status(402).json({
+      error: 'Insufficient credits. Please add credits to your account to run analyses.',
+      credits: authedUser.credits
+    });
+  }
+
   // Use streaming SSE so the frontend can show step-by-step progress
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -208,6 +232,14 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
 
     emit('log', { type: 'ok', message: `GPT-4o mini scoring complete — ${usage.totalTokens} tokens used (${usage.inputTokens} in / ${usage.outputTokens} out)` });
     emit('progress', { step: 'claude', pct: 90, message: 'Scoring complete — building report…' });
+
+    // Deduct credits for authenticated users
+    if (authedUser) {
+      const deductResult = usersDb.deductCredits(authedUser.id, usage.totalTokens);
+      if (deductResult.ok) {
+        emit('log', { type: 'info', message: `Credits used: $${deductResult.cost.toFixed(4)} — balance: $${deductResult.remaining.toFixed(2)}` });
+      }
+    }
 
     // ── STEP 4: Merge backend heuristics into final report ──────────────────
     // Add backend parse metadata to the report

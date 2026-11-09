@@ -677,6 +677,196 @@ tr:hover td { background: var(--ink2); }
 }
 .ng-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
 
+/* ─── AUTH OVERLAY ───────────────────────────────────────── */
+.auth-box {
+  background: var(--ink1);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 36px 40px;
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+}
+.auth-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--display); font-size: 18px; font-weight: 800;
+  color: var(--bright); letter-spacing: -.03em; margin-bottom: 24px;
+}
+.auth-title {
+  font-family: var(--display); font-size: 20px; font-weight: 700;
+  color: var(--bright); letter-spacing: -.02em; margin-bottom: 24px;
+}
+.auth-field { margin-bottom: 16px; }
+.auth-field label {
+  display: block; font-size: 11px; font-weight: 600; color: var(--muted);
+  letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px;
+}
+.auth-field input {
+  width: 100%; padding: 10px 14px;
+  background: var(--ink2); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--bright); font-family: var(--ui); font-size: 13.5px;
+  outline: none; transition: border-color .15s;
+}
+.auth-field input:focus { border-color: var(--teal); }
+.auth-btn {
+  width: 100%; padding: 12px; margin-top: 8px;
+  background: var(--teal); color: var(--ink);
+  border: none; border-radius: 6px;
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  letter-spacing: .06em; cursor: pointer; transition: filter .15s;
+}
+.auth-btn:hover { filter: brightness(1.1); }
+.auth-btn:disabled { opacity: .5; cursor: default; filter: none; }
+.auth-switch {
+  margin-top: 16px; text-align: center;
+  font-size: 12.5px; color: var(--muted);
+}
+.auth-switch a { color: var(--teal); text-decoration: none; }
+.auth-switch a:hover { text-decoration: underline; }
+.auth-err {
+  background: var(--crim-dim); border: 1px solid var(--crimson);
+  border-radius: 6px; padding: 10px 14px;
+  font-size: 12.5px; color: var(--crimson); margin-bottom: 16px;
+}
+
+/* ─── HEADER USER BUTTON ─────────────────────────────────── */
+.user-menu-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--teal-mid); border: 1.5px solid var(--teal);
+  color: var(--teal); font-family: var(--mono); font-size: 10px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.user-menu-btn:hover { background: var(--teal-dim); }
+.header-credits {
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+  color: var(--emerald); background: rgba(16,185,129,.12);
+  border: 1px solid rgba(16,185,129,.25); border-radius: 20px;
+  padding: 3px 10px; letter-spacing: .04em;
+}
+.header-credits.low {
+  color: var(--crimson); background: var(--crim-dim);
+  border-color: rgba(220,53,69,.3);
+}
+
+/* ─── PROFILE PAGE ───────────────────────────────────────── */
+.profile-wrap { max-width: 560px; display: flex; flex-direction: column; gap: 20px; }
+.profile-card {
+  display: flex; align-items: center; gap: 18px;
+  background: var(--ink1); border: 1px solid var(--line); border-radius: 10px;
+  padding: 22px 24px;
+}
+.profile-avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--teal-mid); border: 2px solid var(--teal);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--teal);
+  flex-shrink: 0;
+}
+.profile-name  { font-family: var(--display); font-size: 17px; font-weight: 700; color: var(--bright); }
+.profile-email { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.profile-since { font-size: 11px; color: var(--dim); margin-top: 3px; }
+.profile-section {
+  background: var(--ink1); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px;
+}
+.profile-section-title {
+  font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--teal);
+  letter-spacing: .1em; text-transform: uppercase; margin-bottom: 14px;
+}
+.credits-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.credits-amount {
+  font-family: var(--display); font-size: 32px; font-weight: 800;
+  color: var(--emerald); letter-spacing: -.03em;
+}
+.credits-amount.low { color: var(--crimson); }
+.credits-label { font-size: 12px; color: var(--muted); }
+.credits-warning {
+  font-size: 12px; color: var(--amber); background: var(--amber-dim);
+  border: 1px solid var(--amber-mid); border-radius: 6px;
+  padding: 8px 12px; margin: 8px 0;
+}
+.credits-rate { font-size: 11px; color: var(--dim); margin-bottom: 16px; }
+.add-credits-row { display: flex; flex-direction: column; gap: 8px; }
+.field-label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.add-credits-inputs { display: flex; align-items: center; gap: 8px; }
+.credits-dollar { font-family: var(--mono); font-size: 14px; color: var(--muted); }
+.credits-input {
+  width: 90px; padding: 8px 12px;
+  background: var(--ink2); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--bright); font-family: var(--mono); font-size: 14px; outline: none;
+  transition: border-color .15s;
+}
+.credits-input:focus { border-color: var(--teal); }
+.cred-btn {
+  padding: 8px 18px; background: var(--teal); color: var(--ink);
+  border: none; border-radius: 6px; font-family: var(--mono); font-size: 11px;
+  font-weight: 700; cursor: pointer; transition: filter .15s; white-space: nowrap;
+}
+.cred-btn:hover { filter: brightness(1.1); }
+.cred-msg { font-size: 12px; min-height: 18px; }
+.cred-msg.ok  { color: var(--emerald); }
+.cred-msg.err { color: var(--crimson); }
+.pass-fields { display: flex; flex-direction: column; gap: 10px; }
+.profile-input {
+  width: 100%; padding: 9px 14px;
+  background: var(--ink2); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--bright); font-family: var(--ui); font-size: 13.5px;
+  outline: none; transition: border-color .15s;
+}
+.profile-input:focus { border-color: var(--teal); }
+.logout-btn {
+  padding: 9px 20px; background: transparent;
+  border: 1px solid var(--line); border-radius: 6px;
+  color: var(--crimson); font-family: var(--mono); font-size: 11px;
+  font-weight: 700; cursor: pointer; transition: background .15s, border-color .15s;
+}
+.logout-btn:hover { background: var(--crim-dim); border-color: var(--crimson); }
+.profile-empty { padding: 48px; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+/* ─── USAGE PAGE ─────────────────────────────────────────── */
+.usage-wrap { max-width: 700px; display: flex; flex-direction: column; gap: 24px; }
+.usage-loading { padding: 60px; text-align: center; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 10px; }
+.spinner-sm {
+  width: 16px; height: 16px; border: 2px solid var(--line2);
+  border-top-color: var(--teal); border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+.usage-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.usage-kpi {
+  background: var(--ink1); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 18px;
+}
+.usage-kpi-num {
+  font-family: var(--display); font-size: 24px; font-weight: 800;
+  color: var(--bright); letter-spacing: -.03em;
+}
+.usage-kpi-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.chart-wrap {
+  background: var(--ink1); border: 1px solid var(--line); border-radius: 10px;
+  padding: 18px 20px;
+}
+.chart-label-top { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px; }
+.chart-bars { display: flex; align-items: flex-end; gap: 6px; min-height: 110px; }
+.chart-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+.chart-bar-tip { font-size: 9px; color: var(--dim); height: 14px; line-height: 14px; white-space: nowrap; overflow: hidden; }
+.chart-bar {
+  width: 100%; border-radius: 3px 3px 0 0;
+  background: var(--teal); min-height: 4px;
+  transition: height .3s ease;
+}
+.chart-bar.tok { background: var(--violet); }
+.chart-bar-label { font-size: 9px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 36px; }
+.usage-empty-chart { padding: 32px; text-align: center; color: var(--dim); font-size: 13px; }
+.usage-table-wrap {
+  background: var(--ink1); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px;
+}
+.usage-table-title { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.usage-table th { text-align: left; color: var(--dim); font-weight: 600; font-size: 11px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.usage-table td { padding: 8px 10px; border-bottom: 1px solid rgba(29,45,68,.5); color: var(--body); }
+.usage-table tr:last-child td { border-bottom: none; }
+.usage-empty { padding: 24px; text-align: center; color: var(--dim); font-size: 13px; }
+
 /* Background: deep radial glow behind left column */
 .ld-glow {
   position: absolute; pointer-events: none;
@@ -1327,6 +1517,22 @@ tr:hover td { background: var(--ink2); }
       </svg>
       <span>Terms &amp; Conditions</span>
     </button>
+
+    <button class="nb" onclick="go('usage')" id="nb-usage">
+      <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="2 12 5 7 8 10 11 5 14 8"/>
+        <line x1="2" y1="14" x2="14" y2="14"/>
+      </svg>
+      <span>Usage</span>
+    </button>
+
+    <button class="nb" onclick="go('profile')" id="nb-profile">
+      <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="8" cy="5" r="3"/>
+        <path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/>
+      </svg>
+      <span>Profile</span>
+    </button>
   </nav>
 
   <div class="sidebar-foot">
@@ -1351,8 +1557,10 @@ tr:hover td { background: var(--ink2); }
       <span class="tb-meta" id="tb-meta"></span>
     </div>
     <div class="tb-right">
+      <span class="header-credits" id="header-credits" style="display:none"></span>
       <button class="btn btn-ghost btn-sm" id="btn-export" style="display:none" onclick="exportReport()">Export</button>
       <button class="btn btn-ghost btn-sm" id="btn-reset"  style="display:none" onclick="resetAll()">New analysis</button>
+      <button class="user-menu-btn" id="user-menu-btn" style="display:none" onclick="go('profile')" title="Profile"></button>
     </div>
   </div>
 
@@ -1626,8 +1834,23 @@ tr:hover td { background: var(--ink2); }
     </div>
   </div>
 
+  <!-- ── PROFILE ── -->
+  <div class="page" id="page-profile" style="overflow-y:auto;padding:32px 36px;">
+    <!-- filled by renderProfilePage() -->
+  </div>
+
+  <!-- ── USAGE ── -->
+  <div class="page" id="page-usage" style="overflow-y:auto;padding:32px 36px;">
+    <!-- filled by renderUsagePage() -->
+  </div>
+
 </div><!-- /main -->
 </div><!-- /shell -->
+
+<!-- ════ AUTH OVERLAY ════ -->
+<div id="auth-overlay" style="display:none;position:fixed;inset:0;z-index:30000;background:rgba(6,10,20,.97);backdrop-filter:blur(14px);align-items:center;justify-content:center;padding:20px;">
+  <div id="auth-box" class="auth-box"></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="app.js"></script>

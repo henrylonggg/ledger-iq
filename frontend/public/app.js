@@ -4,6 +4,12 @@
 const API_BASE = 'https://ledger-iq-oi3l.onrender.com';
 
 // ═══════════════════════════════════
+// AUTH STATE
+// ═══════════════════════════════════
+let authToken   = localStorage.getItem('liq_token') || null;
+let currentUser = null;  // populated after login/signup
+
+// ═══════════════════════════════════
 // STATE
 // ═══════════════════════════════════
 let files      = [];
@@ -12,12 +18,196 @@ let reviewSt   = {};   // id → 'pending' | 'approved' | 'rejected'
 let filterMode = 'all';
 
 // ═══════════════════════════════════
+// AUTH HELPERS
+// ═══════════════════════════════════
+function authHeaders() {
+  return authToken ? { 'Authorization': 'Bearer ' + authToken } : {};
+}
+
+async function apiPost(path, body) {
+  const res = await fetch(API_BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+async function apiGet(path) {
+  const res = await fetch(API_BASE + path, { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+function saveAuth(token, user) {
+  authToken   = token;
+  currentUser = user;
+  localStorage.setItem('liq_token', token);
+  localStorage.setItem('liq_user', JSON.stringify(user));
+}
+
+function clearAuth() {
+  authToken   = null;
+  currentUser = null;
+  localStorage.removeItem('liq_token');
+  localStorage.removeItem('liq_user');
+}
+
+function loadStoredAuth() {
+  try {
+    const stored = localStorage.getItem('liq_user');
+    if (stored && authToken) currentUser = JSON.parse(stored);
+  } catch {}
+}
+
+// ═══════════════════════════════════
+// AUTH SCREENS
+// ═══════════════════════════════════
+function showAuthScreen(mode = 'login') {
+  const overlay = document.getElementById('auth-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  renderAuthForm(mode);
+}
+
+function hideAuthScreen() {
+  const overlay = document.getElementById('auth-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function renderAuthForm(mode) {
+  const box = document.getElementById('auth-box');
+  if (!box) return;
+  const isLogin = mode === 'login';
+  box.innerHTML = `
+    <div class="auth-logo">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="6" fill="var(--teal)" fill-opacity=".15"/>
+        <path d="M7 14h4l3-7 3 14 3-7h4" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>LedgerIQ</span>
+    </div>
+    <h2 class="auth-title">${isLogin ? 'Sign in to your account' : 'Create your account'}</h2>
+    <div id="auth-err" class="auth-err" style="display:none"></div>
+    ${!isLogin ? `<div class="auth-field">
+      <label>Full Name</label>
+      <input id="af-name" type="text" placeholder="Jane Smith" autocomplete="name"/>
+    </div>` : ''}
+    <div class="auth-field">
+      <label>Email</label>
+      <input id="af-email" type="email" placeholder="jane@firm.com" autocomplete="email"/>
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input id="af-pass" type="password" placeholder="••••••••" autocomplete="${isLogin ? 'current-password' : 'new-password'}"/>
+    </div>
+    <button class="auth-btn" id="auth-submit-btn" onclick="submitAuth('${mode}')">
+      ${isLogin ? 'Sign In' : 'Create Account'}
+    </button>
+    <div class="auth-switch">
+      ${isLogin
+        ? `No account? <a href="#" onclick="renderAuthForm('signup');return false">Sign up free</a>`
+        : `Already have an account? <a href="#" onclick="renderAuthForm('login');return false">Sign in</a>`}
+    </div>
+    ${isLogin ? `<div class="auth-switch" style="margin-top:4px">
+      <a href="#" onclick="renderAuthForm('demo');return false">Continue with demo (no account)</a>
+    </div>` : ''}
+  `;
+  // Enter key submits
+  setTimeout(() => {
+    box.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(mode); });
+    });
+    const firstInput = box.querySelector('input');
+    if (firstInput) firstInput.focus();
+  }, 50);
+}
+
+async function submitAuth(mode) {
+  const errEl = document.getElementById('auth-err');
+  const btn   = document.getElementById('auth-submit-btn');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Please wait…'; }
+
+  try {
+    if (mode === 'demo') {
+      hideAuthScreen();
+      showTermsIfNeeded();
+      return;
+    }
+
+    const email = document.getElementById('af-email')?.value?.trim();
+    const pass  = document.getElementById('af-pass')?.value;
+    const name  = document.getElementById('af-name')?.value?.trim();
+
+    if (mode === 'signup') {
+      const data = await apiPost('/api/auth/signup', { name, email, password: pass });
+      saveAuth(data.token, data.user);
+    } else {
+      const data = await apiPost('/api/auth/login', { email, password: pass });
+      saveAuth(data.token, data.user);
+    }
+
+    hideAuthScreen();
+    updateUserUI();
+    showTermsIfNeeded();
+  } catch (err) {
+    if (errEl) { errEl.textContent = err.message; errEl.style.display = 'block'; }
+    if (btn) { btn.disabled = false; btn.textContent = mode === 'signup' ? 'Create Account' : 'Sign In'; }
+  }
+}
+
+function logout() {
+  clearAuth();
+  report = null;
+  reviewSt = {};
+  go('upload');
+  updateUserUI();
+  showAuthScreen('login');
+}
+
+function updateUserUI() {
+  const userBtn  = document.getElementById('user-menu-btn');
+  const creditsEl = document.getElementById('header-credits');
+  if (currentUser) {
+    if (userBtn) {
+      const initials = (currentUser.name || currentUser.email || '?')
+        .split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+      userBtn.textContent = initials;
+      userBtn.style.display = 'flex';
+    }
+    if (creditsEl) {
+      creditsEl.style.display = 'inline-flex';
+      creditsEl.textContent = `$${(currentUser.credits || 0).toFixed(2)} credits`;
+      const low = (currentUser.credits || 0) < 0.10;
+      creditsEl.className = 'header-credits' + (low ? ' low' : '');
+    }
+  } else {
+    if (userBtn) userBtn.style.display = 'none';
+    if (creditsEl) creditsEl.style.display = 'none';
+  }
+}
+
+function refreshUserCredits() {
+  if (!authToken) return;
+  apiGet('/api/user/profile').then(data => {
+    currentUser = data.user;
+    localStorage.setItem('liq_user', JSON.stringify(currentUser));
+    updateUserUI();
+  }).catch(() => {});
+}
+
+// ═══════════════════════════════════
 // NAV
 // ═══════════════════════════════════
 const titles = {
   upload:'Upload', dashboard:'Dashboard',
   review:'Review Queue', transactions:'Transactions', narrative:'Narrative',
-  terms:'Terms & Conditions', contact:'Contact'
+  terms:'Terms & Conditions', contact:'Contact',
+  profile:'Profile', usage:'Usage'
 };
 function go(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -29,6 +219,8 @@ function go(page) {
   const hasR = !!report;
   document.getElementById('btn-export').style.display = hasR ? '' : 'none';
   document.getElementById('btn-reset').style.display  = hasR ? '' : 'none';
+  if (page === 'profile') renderProfilePage();
+  if (page === 'usage')   renderUsagePage();
 }
 
 // ═══════════════════════════════════
@@ -235,6 +427,19 @@ async function wakeBackend() {
 async function startAnalysis() {
   if (!files.length) return;
 
+  // Require login before running analysis
+  if (!currentUser) {
+    showAuthScreen('login');
+    return;
+  }
+
+  // Check credits
+  if (currentUser.credits <= 0) {
+    showToast('You\'re out of credits. Add credits in your Profile to run analyses.', 4000);
+    go('profile');
+    return;
+  }
+
   showProgressPage();
 
   try {
@@ -250,6 +455,7 @@ async function startAnalysis() {
     const tid  = setTimeout(() => ctrl.abort(), 300000);
     const resp = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
+      headers: authToken ? { 'Authorization': 'Bearer ' + authToken } : {},
       body: fd,
       signal: ctrl.signal
     });
@@ -257,6 +463,11 @@ async function startAnalysis() {
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
+      if (resp.status === 402) {
+        showToast('Out of credits — add more in your Profile.', 4000);
+        go('profile');
+        return;
+      }
       throw new Error(err.error || `HTTP ${resp.status}`);
     }
 
@@ -582,6 +793,9 @@ function finishReport() {
   document.getElementById('tb-meta').textContent    = `score ${score}/100 · ${(r.transactions||[]).length} items · ${pending} pending`;
 
   go('dashboard');
+
+  // Refresh credits display after analysis
+  refreshUserCredits();
 }
 
 // ═══════════════════════════════════
@@ -1345,10 +1559,15 @@ function animateLandingBars() {
 // INIT
 // ═══════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
+  // Load persisted auth
+  loadStoredAuth();
+
   const enterBtn = document.getElementById('ld-enter-btn');
   if (enterBtn) {
     enterBtn.addEventListener('click', () => {
-      if (hasAcceptedTerms()) {
+      if (!currentUser) {
+        showAuthScreen('login');
+      } else if (hasAcceptedTerms()) {
         enterApp();
       } else {
         showTermsGate();
@@ -1370,6 +1589,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   updateBtn();
   loadDemo();
+  updateUserUI();
 });
 
 // ═══════════════════════════════════
@@ -1482,4 +1702,221 @@ function showTermsGate() {
   document.body.appendChild(gate);
   const btn = document.getElementById('terms-accept-btn');
   if (btn) btn.disabled = true;
+}
+
+// ═══════════════════════════════════
+// showTermsIfNeeded helper
+// ═══════════════════════════════════
+function showTermsIfNeeded() {
+  if (hasAcceptedTerms()) {
+    enterApp();
+  } else {
+    showTermsGate();
+  }
+}
+
+// ═══════════════════════════════════
+// PROFILE PAGE
+// ═══════════════════════════════════
+function renderProfilePage() {
+  const page = document.getElementById('page-profile');
+  if (!page) return;
+
+  if (!currentUser) {
+    page.innerHTML = `<div class="profile-empty"><p>Please sign in to view your profile.</p>
+      <button class="ng-btn" onclick="showAuthScreen('login')">Sign In</button></div>`;
+    return;
+  }
+
+  const u = currentUser;
+  const low = (u.credits || 0) < 0.10;
+  page.innerHTML = `
+    <div class="profile-wrap">
+      <div class="profile-card">
+        <div class="profile-avatar">${(u.name||u.email||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+        <div class="profile-info">
+          <div class="profile-name">${esc(u.name || '')}</div>
+          <div class="profile-email">${esc(u.email)}</div>
+          <div class="profile-since">Member since ${new Date(u.createdAt).toLocaleDateString('en-US',{year:'numeric',month:'long'})}</div>
+        </div>
+      </div>
+
+      <div class="profile-section">
+        <div class="profile-section-title">Credits Balance</div>
+        <div class="credits-row">
+          <div class="credits-amount ${low ? 'low' : ''}">$${(u.credits||0).toFixed(2)}</div>
+          <div class="credits-label">credits remaining</div>
+        </div>
+        ${low ? `<div class="credits-warning">⚠ Low balance — add credits to continue generating reports</div>` : ''}
+        <div class="credits-rate">$0.05 per 10,000 tokens used</div>
+        <div class="add-credits-row">
+          <label class="field-label">Add Credits</label>
+          <div class="add-credits-inputs">
+            <span class="credits-dollar">$</span>
+            <input id="add-credits-amt" type="number" min="1" max="10000" step="1" placeholder="10" class="credits-input"/>
+            <button class="cred-btn" onclick="submitAddCredits()">Add Credits</button>
+          </div>
+          <div id="add-credits-msg" class="cred-msg"></div>
+        </div>
+      </div>
+
+      <div class="profile-section">
+        <div class="profile-section-title">Reset Password</div>
+        <div class="pass-fields">
+          <input id="rp-current" type="password" placeholder="Current password" class="profile-input"/>
+          <input id="rp-new"     type="password" placeholder="New password (8+ chars)" class="profile-input"/>
+          <button class="cred-btn" onclick="submitResetPassword()">Update Password</button>
+        </div>
+        <div id="rp-msg" class="cred-msg"></div>
+      </div>
+
+      <div class="profile-section">
+        <div class="profile-section-title">Account</div>
+        <button class="logout-btn" onclick="logout()">Sign Out</button>
+      </div>
+    </div>`;
+}
+
+async function submitAddCredits() {
+  const amt = parseFloat(document.getElementById('add-credits-amt')?.value || '0');
+  const msgEl = document.getElementById('add-credits-msg');
+  if (!amt || amt <= 0) {
+    if (msgEl) { msgEl.textContent = 'Enter a valid amount.'; msgEl.className = 'cred-msg err'; }
+    return;
+  }
+  try {
+    const data = await apiPost('/api/user/credits', { amount: amt });
+    currentUser.credits = data.credits;
+    localStorage.setItem('liq_user', JSON.stringify(currentUser));
+    updateUserUI();
+    if (msgEl) { msgEl.textContent = `✓ $${amt.toFixed(2)} added — new balance: $${data.credits.toFixed(2)}`; msgEl.className = 'cred-msg ok'; }
+    // Re-render to update balance display
+    setTimeout(() => renderProfilePage(), 1000);
+  } catch (err) {
+    if (msgEl) { msgEl.textContent = err.message; msgEl.className = 'cred-msg err'; }
+  }
+}
+
+async function submitResetPassword() {
+  const cur  = document.getElementById('rp-current')?.value;
+  const nw   = document.getElementById('rp-new')?.value;
+  const msgEl = document.getElementById('rp-msg');
+  if (!cur || !nw) {
+    if (msgEl) { msgEl.textContent = 'Enter both fields.'; msgEl.className = 'cred-msg err'; }
+    return;
+  }
+  try {
+    await apiPost('/api/auth/reset-password', { currentPassword: cur, newPassword: nw });
+    if (msgEl) { msgEl.textContent = '✓ Password updated successfully.'; msgEl.className = 'cred-msg ok'; }
+    document.getElementById('rp-current').value = '';
+    document.getElementById('rp-new').value = '';
+  } catch (err) {
+    if (msgEl) { msgEl.textContent = err.message; msgEl.className = 'cred-msg err'; }
+  }
+}
+
+// ═══════════════════════════════════
+// USAGE PAGE
+// ═══════════════════════════════════
+async function renderUsagePage() {
+  const page = document.getElementById('page-usage');
+  if (!page) return;
+
+  if (!currentUser) {
+    page.innerHTML = `<div class="profile-empty"><p>Please sign in to view usage.</p></div>`;
+    return;
+  }
+
+  page.innerHTML = `<div class="usage-loading"><div class="spinner-sm"></div> Loading usage data…</div>`;
+
+  try {
+    const data = await apiGet('/api/user/usage');
+    const { usage, totalTokens, totalSpent, credits } = data;
+
+    // Build chart data — last 10 runs grouped by day
+    const byDay = {};
+    (usage || []).slice(0, 30).forEach(u => {
+      const d = u.date.slice(0,10);
+      if (!byDay[d]) byDay[d] = { tokens: 0, cost: 0, runs: 0 };
+      byDay[d].tokens += u.tokens || 0;
+      byDay[d].cost   += u.cost   || 0;
+      byDay[d].runs   += 1;
+    });
+    const days  = Object.keys(byDay).sort().slice(-14);
+    const costs = days.map(d => +(byDay[d].cost || 0).toFixed(4));
+    const toks  = days.map(d => byDay[d].tokens || 0);
+    const maxCost = Math.max(...costs, 0.01);
+    const maxTok  = Math.max(...toks, 1);
+
+    const barHtml = days.length === 0
+      ? `<div class="usage-empty-chart">No runs yet — your usage will appear here after your first analysis.</div>`
+      : `<div class="chart-wrap">
+          <div class="chart-label-top">Daily spend ($)</div>
+          <div class="chart-bars">
+            ${days.map((d, i) => {
+              const h = Math.max(4, Math.round((costs[i] / maxCost) * 100));
+              return `<div class="chart-col">
+                <div class="chart-bar-tip">${costs[i] > 0 ? '$'+costs[i].toFixed(3) : ''}</div>
+                <div class="chart-bar" style="height:${h}px" title="${d}: $${costs[i].toFixed(4)}"></div>
+                <div class="chart-bar-label">${d.slice(5)}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+        <div class="chart-wrap" style="margin-top:16px">
+          <div class="chart-label-top">Daily tokens</div>
+          <div class="chart-bars">
+            ${days.map((d, i) => {
+              const h = Math.max(4, Math.round((toks[i] / maxTok) * 100));
+              return `<div class="chart-col">
+                <div class="chart-bar-tip">${toks[i] > 0 ? (toks[i]/1000).toFixed(1)+'k' : ''}</div>
+                <div class="chart-bar tok" style="height:${h}px" title="${d}: ${toks[i]} tokens"></div>
+                <div class="chart-bar-label">${d.slice(5)}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+
+    page.innerHTML = `
+      <div class="usage-wrap">
+        <div class="usage-kpis">
+          <div class="usage-kpi">
+            <div class="usage-kpi-num">$${credits.toFixed(2)}</div>
+            <div class="usage-kpi-label">Credits Remaining</div>
+          </div>
+          <div class="usage-kpi">
+            <div class="usage-kpi-num">$${totalSpent.toFixed(3)}</div>
+            <div class="usage-kpi-label">Total Spent</div>
+          </div>
+          <div class="usage-kpi">
+            <div class="usage-kpi-num">${(totalTokens/1000).toFixed(1)}k</div>
+            <div class="usage-kpi-label">Total Tokens</div>
+          </div>
+          <div class="usage-kpi">
+            <div class="usage-kpi-num">${usage.length}</div>
+            <div class="usage-kpi-label">Reports Run</div>
+          </div>
+        </div>
+
+        ${barHtml}
+
+        <div class="usage-table-wrap">
+          <div class="usage-table-title">Report History</div>
+          ${usage.length === 0
+            ? `<div class="usage-empty">No reports run yet.</div>`
+            : `<table class="usage-table">
+              <thead><tr><th>Date</th><th>Tokens</th><th>Cost</th></tr></thead>
+              <tbody>
+                ${usage.slice(0,20).map(u => `<tr>
+                  <td>${new Date(u.date).toLocaleString()}</td>
+                  <td>${(u.tokens||0).toLocaleString()}</td>
+                  <td>$${(u.cost||0).toFixed(4)}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>`}
+        </div>
+      </div>`;
+  } catch (err) {
+    page.innerHTML = `<div class="profile-empty"><p>Could not load usage: ${esc(err.message)}</p></div>`;
+  }
 }

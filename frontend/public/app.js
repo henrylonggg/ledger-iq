@@ -495,7 +495,12 @@ function reviewStateKey() {
   return Object.entries(reviewSt).sort().map(([k,v]) => k + ':' + v).join('|');
 }
 
+// reviewEdited: once the user makes any approve/reject change,
+// we never fall back to the cached report text again
+let reviewEdited = false;
+
 function markNarrativeStale() {
+  reviewEdited = true;
   generatedNarrative = null;
   generatedSummary   = null;
   updateNarrativePage();
@@ -605,41 +610,71 @@ function renderDashboardPanels(r) {
 }
 
 function updateNarrativePage() {
-  // Narrative page always shows either generated content or a "Generate" prompt
   const narrativeEl = document.getElementById('dash-narrative');
   const nFull       = document.getElementById('narrative-full');
   const meth        = document.getElementById('methodology');
 
+  // ── NARRATIVE ──────────────────────────────────────────────
   if (generatedNarrative) {
-    // Show generated narrative
+    // AI-generated content — show it
     const r = report;
-    let html = '';
+    let html = `<div class="ai-badge">✦ AI Generated · GPT-4o mini</div>`;
     if (r?.dataScope) {
       html += `<p style="font-family:var(--mono);font-size:10.5px;color:var(--teal);margin-bottom:10px;border-left:2px solid var(--teal);padding-left:8px">${esc(r.dataScope)}</p>`;
     }
     const nHtml = generatedNarrative.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
     if (narrativeEl) narrativeEl.innerHTML = html + nHtml;
-    if (nFull)       nFull.innerHTML = nHtml;
+    if (nFull)       nFull.innerHTML = html + nHtml;
+  } else if (!reviewEdited && report?.narrative) {
+    // No review edits yet — show cached report narrative with a "Generate AI version" CTA
+    const r = report;
+    const cachedHtml = report.narrative.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+    const html = `
+      <div class="narrative-gate" style="margin-bottom:20px;padding:16px 20px;flex-direction:row;justify-content:space-between;align-items:center;">
+        <div style="text-align:left;">
+          <div class="ng-title" style="font-size:12px;margin-bottom:2px;">Initial narrative from analysis</div>
+          <div class="ng-sub" style="font-size:11px;">Make review decisions then click Generate to get a custom AI narrative.</div>
+        </div>
+        <button class="ng-btn" style="margin-top:0;white-space:nowrap" onclick="generateNarrative()">Generate AI Narrative</button>
+      </div>
+      ${cachedHtml}`;
+    if (narrativeEl) narrativeEl.innerHTML = html;
+    if (nFull)       nFull.innerHTML = html;
   } else {
+    // Reviewed but not generated — prompt to generate
     const staleHtml = `<div class="narrative-gate">
       <div class="ng-icon">📋</div>
-      <div class="ng-title">Narrative not yet generated</div>
-      <div class="ng-sub">Review your items, then click Generate to build the narrative based on your current approve/reject decisions.</div>
-      <button class="ng-btn" onclick="generateNarrative()">Generate Narrative</button>
+      <div class="ng-title">Review decisions changed</div>
+      <div class="ng-sub">Click Generate to have GPT-4o mini write a fresh narrative based on your current approve/reject decisions.</div>
+      <button class="ng-btn" onclick="generateNarrative()">Generate AI Narrative</button>
     </div>`;
     if (narrativeEl) narrativeEl.innerHTML = staleHtml;
-    if (nFull) nFull.innerHTML = staleHtml;
+    if (nFull)       nFull.innerHTML = staleHtml;
   }
 
+  // ── SUMMARY ────────────────────────────────────────────────
   if (generatedSummary) {
-    const sHtml = generatedSummary.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+    const sHtml = `<div class="ai-badge">✦ AI Generated · GPT-4o mini</div>` +
+      generatedSummary.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
     if (meth) meth.innerHTML = sHtml;
+  } else if (!reviewEdited && report?.methodology) {
+    const cachedSHtml = report.methodology.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+    const html = `
+      <div class="narrative-gate" style="margin-bottom:20px;padding:16px 20px;flex-direction:row;justify-content:space-between;align-items:center;">
+        <div style="text-align:left;">
+          <div class="ng-title" style="font-size:12px;margin-bottom:2px;">Initial summary from analysis</div>
+          <div class="ng-sub" style="font-size:11px;">Make review decisions then generate a custom AI summary.</div>
+        </div>
+        <button class="ng-btn" style="margin-top:0;white-space:nowrap" onclick="generateSummary()">Generate AI Summary</button>
+      </div>
+      ${cachedSHtml}`;
+    if (meth) meth.innerHTML = html;
   } else {
     const staleHtml2 = `<div class="narrative-gate">
       <div class="ng-icon">📊</div>
-      <div class="ng-title">Executive Summary not yet generated</div>
-      <div class="ng-sub">Generate a fresh summary reflecting your current review decisions.</div>
-      <button class="ng-btn" onclick="generateSummary()">Generate Summary</button>
+      <div class="ng-title">Review decisions changed</div>
+      <div class="ng-sub">Click Generate to have GPT-4o mini write a fresh executive summary based on your current decisions.</div>
+      <button class="ng-btn" onclick="generateSummary()">Generate AI Summary</button>
     </div>`;
     if (meth) meth.innerHTML = staleHtml2;
   }
@@ -707,17 +742,9 @@ async function generateNarrative() {
     showToast('Narrative generated — reflects current review decisions');
   } catch (err) {
     console.error('[generateNarrative]', err);
-    // Fallback: use the report's existing narrative if backend unavailable
-    if (report?.narrative) {
-      generatedNarrative = { text: report.narrative, stateKey: reviewStateKey() };
-      updateNarrativePage();
-      updateExportBtn();
-      showToast('Used cached narrative (backend unavailable)');
-    } else {
-      showToast('Narrative generation failed: ' + err.message);
-      generatedNarrative = null;
-      updateNarrativePage();
-    }
+    showToast('Narrative generation failed: ' + err.message);
+    generatedNarrative = null;
+    updateNarrativePage();
   }
 }
 
@@ -753,16 +780,9 @@ async function generateSummary() {
     showToast('Executive summary generated by AI');
   } catch (err) {
     console.error('[generateSummary]', err);
-    if (report?.methodology) {
-      generatedSummary = { text: report.methodology, stateKey: reviewStateKey(), adjScore: payload?.score || report.score };
-      updateNarrativePage();
-      updateExportBtn();
-      showToast('Used cached summary (backend unavailable)');
-    } else {
-      showToast('Summary generation failed: ' + err.message);
-      generatedSummary = null;
-      updateNarrativePage();
-    }
+    showToast('Summary generation failed: ' + err.message);
+    generatedSummary = null;
+    updateNarrativePage();
   }
 }
 
@@ -834,9 +854,10 @@ function finishReport() {
 
   renderDashboardPanels(r);
 
-  // Narrative starts locked — user must click Generate
+  // Narrative starts with cached text; becomes AI after first review change
   generatedNarrative = null;
   generatedSummary   = null;
+  reviewEdited = false;
   updateNarrativePage();
   updateExportBtn();
 

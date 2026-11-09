@@ -668,11 +668,11 @@ tr:hover td { background: var(--ink2); }
   <div class="sidebar-foot">
     <div class="key-wrap">
       <div class="key-head">
-        <span class="key-label">API KEY</span>
-        <div class="key-dot" id="key-dot"></div>
+        <span class="key-label">AI ENGINE</span>
+        <div class="key-dot ok" id="key-dot"></div>
       </div>
-      <input class="key-input" id="api-key" type="password" placeholder="sk-…" oninput="checkKey()" autocomplete="off"/>
-      <div class="key-hint">Your OpenAI key. Parsing is server-side — GPT-4o scores confidence only.</div>
+      <div class="key-hint" style="color:var(--teal);font-size:11px;margin-top:2px;">GPT-4o · Server-side · Secured</div>
+      <div class="key-hint">Analysis runs on our backend. No API key required.</div>
     </div>
   </div>
 </aside>
@@ -901,14 +901,10 @@ function go(page) {
 }
 
 // ═══════════════════════════════════
-// API KEY
+// API KEY — handled server-side only
 // ═══════════════════════════════════
-function checkKey() {
-  const v = document.getElementById('api-key').value.trim();
-  document.getElementById('key-dot').className = 'key-dot' + (v.startsWith('sk-') && v.length > 20 ? ' ok' : '');
-  updateBtn();
-}
-const getKey = () => document.getElementById('api-key').value.trim();
+function checkKey() { updateBtn(); }
+const getKey = () => '__server_side__';
 
 // ═══════════════════════════════════
 // FILES
@@ -935,23 +931,14 @@ function renderFiles() {
     </div>`;
   }).join('');
 }
-// Update file count in button label
-function updateFileCount() {
-  const ct = files.length;
-  document.getElementById('analyze-txt').textContent = ct === 0 ? 'Add files to begin'
-    : !getKey().startsWith('sk-ant-') || getKey().length < 25 ? 'Enter your API key'
-    : `Analyze ${ct} file${ct !== 1 ? 's' : ''}`;
-}
 function sz(b) { return b < 1024 ? b + 'B' : b < 1048576 ? (b/1024).toFixed(1) + 'KB' : (b/1048576).toFixed(1) + 'MB'; }
 
 function updateBtn() {
   const btn = document.getElementById('analyze-btn');
   const txt = document.getElementById('analyze-txt');
-  const hasKey  = getKey().startsWith('sk-') && getKey().length > 20;
   const hasFiles = files.length > 0;
-  btn.disabled = !(hasKey && hasFiles);
+  btn.disabled = !hasFiles;
   txt.textContent = !hasFiles ? 'Add files to begin'
-    : !hasKey ? 'Enter your API key'
     : `Analyze ${files.length} file${files.length > 1 ? 's' : ''}`;
 }
 
@@ -978,25 +965,65 @@ function addLog(msg, type = 'info') {
 // ═══════════════════════════════════
 // ANALYSIS  — SSE stream from backend
 // ═══════════════════════════════════
-async function startAnalysis() {
-  if (!getKey() || !files.length) return;
 
+// Shared SSE reader — handles progress/log/result/error/done events
+async function readSSEStream(resp, onDone) {
+  const reader  = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let   buf     = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const events = buf.split('\n\n');
+    buf = events.pop();
+
+    for (const raw of events) {
+      if (!raw.trim()) continue;
+      const lines = raw.split('\n');
+      let evName = 'message', evData = '';
+      for (const l of lines) {
+        if (l.startsWith('event: ')) evName = l.slice(7).trim();
+        if (l.startsWith('data: '))  evData = l.slice(6).trim();
+      }
+      if (!evData) continue;
+      let d; try { d = JSON.parse(evData); } catch { continue; }
+
+      if (evName === 'progress') setProg(d.pct, d.message);
+      if (evName === 'log')      addLog(d.message, d.type || 'info');
+      if (evName === 'result')   report = d.report;
+      if (evName === 'error')    throw new Error(d.message);
+      if (evName === 'done') {
+        addLog('Report ready.', 'ok');
+        await new Promise(r => setTimeout(r, 400));
+        if (onDone) onDone();
+      }
+    }
+  }
+}
+
+function showProgressPage() {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-progress').classList.add('active');
   document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
   document.getElementById('tb-title').textContent = 'Analyzing…';
   document.getElementById('log-box').innerHTML = '';
   setProg(0, 'Starting analysis…', 'Connecting to backend');
+}
 
-  const fd = new FormData();
-  for (const f of files) fd.append('files', f);
+async function startAnalysis() {
+  if (!files.length) return;
 
+  showProgressPage();
   addLog('Connecting to backend…', 'info');
 
   try {
+    const fd = new FormData();
+    for (const f of files) fd.append('files', f);
+
     const resp = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
-      headers: { 'x-api-key': getKey() },
       body: fd
     });
 
@@ -1005,39 +1032,8 @@ async function startAnalysis() {
       throw new Error(err.error || `HTTP ${resp.status}`);
     }
 
-    const reader  = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let   buf     = '';
+    await readSSEStream(resp, finishReport);
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const events = buf.split('\n\n');
-      buf = events.pop();
-
-      for (const raw of events) {
-        if (!raw.trim()) continue;
-        const lines = raw.split('\n');
-        let evName = 'message', evData = '';
-        for (const l of lines) {
-          if (l.startsWith('event: ')) evName = l.slice(7).trim();
-          if (l.startsWith('data: '))  evData = l.slice(6).trim();
-        }
-        if (!evData) continue;
-        let d; try { d = JSON.parse(evData); } catch { continue; }
-
-        if (evName === 'progress') setProg(d.pct, d.message);
-        if (evName === 'log')      addLog(d.message, d.type || 'info');
-        if (evName === 'result')   report = d.report;
-        if (evName === 'error')    throw new Error(d.message);
-        if (evName === 'done') {
-          addLog('Report ready.', 'ok');
-          await new Promise(r => setTimeout(r, 400));
-          finishReport();
-        }
-      }
-    }
   } catch (err) {
     addLog('Error: ' + err.message, 'err');
     setProg(0, 'Analysis failed', err.message);
@@ -1045,6 +1041,40 @@ async function startAnalysis() {
     b.className = 'btn btn-ghost'; b.style.marginTop = '16px';
     b.textContent = 'Back'; b.onclick = () => go('upload');
     document.getElementById('page-progress').appendChild(b);
+  }
+}
+
+// ═══════════════════════════════════
+// DEMO — real GPT-4o via /api/demo
+// ═══════════════════════════════════
+async function runDemoAnalysis() {
+  showProgressPage();
+  addLog('Loading demo files (Acme Manufacturing Inc.)…', 'info');
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/demo`);
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+
+    await readSSEStream(resp, () => {
+      // Cache the real result
+      try {
+        localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ ts: Date.now(), data: report }));
+      } catch {}
+      finishReport();
+      showDemoBanner();
+    });
+
+  } catch (err) {
+    addLog('Demo error: ' + err.message, 'err');
+    // Fall back to hardcoded demo if backend is unavailable
+    report = DEMO_REPORT;
+    try { localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ ts: Date.now(), data: DEMO_REPORT })); } catch {}
+    finishReport();
+    showDemoBanner();
   }
 }
 
@@ -1355,30 +1385,22 @@ const DEMO_REPORT = {
 const DEMO_STORAGE_KEY = 'ledgeriq_demo_v1';
 
 function loadDemo() {
-  // Check localStorage cache first
+  // Check localStorage cache first (valid for 7 days)
   try {
     const cached = localStorage.getItem(DEMO_STORAGE_KEY);
     if (cached) {
       const { ts, data } = JSON.parse(cached);
-      // Cache valid for 7 days
       if (Date.now() - ts < 7 * 24 * 60 * 60 * 1000) {
         report = data;
         finishReport();
-        // Show demo banner
         showDemoBanner();
         return;
       }
     }
   } catch {}
 
-  // Save to cache and render
-  try {
-    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ ts: Date.now(), data: DEMO_REPORT }));
-  } catch {}
-
-  report = DEMO_REPORT;
-  finishReport();
-  showDemoBanner();
+  // No cache — run real GPT-4o analysis via backend
+  runDemoAnalysis();
 }
 
 function showDemoBanner() {

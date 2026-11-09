@@ -2,7 +2,8 @@
  * server.js — Express API server
  *
  * Routes:
- *   POST /api/analyze   — upload files, parse, score with Claude
+ *   POST /api/analyze   — upload files, parse, score with GPT-4o
+ *   GET  /api/demo      — run real GPT-4o analysis on built-in demo files (key server-side)
  *   GET  /api/health    — health check
  *   GET  /              — serves frontend
  */
@@ -12,8 +13,12 @@ const express  = require('express');
 const cors     = require('cors');
 const multer   = require('multer');
 const path     = require('path');
+const fs       = require('fs');
 const { parseFile, computeStats } = require('./parser');
 const { scoreWithClaude }         = require('./claude');
+
+// Server-side demo API key — never sent to the client
+const DEMO_API_KEY = process.env.DEMO_API_KEY || '';
 
 const app    = express();
 const upload = multer({
@@ -35,6 +40,86 @@ app.use(express.static(path.join(__dirname, '../frontend/public')));
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ─── Demo analysis endpoint ───────────────────────────────────────────────────
+// Runs a real GPT-4o analysis on the built-in demo files.
+// The API key lives only on the server — it is never sent to or from the client.
+app.get('/api/demo', async (req, res) => {
+  if (!DEMO_API_KEY) {
+    return res.status(503).json({ error: 'Demo not configured on this server.' });
+  }
+
+  // Use SSE so the frontend gets live progress (same as /api/analyze)
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  function emit(event, data) {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+
+  try {
+    const demoDir = path.join(__dirname, 'demo-files');
+    const demoFiles = fs.readdirSync(demoDir).filter(f => f.endsWith('.csv'));
+
+    emit('progress', { step: 'parsing', pct: 5, message: 'Loading demo files…' });
+
+    const parsedFiles = [];
+    let totalTx = 0;
+
+    for (let i = 0; i < demoFiles.length; i++) {
+      const filename = demoFiles[i];
+      const buffer = fs.readFileSync(path.join(demoDir, filename));
+      emit('progress', { step: 'parsing', pct: 5 + (i / demoFiles.length) * 30, message: `Parsing ${filename}…` });
+
+      const result = await parseFile(filename, buffer);
+      parsedFiles.push(result);
+      totalTx += result.count;
+
+      emit('log', {
+        type: result.parseError ? 'warn' : 'ok',
+        message: result.parseError
+          ? `${filename}: parse warning — ${result.parseError}`
+          : `${filename}: extracted ${result.count} line items`
+      });
+    }
+
+    emit('progress', { step: 'stats', pct: 38, message: `Computed ${totalTx} transactions — running heuristics…` });
+
+    const allTx = parsedFiles.flatMap(f => f.transactions);
+    const stats = computeStats(allTx);
+
+    emit('log', { type: 'ok', message: `Heuristics: ${stats.redCount} red, ${stats.yellowCount} yellow, ${stats.greenCount} green` });
+    emit('progress', { step: 'stats', pct: 45, message: 'Heuristic classification complete' });
+
+    emit('progress', { step: 'claude', pct: 50, message: 'Sending to GPT-4o for scoring…' });
+    emit('log', { type: 'info', message: `Sending ${totalTx} pre-classified items to GPT-4o…` });
+
+    const { report, usage } = await scoreWithClaude(parsedFiles, DEMO_API_KEY);
+
+    emit('log', { type: 'ok', message: `GPT-4o complete — ${usage.totalTokens} tokens used` });
+    emit('progress', { step: 'claude', pct: 90, message: 'Scoring complete — building report…' });
+
+    report._meta = {
+      filesProcessed: parsedFiles.length,
+      totalTransactions: totalTx,
+      tokenUsage: usage,
+      parsedAt: new Date().toISOString(),
+      isDemo: true
+    };
+
+    emit('progress', { step: 'done', pct: 100, message: 'Demo report ready' });
+    emit('result', { report });
+    emit('done', { success: true });
+
+  } catch (err) {
+    console.error('Demo analysis error:', err);
+    emit('error', { message: err.message || 'Demo analysis failed' });
+  } finally {
+    res.end();
+  }
 });
 
 // ─── Main analysis endpoint ───────────────────────────────────────────────────

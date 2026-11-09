@@ -1,0 +1,26 @@
+Debt & Financing Schedule - Acme Manufacturing Inc.,Balance 12/31/2022,Balance 12/31/2023,Balance 12/31/2024,Interest Rate,Maturity Date
+,,,,
+Senior Secured Term Loan - First National Bank,2800000,2450000,2080000,6.75%,March 2028
+Revolving Credit Facility (drawn),400000,650000,950000,Prime + 1.5%,December 2026
+Equipment Financing - Caterpillar Financial,185000,142000,96000,4.90%,January 2026
+SBA Loan - COVID Economic Injury,320000,280000,235000,3.75%,June 2030
+Owner Shareholder Loan - J. Anderson,500000,500000,500000,0.00%,On Demand
+Related Party Note - Anderson Family LLC,250000,250000,250000,2.00%,December 2027
+,,,,
+Total Debt,4455000,4272000,4111000,,
+Less: Cash & Equivalents,(280000),(310000),(420000),,
+Net Debt,4175000,3962000,3691000,,
+,,,,
+Reported EBITDA,698000,838000,847000,,
+Net Debt / EBITDA,5.98x,4.73x,4.36x,,
+,,,,
+Annual Debt Service,,,,,
+  Principal Payments,420000,445000,445000,,
+  Interest Payments,245000,278000,295000,,
+Total Debt Service,665000,723000,740000,,
+Debt Service Coverage Ratio (DSCR),1.05x,1.16x,1.14x,,
+,,,,
+Covenant Compliance,,,,,
+  Max Leverage (Net Debt/EBITDA),<5.0x,<5.0x,<5.0x,,
+  Actual,5.98x,4.73x,4.36x,,
+  In Compliance?,NO,YES,YES,,

@@ -1,0 +1,29 @@
+Employee Census & Payroll Schedule - Acme Manufacturing Inc.,Q1 2023,Q2 2023,Q3 2023,Q4 2023,Q1 2024,Q2 2024,Q3 2024,Q4 2024
+,,,,,,,,
+Headcount by Department
+  Manufacturing,42,43,45,44,46,48,51,52
+  Sales & Marketing,12,13,13,14,14,15,16,16
+  Engineering / R&D,8,9,10,10,11,12,13,14
+  Finance & Admin,6,6,7,7,7,8,8,8
+  Executive / Officers,3,3,3,3,3,3,3,3
+Total Headcount,71,74,78,78,81,86,91,93
+,,,,,,,,
+Independent Contractors / 1099,8,10,12,14,15,18,22,24
+Total Workforce,79,84,90,92,96,104,113,117
+,,,,,,,,
+Payroll & Compensation
+  Total Wages & Salaries,845000,878000,925000,942000,975000,1042000,1108000,1140000
+  Payroll Taxes (Employer),64000,67000,70000,72000,74000,79000,84000,87000
+  Benefits & Health Insurance,98000,102000,108000,110000,114000,121000,128000,132000
+  401K Match,22000,23000,24000,25000,26000,28000,30000,31000
+  Total Compensation & Benefits,1029000,1070000,1127000,1149000,1189000,1270000,1350000,1390000
+,,,,,,,,
+Officer / Owner Compensation
+  J. Anderson - CEO,112500,112500,112500,112500,120000,120000,120000,120000
+  M. Anderson - COO (spouse),85000,85000,85000,85000,90000,90000,90000,90000
+  R. Anderson - VP Sales (son),65000,65000,65000,65000,70000,70000,70000,70000
+Total Officer Compensation,262500,262500,262500,262500,280000,280000,280000,280000
+% of Total Payroll,31.1%,29.9%,28.4%,27.9%,28.7%,26.9%,25.3%,24.6%
+,,,,,,,,
+1099 Contractor Spend,92000,110000,138000,155000,175000,210000,255000,268000
+Avg Cost Per Contractor,11500,11000,11500,11071,11667,11667,11591,11167

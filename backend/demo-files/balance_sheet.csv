@@ -1,0 +1,56 @@
+Balance Sheet - Acme Manufacturing Inc.,12/31/2022,12/31/2023,12/31/2024
+,,
+ASSETS,,
+Current Assets,,
+  Cash & Cash Equivalents,280000,310000,420000
+  Accounts Receivable (net),620000,780000,940000
+  Inventory - Raw Materials,185000,210000,290000
+  Inventory - Work in Process,42000,55000,78000
+  Inventory - Finished Goods,98000,120000,165000
+  Prepaid Expenses,38000,45000,62000
+  Other Current Assets,22000,28000,35000
+Total Current Assets,1285000,1548000,1990000
+,,
+Fixed Assets,,
+  Property & Equipment (gross),2850000,3180000,3620000
+  Less: Accumulated Depreciation,(890000),(1052000),(1230000)
+Net Fixed Assets,1960000,2128000,2390000
+,,
+Other Assets,,
+  Customer Deposits,45000,52000,68000
+  Non-Compete Agreement (net),120000,90000,60000
+  Goodwill,0,0,0
+Total Other Assets,165000,142000,128000
+,,
+TOTAL ASSETS,3410000,3818000,4508000
+,,
+LIABILITIES,,
+Current Liabilities,,
+  Accounts Payable,285000,340000,428000
+  Accrued Liabilities,98000,112000,145000
+  Deferred Revenue,78000,152000,166000
+  Current Portion of Long-Term Debt,420000,445000,445000
+  Line of Credit / Revolver,400000,650000,950000
+Total Current Liabilities,1281000,1699000,2134000
+,,
+Long-Term Liabilities,,
+  Long-Term Debt (net of current),3635000,3177000,2716000
+  Owner Shareholder Loan,500000,500000,500000
+  Related Party Note Payable,250000,250000,250000
+Total Long-Term Liabilities,4385000,3927000,3466000
+,,
+TOTAL LIABILITIES,5666000,5626000,5600000
+,,
+EQUITY,,
+  Common Stock,100000,100000,100000
+  Retained Earnings (Deficit),(2356000),(2208000),(1192000)
+  Current Year Net Income,0,300000,0
+Total Equity,(2256000),(1808000),(1092000)
+,,
+TOTAL LIABILITIES & EQUITY,3410000,3818000,4508000
+,,
+Key Ratios,,
+  Current Ratio,1.00,0.91,0.93
+  Quick Ratio,0.78,0.73,0.68
+  Debt to Equity,N/A,N/A,N/A
+  Working Capital,4000,(151000),(144000)

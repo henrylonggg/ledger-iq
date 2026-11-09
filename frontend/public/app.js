@@ -555,9 +555,38 @@ function showDemoBanner() {
 }
 
 // ═══════════════════════════════════
+// LANDING PAGE
+// ═══════════════════════════════════
+function enterApp() {
+  const landing = document.getElementById('page-landing');
+  if (!landing) return;
+  landing.classList.add('exit');
+  landing.addEventListener('animationend', () => {
+    landing.style.display = 'none';
+  }, { once: true });
+}
+
+function animateLandingBars() {
+  // Trigger bar fill animations with staggered delays
+  const fills = document.querySelectorAll('.ld-cat-fill');
+  fills.forEach((el, i) => {
+    setTimeout(() => el.classList.add('animated'), 400 + i * 120);
+  });
+}
+
+// ═══════════════════════════════════
 // INIT — wire everything after DOM ready
 // ═══════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
+  // Wire landing page enter button
+  const enterBtn = document.getElementById('ld-enter-btn');
+  if (enterBtn) {
+    enterBtn.addEventListener('click', enterApp);
+  }
+
+  // Animate the landing preview bars after a short delay
+  setTimeout(animateLandingBars, 600);
+
   // Wire file drop zone
   const dz = document.getElementById('drop');
   const fi = document.getElementById('file-input');

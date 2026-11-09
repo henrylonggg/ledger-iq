@@ -619,9 +619,351 @@ tr:hover td { background: var(--ink2); }
 @media (prefers-reduced-motion: reduce) {
   .prog-fill, .cat-fill, #score-arc { transition: none !important; }
 }
+
+/* ─── LANDING PAGE ────────────────────────────────────────── */
+#page-landing {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--ink);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+#page-landing.exit {
+  animation: landingExit .6s cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes landingExit {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-24px); }
+}
+
+/* Grid overlay */
+.ld-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(12,206,212,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(12,206,212,.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 100% 80% at 60% 40%, black 30%, transparent 100%);
+}
+
+/* Scan line sweep */
+.ld-scan {
+  position: absolute; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(12,206,212,.35), transparent);
+  animation: scanLine 4s linear infinite;
+  pointer-events: none;
+}
+@keyframes scanLine {
+  0%   { top: -2px; opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Layout */
+.ld-body {
+  position: relative; z-index: 1;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  padding: 0 8% 0 10%;
+  gap: 60px;
+  max-width: 1300px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Left column */
+.ld-left { display: flex; flex-direction: column; gap: 28px; }
+
+.ld-eyebrow {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+  color: var(--teal); text-transform: uppercase;
+}
+.ld-eyebrow::before {
+  content: '';
+  display: inline-block; width: 24px; height: 1px;
+  background: var(--teal);
+}
+
+.ld-headline {
+  font-family: var(--display); font-size: clamp(52px, 7vw, 88px);
+  font-weight: 800; line-height: .95; letter-spacing: -.04em;
+  color: var(--bright);
+}
+.ld-headline em {
+  font-style: normal; color: var(--teal);
+  text-shadow: 0 0 40px rgba(12,206,212,.4);
+}
+
+.ld-desc {
+  font-size: clamp(14px, 1.4vw, 16px); color: var(--muted);
+  line-height: 1.65; max-width: 46ch;
+}
+
+.ld-byline {
+  font-family: var(--mono); font-size: 11px; color: var(--dim);
+  letter-spacing: .05em;
+}
+.ld-byline span { color: var(--body); }
+
+.ld-cta-row { display: flex; align-items: center; gap: 20px; }
+
+.ld-enter {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 32px;
+  background: var(--teal); color: var(--ink);
+  border: none; border-radius: var(--r);
+  font-family: var(--display); font-size: 15px; font-weight: 700;
+  letter-spacing: -.01em;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  box-shadow: 0 0 32px rgba(12,206,212,.25);
+}
+.ld-enter:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 48px rgba(12,206,212,.45);
+}
+.ld-enter svg { transition: transform .15s; }
+.ld-enter:hover svg { transform: translateX(3px); }
+
+.ld-demo-label {
+  font-family: var(--mono); font-size: 11px; color: var(--dim);
+  letter-spacing: .04em;
+}
+
+/* Right column — mini dashboard preview */
+.ld-right { position: relative; }
+
+.ld-preview {
+  background: var(--ink1);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,.5);
+}
+
+.ld-preview-header {
+  padding: 10px 16px;
+  background: var(--ink2);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px;
+}
+.ld-preview-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+}
+.ld-preview-title {
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+  letter-spacing: .06em; margin-left: 4px;
+}
+
+.ld-preview-body { padding: 20px; }
+
+/* Score ring in preview */
+.ld-score-row {
+  display: flex; align-items: center; gap: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.ld-ring-wrap { flex-shrink: 0; }
+.ld-ring-wrap svg { display: block; }
+.ld-score-info { flex: 1; }
+.ld-score-num {
+  font-family: var(--display); font-size: 42px; font-weight: 800;
+  color: var(--bright); line-height: 1; letter-spacing: -.04em;
+}
+.ld-score-grade {
+  font-family: var(--mono); font-size: 11px; color: var(--amber);
+  letter-spacing: .06em; margin-top: 2px;
+}
+.ld-score-label { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+/* Category bars in preview */
+.ld-cat { display: flex; flex-direction: column; gap: 9px; }
+.ld-cat-row { display: flex; flex-direction: column; gap: 4px; }
+.ld-cat-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  letter-spacing: .04em;
+}
+.ld-cat-label span { color: var(--body); }
+.ld-cat-track {
+  height: 4px; background: var(--ink3); border-radius: 2px; overflow: hidden;
+}
+.ld-cat-fill {
+  height: 100%; border-radius: 2px;
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform .8s cubic-bezier(.4,0,.2,1);
+}
+.ld-cat-fill.animated { transform: scaleX(1); }
+
+/* Flags strip */
+.ld-flags {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.ld-flag {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .04em;
+  padding: 3px 7px; border-radius: 3px; border: 1px solid transparent;
+}
+.ld-flag.r { background:var(--crim-dim); border-color:var(--crim-mid); color:var(--crimson); }
+.ld-flag.y { background:var(--amber-dim); border-color:var(--amber-mid); color:var(--amber); }
+
+/* Floating accent */
+.ld-accent {
+  position: absolute; top: -20px; right: -20px;
+  width: 180px; height: 180px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(12,206,212,.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Footer bar */
+.ld-foot {
+  position: relative; z-index: 1;
+  border-top: 1px solid var(--line);
+  padding: 14px 10%;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.ld-foot-brand {
+  font-family: var(--display); font-size: 14px; font-weight: 700;
+  color: var(--dim); letter-spacing: -.02em;
+}
+.ld-foot-brand em { font-style: normal; color: var(--teal); }
+.ld-foot-tags {
+  display: flex; gap: 16px;
+}
+.ld-foot-tag {
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+  letter-spacing: .06em;
+  display: flex; align-items: center; gap: 5px;
+}
+.ld-foot-tag::before { content: '◆'; font-size: 6px; color: var(--teal); }
+
+/* Mobile */
+@media (max-width: 860px) {
+  .ld-body { grid-template-columns: 1fr; padding: 20px 6% 10px; gap: 32px; }
+  .ld-right { display: none; }
+  .ld-headline { font-size: clamp(44px, 11vw, 68px); }
+}
 </style>
 </head>
 <body>
+
+<!-- ════════════════ LANDING PAGE ════════════════ -->
+<div id="page-landing">
+  <div class="ld-grid"></div>
+  <div class="ld-scan"></div>
+
+  <div class="ld-body">
+    <!-- Left: copy + CTA -->
+    <div class="ld-left">
+      <div class="ld-eyebrow">Quality of Earnings Platform</div>
+
+      <h1 class="ld-headline">Ledger<br><em>IQ</em></h1>
+
+      <p class="ld-desc">
+        AI-powered Quality of Earnings analysis for M&amp;A due diligence.
+        Upload financial statements and get a scored, flagged QoE report
+        in seconds — powered by GPT-4o.
+      </p>
+
+      <div class="ld-byline">Created by <span>Henry Long</span></div>
+
+      <div class="ld-cta-row">
+        <button class="ld-enter" id="ld-enter-btn">
+          Enter Platform
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8h10M9 4l4 4-4 4"/>
+          </svg>
+        </button>
+        <div class="ld-demo-label">Demo preloaded · No login required</div>
+      </div>
+    </div>
+
+    <!-- Right: animated mini dashboard -->
+    <div class="ld-right">
+      <div class="ld-accent"></div>
+      <div class="ld-preview">
+        <div class="ld-preview-header">
+          <div class="ld-preview-dot" style="background:#DC3545"></div>
+          <div class="ld-preview-dot" style="background:#E8A020"></div>
+          <div class="ld-preview-dot" style="background:#10B981"></div>
+          <div class="ld-preview-title">ACME MANUFACTURING INC. — QoE REPORT</div>
+        </div>
+        <div class="ld-preview-body">
+          <!-- Score ring -->
+          <div class="ld-score-row">
+            <div class="ld-ring-wrap">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+                <circle cx="40" cy="40" r="32" fill="none" stroke="#E8A020" stroke-width="6"
+                  stroke-dasharray="201"
+                  stroke-dashoffset="97"
+                  stroke-linecap="round"
+                  transform="rotate(-90 40 40)"
+                  style="transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)"/>
+                <text x="40" y="44" text-anchor="middle" fill="#E8EDF6"
+                  font-family="Syne,sans-serif" font-size="18" font-weight="800">52</text>
+              </svg>
+            </div>
+            <div class="ld-score-info">
+              <div class="ld-score-num">52</div>
+              <div class="ld-score-grade">GRADE C+ · MODERATE RISK</div>
+              <div class="ld-score-label">Acme Manufacturing Inc.</div>
+            </div>
+          </div>
+
+          <!-- Category bars -->
+          <div class="ld-cat" id="ld-cat-bars">
+            <div class="ld-cat-row">
+              <div class="ld-cat-label">Revenue Quality <span>58</span></div>
+              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#0CCED4;width:58%"></div></div>
+            </div>
+            <div class="ld-cat-row">
+              <div class="ld-cat-label">Earnings Stability <span>50</span></div>
+              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#E8A020;width:50%"></div></div>
+            </div>
+            <div class="ld-cat-row">
+              <div class="ld-cat-label">Working Capital <span>45</span></div>
+              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#DC3545;width:45%"></div></div>
+            </div>
+            <div class="ld-cat-row">
+              <div class="ld-cat-label">Debt &amp; Leverage <span>55</span></div>
+              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#0CCED4;width:55%"></div></div>
+            </div>
+            <div class="ld-cat-row">
+              <div class="ld-cat-label">Workforce &amp; HR <span>52</span></div>
+              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#818CF8;width:52%"></div></div>
+            </div>
+          </div>
+
+          <!-- Flag pills -->
+          <div class="ld-flags">
+            <span class="ld-flag r">Revenue spike Q3</span>
+            <span class="ld-flag r">AR aging &gt;90d</span>
+            <span class="ld-flag y">EBITDA adj.</span>
+            <span class="ld-flag y">Debt covenant</span>
+            <span class="ld-flag r">Key-man risk</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer bar -->
+  <div class="ld-foot">
+    <div class="ld-foot-brand">Ledger<em>IQ</em></div>
+    <div class="ld-foot-tags">
+      <div class="ld-foot-tag">GPT-4o Powered</div>
+      <div class="ld-foot-tag">25+ Document Types</div>
+      <div class="ld-foot-tag">Real-time Scoring</div>
+    </div>
+  </div>
+</div>
+
 <div class="shell">
 
 <!-- ════════════════ SIDEBAR ════════════════ -->

@@ -435,7 +435,7 @@ button { cursor: pointer; font-family: var(--ui); }
 }
 .kpi-label { font-family: var(--mono); font-size: 9.5px; color: var(--dim); letter-spacing: .08em; margin-bottom: 8px; }
 .kpi-value { font-family: var(--display); font-size: 32px; font-weight: 800; line-height: 1; letter-spacing: -.05em; color: var(--bright); margin-bottom: 2px; }
-.kpi-sub { font-size: 11.5px; color: var(--muted); }
+.kpi-sub { font-size: 10px; font-family: var(--mono); letter-spacing: .06em; font-weight: 600; color: var(--muted); }
 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 .panel {
@@ -460,23 +460,22 @@ button { cursor: pointer; font-family: var(--ui); }
 }
 .ring-num { font-size: 32px; font-weight: 700; color: var(--bright); line-height: 1; letter-spacing: -.03em; }
 .ring-den { font-size: 10px; color: var(--dim); }
-.ring-grade {
-  font-size: 9.5px; letter-spacing: .08em;
-  font-family: var(--mono); margin-top: 1px;
-}
+.ring-grade { display: none; }
 
 /* ─── CATEGORIES ──────────────────────────────────────────── */
 .cat-stack { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .cat-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 7px 10px;
+  padding: 8px 10px;
   background: var(--ink2);
   border: 1px solid var(--line);
   border-radius: 5px;
   transition: border-color .15s;
 }
 .cat-row:hover { border-color: var(--line2); }
-.cat-name { font-size: 11.5px; color: var(--muted); width: 120px; flex-shrink: 0; }
+.cat-info { display: flex; flex-direction: column; gap: 2px; width: 140px; flex-shrink: 0; }
+.cat-name { font-size: 11.5px; color: var(--muted); line-height: 1.3; }
+.cat-basis { font-size: 9.5px; color: var(--dim); font-style: italic; line-height: 1.3; }
 .cat-track { flex: 1; height: 4px; background: var(--ink3); border-radius: 2px; overflow: hidden; }
 .cat-fill { height: 100%; border-radius: 2px; transition: width .9s ease; }
 .cat-num {
@@ -651,6 +650,10 @@ tr:hover td { background: var(--ink2); }
 @keyframes landingExit {
   0%   { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-18px) scale(.99); }
+}
+@keyframes slideInRight {
+  0%   { opacity: 0; transform: translateX(20px); }
+  100% { opacity: 1; transform: translateX(0); }
 }
 
 /* Background: deep radial glow behind left column */
@@ -1059,15 +1062,15 @@ tr:hover td { background: var(--ink2); }
       <!-- Stat strip -->
       <div class="ld-stats">
         <div class="ld-stat">
-          <div class="ld-stat-num" style="color:var(--teal)">25+</div>
-          <div class="ld-stat-label">Doc types</div>
+          <div class="ld-stat-num" style="color:var(--teal)">18</div>
+          <div class="ld-stat-label">Files analyzed</div>
         </div>
         <div class="ld-stat">
-          <div class="ld-stat-num" style="color:var(--amber)">9</div>
+          <div class="ld-stat-num" style="color:var(--crimson)">17</div>
           <div class="ld-stat-label">Risk flags</div>
         </div>
         <div class="ld-stat">
-          <div class="ld-stat-num" style="color:var(--emerald)">147</div>
+          <div class="ld-stat-num" style="color:var(--emerald)">312</div>
           <div class="ld-stat-label">Items scored</div>
         </div>
       </div>
@@ -1138,21 +1141,21 @@ tr:hover td { background: var(--ink2); }
             <div class="ld-ring-wrap">
               <svg width="88" height="88" viewBox="0 0 88 88">
                 <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="7"/>
-                <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(232,160,32,.15)" stroke-width="7"
+                <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(220,53,69,.15)" stroke-width="7"
                   stroke-dasharray="226" stroke-dashoffset="0"
                   transform="rotate(-90 44 44)"/>
-                <circle cx="44" cy="44" r="36" fill="none" stroke="#E8A020" stroke-width="7"
-                  stroke-dasharray="226" stroke-dashoffset="109"
+                <circle cx="44" cy="44" r="36" fill="none" stroke="#DC3545" stroke-width="7"
+                  stroke-dasharray="226" stroke-dashoffset="135"
                   stroke-linecap="round"
                   transform="rotate(-90 44 44)"
                   id="ld-ring-arc"/>
                 <text x="44" y="49" text-anchor="middle" fill="#E8EDF6"
-                  font-family="Syne,sans-serif" font-size="20" font-weight="800">52</text>
+                  font-family="Syne,sans-serif" font-size="20" font-weight="800">41</text>
               </svg>
             </div>
             <div class="ld-score-info">
-              <div class="ld-score-num">52<span style="font-size:22px;color:var(--dim)">/100</span></div>
-              <div class="ld-score-grade">GRADE C+ · MODERATE RISK</div>
+              <div class="ld-score-num">41<span style="font-size:22px;color:var(--dim)">/100</span></div>
+              <div class="ld-score-grade" style="color:var(--crimson)">HIGH RISK · 18 DOCUMENTS ANALYZED</div>
               <div class="ld-score-label">Acme Manufacturing Inc. · FY2022–2024</div>
             </div>
           </div>
@@ -1160,34 +1163,35 @@ tr:hover td { background: var(--ink2); }
           <!-- Category bars -->
           <div class="ld-cat" id="ld-cat-bars">
             <div class="ld-cat-row">
-              <div class="ld-cat-label">Revenue Quality <span>58</span></div>
-              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#0CCED4;width:58%"></div></div>
+              <div class="ld-cat-label">Revenue Quality <span>48</span></div>
+              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#DC3545;width:48%"></div></div>
             </div>
             <div class="ld-cat-row">
-              <div class="ld-cat-label">EBITDA Quality <span>38</span></div>
+              <div class="ld-cat-label">EBITDA Quality <span>29</span></div>
+              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#DC3545;width:29%"></div></div>
+            </div>
+            <div class="ld-cat-row">
+              <div class="ld-cat-label">Working Capital <span>38</span></div>
               <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#DC3545;width:38%"></div></div>
             </div>
             <div class="ld-cat-row">
-              <div class="ld-cat-label">Working Capital <span>49</span></div>
-              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#E8A020;width:49%"></div></div>
+              <div class="ld-cat-label">Balance Sheet <span>36</span></div>
+              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#DC3545;width:36%"></div></div>
             </div>
             <div class="ld-cat-row">
-              <div class="ld-cat-label">Balance Sheet <span>44</span></div>
-              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#E8A020;width:44%"></div></div>
-            </div>
-            <div class="ld-cat-row">
-              <div class="ld-cat-label">Accounting Quality <span>72</span></div>
-              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#10B981;width:72%"></div></div>
+              <div class="ld-cat-label">Operational Risk <span>51</span></div>
+              <div class="ld-cat-track"><div class="ld-cat-fill" style="background:#E8A020;width:51%"></div></div>
             </div>
           </div>
 
           <!-- Flag pills -->
           <div class="ld-flags">
-            <span class="ld-flag r">Related-party fees</span>
-            <span class="ld-flag r">AR aging &gt;90d</span>
+            <span class="ld-flag r">$250K undisclosed receivable</span>
+            <span class="ld-flag r">FCF collapsed 2.6%</span>
             <span class="ld-flag r">Addbacks = EBITDA</span>
-            <span class="ld-flag y">Lumpy revenue</span>
-            <span class="ld-flag r">Debt covenant breach</span>
+            <span class="ld-flag r">Customer at risk $535K</span>
+            <span class="ld-flag y">Single-source vendor</span>
+            <span class="ld-flag y">DIO 93 days</span>
           </div>
         </div>
       </div>
@@ -1300,7 +1304,7 @@ tr:hover td { background: var(--ink2); }
         <path d="M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/>
         <path d="M5 6h6M5 9h6M5 12h3"/>
       </svg>
-      <span>Terms</span>
+      <span>Terms &amp; Conditions</span>
     </button>
   </nav>
 

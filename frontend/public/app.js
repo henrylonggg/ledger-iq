@@ -67,9 +67,14 @@ function recalcMetrics() {
   const avgConf = active.length
     ? Math.round(active.reduce((s, t) => s + (t.confidence || 0), 0) / active.length) : 0;
 
-  document.getElementById('k-score').textContent = adjScore;
-  document.getElementById('ring-num').textContent = adjScore;
   const arcColor = adjScore >= 70 ? 'var(--emerald)' : adjScore >= 45 ? 'var(--amber)' : 'var(--crimson)';
+  const riskLbl  = adjScore >= 70 ? 'LOW RISK' : adjScore >= 45 ? 'MODERATE RISK' : 'HIGH RISK';
+
+  document.getElementById('k-score').textContent = adjScore;
+  document.getElementById('k-score').style.color  = arcColor;
+  document.getElementById('k-grade').textContent  = riskLbl;
+  document.getElementById('k-grade').style.color  = arcColor;
+  document.getElementById('ring-num').textContent = adjScore;
   const arc = document.getElementById('score-arc');
   arc.style.stroke = arcColor;
   arc.style.strokeDashoffset = 314 - (adjScore / 100) * 314;
@@ -94,6 +99,11 @@ function recalcMetrics() {
   } else if (rejBar) {
     rejBar.style.display = 'none';
   }
+
+  // Re-render dashboard panels so flags, categories & narrative reflect review state
+  renderDashboardPanels();
+  renderNarrative();
+  checkAllReviewed();
 }
 
 // ═══════════════════════════════════
@@ -263,6 +273,100 @@ async function startAnalysis() {
 }
 
 // ═══════════════════════════════════
+// DASHBOARD PANEL RENDERS
+// ═══════════════════════════════════
+function renderDashboardPanels(r) {
+  if (!r) r = report;
+  if (!r) return;
+
+  // Categories with basis info
+  document.getElementById('cat-stack').innerHTML = (r.categories || []).map(c => {
+    const col = c.color === 'green' ? 'var(--emerald)' : c.color === 'red' ? 'var(--crimson)' : 'var(--amber)';
+    const sc = c.score || 0;
+    const basisHtml = c.basis
+      ? `<div class="cat-basis">${esc(c.basis)}</div>`
+      : '';
+    return `<div class="cat-row">
+      <div class="cat-badge" style="background:${col};box-shadow:0 0 6px ${col}44"></div>
+      <div class="cat-info">
+        <span class="cat-name">${esc(c.name)}</span>
+        ${basisHtml}
+      </div>
+      <div class="cat-track"><div class="cat-fill" style="width:${sc}%;background:${col}"></div></div>
+      <span class="cat-num" style="color:${col}">${sc}</span>
+    </div>`;
+  }).join('');
+
+  // Flags
+  document.getElementById('flags-box').innerHTML = (r.flags || []).map(f => `
+    <div class="flag ${f.severity || 'yellow'}">
+      <div><span class="flag-title">${esc(f.title || '')}</span><span class="flag-detail">${esc(f.detail || '')}</span></div>
+    </div>`).join('');
+}
+
+function renderNarrative(r) {
+  if (!r) r = report;
+  if (!r) return;
+  const narrativeEl = document.getElementById('dash-narrative');
+  if (!narrativeEl) return;
+  let html = '';
+  if (r.dataScope) {
+    html += `<p style="font-family:var(--mono);font-size:10.5px;color:var(--teal);margin-bottom:10px;border-left:2px solid var(--teal);padding-left:8px">${esc(r.dataScope)}</p>`;
+  }
+  const nHtml = (r.narrative || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+  html += nHtml;
+  narrativeEl.innerHTML = html;
+  const nFull = document.getElementById('narrative-full');
+  if (nFull) nFull.innerHTML = nHtml;
+  const meth = document.getElementById('methodology');
+  if (meth) meth.innerHTML = (r.methodology || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+}
+
+// Auto-save export when all reviewed items are no longer pending
+let _exportTriggered = false;
+function checkAllReviewed() {
+  if (!report || _exportTriggered) return;
+  const reviewable = (report.transactions || []).filter(t => t.needsReview);
+  if (!reviewable.length) return;
+  const anyPending = reviewable.some(t => (reviewSt[t.id] || 'pending') === 'pending');
+  if (!anyPending) {
+    _exportTriggered = true;
+    // Re-render narrative with current state before export
+    renderNarrative(report);
+    showExportReady();
+  }
+}
+
+function showExportReady() {
+  // Show a prominent notification that export is ready
+  const existing = document.getElementById('export-ready-banner');
+  if (existing) return;
+  const banner = document.createElement('div');
+  banner.id = 'export-ready-banner';
+  banner.style.cssText = `
+    position:fixed;top:60px;right:20px;z-index:500;
+    background:linear-gradient(135deg,#0D2235,#0A1A28);
+    border:1px solid var(--teal);border-radius:8px;
+    padding:14px 18px;max-width:280px;
+    box-shadow:0 8px 32px rgba(12,206,212,.2);
+    animation:slideInRight .3s ease;
+  `;
+  banner.innerHTML = `
+    <div style="font-family:var(--mono);font-size:9px;color:var(--teal);letter-spacing:.1em;margin-bottom:6px;">REVIEW COMPLETE</div>
+    <div style="font-size:13px;font-weight:600;color:var(--bright);margin-bottom:4px;">All items reviewed</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:12px;">Report & narrative are finalized. Ready to export.</div>
+    <button onclick="banner_export()" style="width:100%;background:var(--teal);color:var(--ink);border:none;border-radius:5px;padding:7px 12px;font-weight:700;font-size:11px;cursor:pointer;font-family:var(--mono);">⬇ Export Final Report</button>
+    <button onclick="document.getElementById('export-ready-banner').remove()" style="width:100%;background:transparent;color:var(--dim);border:none;padding:4px;font-size:10px;cursor:pointer;margin-top:4px;">dismiss</button>
+  `;
+  document.body.appendChild(banner);
+}
+
+function banner_export() {
+  document.getElementById('export-ready-banner')?.remove();
+  exportReport();
+}
+
+// ═══════════════════════════════════
 // RENDER
 // ═══════════════════════════════════
 function finishReport() {
@@ -279,8 +383,12 @@ function finishReport() {
     ? Math.round(r.transactions.reduce((s, t) => s + (t.confidence || 0), 0) / r.transactions.length) : 0;
 
   // KPIs
-  document.getElementById('k-score').textContent = score;
-  document.getElementById('k-grade').textContent = r.grade || '—';
+  const scoreColor2 = score >= 70 ? 'var(--emerald)' : score >= 45 ? 'var(--amber)' : 'var(--crimson)';
+  const riskLabel   = score >= 70 ? 'LOW RISK' : score >= 45 ? 'MODERATE RISK' : 'HIGH RISK';
+  document.getElementById('k-score').textContent  = score;
+  document.getElementById('k-score').style.color  = scoreColor2;
+  document.getElementById('k-grade').textContent  = riskLabel;
+  document.getElementById('k-grade').style.color  = scoreColor2;
   const confEl = document.getElementById('k-conf');
   confEl.textContent = avgConf + '%';
   confEl.style.color = avgConf >= 75 ? 'var(--emerald)' : avgConf >= 50 ? 'var(--amber)' : 'var(--crimson)';
@@ -290,44 +398,19 @@ function finishReport() {
   // Ring arc (r=50, circumference=314)
   document.getElementById('ring-num').textContent = score;
   const arc = document.getElementById('score-arc');
-  const arcColor = score >= 70 ? 'var(--emerald)' : score >= 45 ? 'var(--amber)' : 'var(--crimson)';
+  const arcColor = scoreColor2;
   arc.style.stroke = arcColor;
   setTimeout(() => { arc.style.strokeDashoffset = 314 - (score / 100) * 314; }, 200);
   const gradeEl = document.getElementById('ring-grade');
-  if (gradeEl) { gradeEl.textContent = r.grade || ''; gradeEl.style.color = arcColor; }
+  if (gradeEl) { gradeEl.textContent = ''; gradeEl.style.display = 'none'; }
 
-  const g = r.grade || '';
-  document.getElementById('k-score').style.color = g.startsWith('A') ? 'var(--emerald)' : g.startsWith('B') ? 'var(--teal)' : g.startsWith('C') ? 'var(--amber)' : 'var(--crimson)';
-
-  // Categories
-  document.getElementById('cat-stack').innerHTML = (r.categories || []).map(c => {
-    const col = c.color === 'green' ? 'var(--emerald)' : c.color === 'red' ? 'var(--crimson)' : 'var(--amber)';
-    const sc = c.score || 0;
-    return `<div class="cat-row">
-      <div class="cat-badge" style="background:${col};box-shadow:0 0 6px ${col}44"></div>
-      <span class="cat-name">${esc(c.name)}</span>
-      <div class="cat-track"><div class="cat-fill" style="width:${sc}%;background:${col}"></div></div>
-      <span class="cat-num" style="color:${col}">${sc}</span>
-    </div>`;
-  }).join('');
-
-  // Flags
-  document.getElementById('flags-box').innerHTML = (r.flags || []).map(f => `
-    <div class="flag ${f.severity || 'yellow'}">
-      <div><span class="flag-title">${esc(f.title || '')}</span><span class="flag-detail">${esc(f.detail || '')}</span></div>
-    </div>`).join('');
+  renderDashboardPanels(r);
 
   // Data scope + narrative
-  if (r.dataScope) {
-    document.getElementById('dash-narrative').innerHTML =
-      `<p style="font-family:var(--mono);font-size:10.5px;color:var(--teal);margin-bottom:10px;border-left:2px solid var(--teal);padding-left:8px">${esc(r.dataScope)}</p>`;
-  }
-  const nHtml = (r.narrative || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
-  document.getElementById('dash-narrative').innerHTML += nHtml;
-  document.getElementById('narrative-full').innerHTML = nHtml;
-  document.getElementById('methodology').innerHTML   = (r.methodology || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+  renderNarrative(r);
 
-  // Token usage
+  // Token usage — after panels render
+  checkAllReviewed();
   if (r._meta?.tokenUsage) {
     const u = r._meta.tokenUsage;
     document.getElementById('tok-in').textContent    = u.inputTokens?.toLocaleString();
@@ -530,10 +613,10 @@ async function exportReport() {
     ws1.getCell(`B${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.muted } };
     ws1.getCell(`C${scoreRow.number}`).value = r.score + ' / 100';
     ws1.getCell(`C${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 20, color: { argb: 'FF' + scoreColor } };
-    ws1.getCell(`E${scoreRow.number}`).value = 'GRADE';
+    ws1.getCell(`E${scoreRow.number}`).value = 'RISK TIER';
     ws1.getCell(`E${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.muted } };
-    ws1.getCell(`F${scoreRow.number}`).value = r.grade || '—';
-    ws1.getCell(`F${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 20, color: { argb: 'FF' + scoreColor } };
+    ws1.getCell(`F${scoreRow.number}`).value = r.score >= 70 ? 'LOW RISK' : r.score >= 45 ? 'MODERATE RISK' : 'HIGH RISK';
+    ws1.getCell(`F${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + scoreColor } };
     ws1.addRow([]);
 
     // Verdict
@@ -744,7 +827,7 @@ async function exportReport() {
     }
 
     ws5.addRow([]);
-    const totRow = ws5.addRow(['OVERALL QoE SCORE', r.score, r.grade]);
+    const totRow = ws5.addRow(['OVERALL QoE SCORE', r.score, r.score >= 70 ? 'LOW RISK' : r.score >= 45 ? 'MODERATE RISK' : 'HIGH RISK']);
     totRow.height = 24;
     totRow.getCell(1).font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FF' + C.teal } };
     totRow.getCell(2).font = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + scoreColor } };
@@ -752,6 +835,142 @@ async function exportReport() {
     [1,2,3].forEach(ci => totRow.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy3 } });
 
     ws5.getColumn(1).width = 36; ws5.getColumn(2).width = 10; ws5.getColumn(3).width = 12;
+
+    // ── SHEET 6: Review Decisions ────────────────────────────────────────────
+    const ws6 = wb.addWorksheet('Review Decisions', { properties: { tabColor: { argb: 'FF' + C.muted } } });
+    ws6.views = [{ state: 'frozen', ySplit: 2 }];
+
+    ws6.mergeCells('A1:G1');
+    Object.assign(ws6.getCell('A1'), {
+      value: '  REVIEW DECISIONS — APPROVED & REJECTED ITEMS',
+      font:  { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } },
+      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } },
+      alignment: { vertical: 'middle' }
+    });
+    ws6.getRow(1).height = 32;
+
+    const revHdr = ws6.addRow(['DECISION', 'LINE ITEM', 'SEVERITY', 'AMOUNT', 'FINDING', 'RECOMMENDATION', 'AI CONFIDENCE']);
+    revHdr.height = 22;
+    styleHeader(revHdr, C.navy3, C.teal, true, 10);
+
+    const reviewableItems = (r.transactions || []).filter(t => t.needsReview);
+    for (const tx of reviewableItems) {
+      const st  = reviewSt[tx.id] || 'pending';
+      const col = st === 'approved' ? C.emerald : st === 'rejected' ? C.crimson : C.amber;
+      const sev = (tx.severity || 'green').toLowerCase();
+      const row = ws6.addRow([
+        st.toUpperCase(), tx.item || '', sev.toUpperCase(),
+        tx.formattedAmount || tx.amount || '',
+        tx.finding || '', tx.recommendation || '',
+        (tx.confidence || 0) + '%'
+      ]);
+      row.height = 48;
+      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + col } };
+      row.getCell(1).font = { name: 'Calibri', bold: true, size: 9, color: { argb: 'FF' + C.black } };
+      row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      const bgHex = row.number % 2 === 0 ? C.navy2 : C.navy3;
+      for (let ci = 2; ci <= 7; ci++) {
+        row.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + bgHex } };
+        row.getCell(ci).alignment = { wrapText: true, vertical: 'top' };
+        row.getCell(ci).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + C.bright } };
+      }
+      row.getCell(2).font = { name: 'Calibri', bold: true, size: 9, color: { argb: 'FF' + col } };
+      const sevCol = sevColor(sev);
+      row.getCell(3).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + sevCol } };
+      const confVal = tx.confidence || 0;
+      row.getCell(7).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + (confVal >= 80 ? C.emerald : confVal >= 50 ? C.amber : C.crimson) } };
+    }
+
+    ws6.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2 + reviewableItems.length, column: 7 } };
+    ws6.getColumn(1).width = 12; ws6.getColumn(2).width = 36; ws6.getColumn(3).width = 10;
+    ws6.getColumn(4).width = 14; ws6.getColumn(5).width = 44; ws6.getColumn(6).width = 44;
+    ws6.getColumn(7).width = 12;
+
+    // ── SHEET 7: Risk Summary Dashboard ─────────────────────────────────────
+    const ws7 = wb.addWorksheet('Risk Dashboard', { properties: { tabColor: { argb: 'FF' + C.crimson } } });
+
+    ws7.mergeCells('A1:F1');
+    Object.assign(ws7.getCell('A1'), {
+      value: '  LEDGER IQ — RISK SUMMARY DASHBOARD',
+      font:  { name: 'Calibri', bold: true, size: 16, color: { argb: 'FF' + C.teal } },
+      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } },
+      alignment: { vertical: 'middle' }
+    });
+    ws7.getRow(1).height = 40;
+
+    ws7.mergeCells('A2:F2');
+    const scoreColorHex = r.score >= 70 ? C.emerald : r.score >= 45 ? C.amber : C.crimson;
+    const riskTierTxt   = r.score >= 70 ? 'LOW RISK' : r.score >= 45 ? 'MODERATE RISK' : 'HIGH RISK';
+    Object.assign(ws7.getCell('A2'), {
+      value: `QoE Score: ${r.score}/100  |  ${riskTierTxt}  |  Reviewed: ${new Date().toLocaleDateString()}  |  Files: ${r._meta?.filesProcessed ?? '—'}`,
+      font:  { name: 'Calibri', bold: true, size: 12, color: { argb: 'FF' + scoreColorHex } },
+      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy2 } },
+      alignment: { vertical: 'middle', horizontal: 'left' }
+    });
+    ws7.getRow(2).height = 28;
+    ws7.addRow([]);
+
+    // KPI tiles row
+    const kpiLabelRow = ws7.addRow(['METRIC', '', 'VALUE', '', 'STATUS', '']);
+    kpiLabelRow.height = 18;
+    styleHeader(kpiLabelRow, C.navy3, C.teal, true, 9);
+
+    const approved = reviewableItems.filter(t => reviewSt[t.id] === 'approved').length;
+    const rejected2 = reviewableItems.filter(t => reviewSt[t.id] === 'rejected').length;
+    const pendingCt = reviewableItems.filter(t => (reviewSt[t.id] || 'pending') === 'pending').length;
+    const redFlags  = (r.flags || []).filter(f => f.severity === 'red').length;
+    const ylwFlags  = (r.flags || []).filter(f => f.severity === 'yellow').length;
+
+    const kpiData = [
+      ['QoE Score', r.score + ' / 100', riskTierTxt, scoreColorHex],
+      ['Active Transactions', activeTxns.length + ' items', 'Approved / active', C.emerald],
+      ['Red Flags', redFlags, redFlags > 5 ? 'CRITICAL' : redFlags > 2 ? 'HIGH' : 'MODERATE', C.crimson],
+      ['Yellow Flags', ylwFlags, 'Monitor', C.amber],
+      ['Items Approved', approved, 'Confirmed findings', C.emerald],
+      ['Items Rejected', rejected2, 'Excluded from score', C.crimson],
+      ['Items Pending', pendingCt, pendingCt > 0 ? 'ACTION NEEDED' : 'Complete', pendingCt > 0 ? C.amber : C.emerald],
+      ['Files Analyzed', r._meta?.filesProcessed ?? '—', 'Documents reviewed', C.teal],
+    ];
+
+    for (const [metric, value, status, col] of kpiData) {
+      const row = ws7.addRow([metric, '', value, '', status, '']);
+      row.height = 28;
+      row.getCell(1).font = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
+      row.getCell(3).font = { name: 'Calibri', bold: true, size: 13, color: { argb: 'FF' + col } };
+      row.getCell(5).font = { name: 'Calibri', size: 9,  color: { argb: 'FF' + col } };
+      const bg = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (row.number % 2 === 0 ? C.navy2 : C.navy3) } };
+      [1,2,3,4,5,6].forEach(ci => row.getCell(ci).fill = bg);
+    }
+
+    ws7.addRow([]);
+
+    // Category breakdown section
+    const catSectHdr = ws7.addRow(['CATEGORY BREAKDOWN', '', 'SCORE', '', 'RATING', '']);
+    catSectHdr.height = 22;
+    styleHeader(catSectHdr, C.navy3, C.teal, true, 10);
+
+    for (const cat of (r.categories || [])) {
+      const sc  = cat.score || 0;
+      const col = cat.color === 'green' ? C.emerald : cat.color === 'red' ? C.crimson : C.amber;
+      const bar = '█'.repeat(Math.round(sc / 10)) + '░'.repeat(10 - Math.round(sc / 10));
+      const row = ws7.addRow([cat.name, '', sc, '', bar, '']);
+      row.height = 24;
+      row.getCell(1).font = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
+      row.getCell(3).font = { name: 'Calibri', bold: true, size: 12, color: { argb: 'FF' + col } };
+      row.getCell(5).font = { name: 'Courier New', size: 10, color: { argb: 'FF' + col } };
+      const bg = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (row.number % 2 === 0 ? C.navy2 : C.navy3) } };
+      [1,2,3,4,5,6].forEach(ci => row.getCell(ci).fill = bg);
+      if (cat.basis) {
+        const bRow = ws7.addRow(['  Source: ' + cat.basis, '', '', '', '', '']);
+        bRow.mergeCells ? null : ws7.mergeCells(`A${bRow.number}:F${bRow.number}`);
+        bRow.getCell(1).font = { name: 'Calibri', italic: true, size: 8, color: { argb: 'FF' + C.muted } };
+        bRow.getCell(1).fill = bg;
+        bRow.height = 16;
+      }
+    }
+
+    ws7.getColumn(1).width = 36; ws7.getColumn(2).width = 4; ws7.getColumn(3).width = 14;
+    ws7.getColumn(4).width = 4;  ws7.getColumn(5).width = 20; ws7.getColumn(6).width = 4;
 
     // ── Write & download ─────────────────────────────────────────────────────
     const buffer = await wb.xlsx.writeBuffer();
@@ -775,7 +994,8 @@ async function exportReport() {
 // RESET
 // ═══════════════════════════════════
 function resetAll() {
-  files = []; report = null; reviewSt = {}; filterMode = 'all';
+  files = []; report = null; reviewSt = {}; filterMode = 'all'; _exportTriggered = false;
+  document.getElementById('export-ready-banner')?.remove();
   document.getElementById('file-list').innerHTML = '';
   document.getElementById('log-box').innerHTML   = '';
   document.getElementById('prog-fill').style.width = '0%';
@@ -861,10 +1081,33 @@ const DEMO_REPORT = {
     { id:"total-revenue-growth",        item:"Revenue Growth — $4.75M to $6.41M (+35%)", type:"Revenue", amount:"$6.41M", finding:"Consistent top-line growth across 3 years. Active customer count grew from 42 to 74. No restatements noted.", severity:"green", confidence:93, needsReview:false, confidenceReasoning:"Multi-year trend confirmed across income statement and customer concentration file.", recommendation:"Confirm organic vs. acquired growth; validate customer pipeline health" },
     { id:"service-revenue-growth",      item:"Service & Maintenance Revenue — 76% Gross Margin, +68% Growth", type:"Revenue", amount:"$520.0K", finding:"Highest-quality revenue segment: 76% gross margin, $520K in FY2024 (up from $310K), driven by installed base expansion. Best predictor of recurring free cash flow.", severity:"green", confidence:91, needsReview:false, confidenceReasoning:"Gross margin by product line confirms 76% margin. Revenue recognition schedule shows steady monthly service billings.", recommendation:"Assess contracted vs. time-and-materials mix; model service attach rate as installed base grows" },
     { id:"multi-year-contracts",        item:"Multi-Year MSAs with Top 2 Customers", type:"Revenue", amount:"$1.67M", finding:"Acme Retail Group ($1.18M, MSA through June 2026) and Great Lakes Industrial ($490K, MSA through March 2027) are on auto-renewing contracts with 60–90 day notice periods.", severity:"green", confidence:89, needsReview:false, confidenceReasoning:"Contract status confirmed in customer concentration schedule.", recommendation:"Obtain copies of MSAs; confirm change of control provisions do not trigger automatic termination" },
-    { id:"net-fixed-assets",            item:"Net PP&E — $2.39M, Consistent Investment", type:"CapEx & Fixed Assets", amount:"$2.39M", finding:"Net fixed assets growing steadily. CapEx/D&A of 1.66x reflects reinvestment in growth capacity. New CNC machining center adds production capacity.", severity:"green", confidence:82, needsReview:false, confidenceReasoning:"Balance sheet and CapEx schedule cross-confirmed. New equipment additions documented.", recommendation:"Confirm remaining useful life and maintenance requirements of key production equipment" }
+    { id:"net-fixed-assets",            item:"Net PP&E — $2.39M, Consistent Investment", type:"CapEx & Fixed Assets", amount:"$2.39M", finding:"Net fixed assets growing steadily. CapEx/D&A of 1.66x reflects reinvestment in growth capacity. New CNC machining center adds production capacity.", severity:"green", confidence:82, needsReview:false, confidenceReasoning:"Balance sheet and CapEx schedule cross-confirmed. New equipment additions documented.", recommendation:"Confirm remaining useful life and maintenance requirements of key production equipment" },
+    // ── Additional Red: Balance Sheet Items ─────────────────────────────────
+    { id:"goodwill-impairment-risk",    item:"Goodwill Impairment Risk — $420K Unamortized", type:"Balance Sheet", amount:"$420.0K", finding:"$420K in goodwill on balance sheet from 2021 bolt-on acquisition never formally impairment-tested; acquired entity underperformed projections by 38% in first two years.", severity:"red", confidence:87, confidenceReasoning:"Balance sheet line item cross-referenced with GL history and CapEx schedule acquisition notes.", needsReview:true, recommendation:"Require independent impairment analysis; consider escrow or purchase price reduction equal to unrecovered amount" },
+    { id:"deferred-tax-liability",      item:"Deferred Tax Liability — $198K Timing Reversal Risk", type:"Tax", amount:"$198.0K", finding:"Deferred tax liability of $198K driven by accelerated depreciation on equipment; will reverse FY2025–2026 and reduce reported income by ~$65K/yr for 3 years without operational improvement.", severity:"red", confidence:85, confidenceReasoning:"Tax return summary includes deferred tax schedule. Reversal timeline calculated from asset depreciation schedules.", needsReview:true, recommendation:"Model deferred tax reversals into normalized earnings; factor into post-close cash tax rate projections" },
+    { id:"long-term-facility-lease",    item:"Facility Lease Renewal — 18% Rate Increase Quoted", type:"Real Estate / Leases", amount:"$156.0K", finding:"Current facility lease expires September 2025. Landlord has quoted 18% rent increase ($156K/yr → $184K/yr). Month-to-month exposure if deal closes before renewal is executed.", severity:"red", confidence:88, confidenceReasoning:"Insurance schedule notes lease expiry. Email from CEO confirms landlord quote. No executed renewal as of analysis date.", needsReview:true, recommendation:"Require executed lease extension as a close condition; cap escalation clause in purchase agreement" },
+    { id:"accounts-payable-vendor",     item:"Vendor AP Concentration — 3 Vendors = 68% of AP", type:"Accounts Payable", amount:"$427.0K", finding:"Three vendors (Midwest Steel, National Alloys, Precision Tooling) account for 68% of total AP balance. AP with National Alloys ($88K) is 90+ days past due; risk of supply disruption.", severity:"red", confidence:91, confidenceReasoning:"AP aging schedule clearly shows vendor concentration and 90+ day aging for National Alloys.", needsReview:true, recommendation:"Obtain payoff confirmation from National Alloys; model working capital normalization in purchase price" },
+    { id:"insurance-claims-history",    item:"General Liability Claims — 3 Open Claims $240K Exposure", type:"Insurance & Risk", amount:"$240.0K", finding:"3 open general liability claims with combined stated value of $240K. One claim (slip-and-fall at customer site) is in active litigation. Claims not reflected in balance sheet accruals.", severity:"red", confidence:84, confidenceReasoning:"Insurance schedule lists open claims with claim numbers and attorney names. No corresponding balance sheet accrual found.", needsReview:true, recommendation:"Require legal reserve for all open claims; seek representations and indemnities; consider escrow holdback" },
+    // ── Additional Yellow: Operational ──────────────────────────────────────
+    { id:"it-infrastructure-aging",     item:"IT Infrastructure — Servers End-of-Life Q2 2025", type:"Technology", amount:"$85.0K", finding:"Primary production server and backup storage both reach end-of-life in Q2 2025. IT team estimates $85K replacement cost. No budget approved. Failure risk during ERP transition period.", severity:"yellow", confidence:80, confidenceReasoning:"CapEx schedule lacks IT replacement budget. Server end-of-life dates sourced from asset register in CapEx schedule.", needsReview:true, recommendation:"Require capital plan for IT refresh; negotiate seller obligation to fund pre-close or adjust purchase price" },
+    { id:"employee-turnover-elevated",  item:"Employee Turnover 34% — 3 Key Engineers Departed", type:"Human Capital", amount:"N/A", finding:"Annual voluntary turnover reached 34% in FY2024 vs. 18% in FY2022. 3 of 7 senior engineers departed in the last 18 months; two joined a direct competitor. No non-solicit agreements in place.", severity:"yellow", confidence:82, confidenceReasoning:"Employee census shows headcount by tenure. Three senior engineer departures confirmed with hire dates and separation dates.", needsReview:true, recommendation:"Require retention agreements for top 5 technical staff; include non-solicit clause in purchase agreement" },
+    { id:"customer-contract-auto-renew", item:"Acme Retail Group — Auto-Renew Opt-Out Window Opens Apr 2025", type:"Revenue", amount:"$1.18M", finding:"Acme Retail Group MSA ($1.18M annual) auto-renews June 2026 but opt-out notice window opens April 2025. If notice is sent in April, revenue would terminate June 2025 — before close.", severity:"yellow", confidence:83, confidenceReasoning:"Contract status column in customer concentration file states notice period and renewal date. Timeline risk calculated from projected close date.", needsReview:true, recommendation:"Obtain written confirmation from Acme Retail that they will not exercise opt-out; include customer retention covenant" },
+    { id:"warranty-reserve-change",     item:"Warranty Reserve — 42% Reduction FY2024, Claims Up 18%", type:"EBITDA Adj", amount:"$47.0K", finding:"Warranty reserve was reduced by $47K in FY2024 (improving reported earnings) while actual warranty claims increased 18% YoY. Reserve methodology appears inconsistent with claim experience.", severity:"yellow", confidence:79, confidenceReasoning:"GL confirms $47K reserve reduction entry in Q4 FY2024. Warranty claims data from insurance schedule shows 18% increase.", needsReview:true, recommendation:"Normalize warranty reserve to 3-year claim average; addback reserve reduction to arrive at sustainable EBITDA" },
+    { id:"sales-commission-structure",  item:"VP Sales Commission Renegotiated — $62K Upside Liability", type:"EBITDA Adj", amount:"$62.0K", finding:"VP Sales (CEO's son) commission structure was revised in FY2024 to include a 3% retroactive override on all existing accounts. FY2025 liability is estimated at $62K above FY2024 run rate.", severity:"yellow", confidence:77, confidenceReasoning:"Employee census notes commission plan revision. EBITDA schedule does not normalize for forward commission ramp.", needsReview:true, recommendation:"Normalize compensation to market-rate plan; include in normalized EBITDA calculation" },
+    { id:"insurance-benefits-spike",    item:"Employee Benefits Cost +29% YoY — Plan Change Mid-Year", type:"SG&A", amount:"$184.0K", finding:"Health insurance and benefits costs jumped 29% in FY2024 partly due to mid-year plan switch (higher deductible, higher premium tier) after a large claims year. Trend unsustainable without employee contribution changes.", severity:"yellow", confidence:76, confidenceReasoning:"Insurance & benefits schedule shows premium breakdown by plan year and employee contributions.", needsReview:true, recommendation:"Model benefits cost on new plan at full year; assess cost-sharing feasibility with post-close workforce" },
+    { id:"marketing-channel-shift",     item:"Trade Show Budget Cut 60% — Lead Pipeline Impact", type:"SG&A", amount:"$78.0K", finding:"Trade show and marketing conference budget cut from $78K to $31K in FY2024 as cash conservation measure. 3 previously top-producing shows (FABTECH, MFG Summit, MSC Industrial) skipped. Pipeline lag typically 6–12 months.", severity:"yellow", confidence:74, confidenceReasoning:"GL confirms marketing line reduction. CEO email references show cancellations. Pipeline data from customer concentration file shows 22% fewer new logos FY2024.", needsReview:true, recommendation:"Assess pipeline impact in context of FY2025 revenue projections; model marketing investment reinstatement" },
+    // ── Additional Green: Genuine Positives ──────────────────────────────────
+    { id:"service-margin-expansion",    item:"Premium Series Pricing Power — 2.2% Net Price Increase FY2024", type:"Revenue", amount:"$141.0K", finding:"Premium Series average selling price increased 2.2% in FY2024 without volume loss, contributing ~$141K in additional gross margin. Customer retention on this product line is 94%.", severity:"green", confidence:88, needsReview:false, confidenceReasoning:"Revenue recognition schedule shows ASP trend by product line. Retention calculated from customer concentration file.", recommendation:"Expand pricing analysis to test further headroom; evaluate bundling with service contracts" },
+    { id:"great-lakes-contract",        item:"Great Lakes Industrial Contract Renewed Early Through 2027", type:"Revenue", amount:"$490.0K", finding:"Great Lakes Industrial executed an early renewal for 3-year MSA through March 2027 at a 4.1% rate increase. Contract includes minimum purchase commitments of $420K/yr.", severity:"green", confidence:93, needsReview:false, confidenceReasoning:"Customer concentration file confirms renewal date and terms. Minimum commitment clause stated explicitly.", recommendation:"Confirm assignment clause in purchase agreement; ensure no change-of-control termination right" },
+    { id:"service-contract-attach-rate", item:"Service Contract Attach Rate Improved to 72%", type:"Revenue", amount:"N/A", finding:"72% of new equipment sales now include a multi-year service contract (up from 54% in FY2022). Service revenue is the highest-margin segment and provides recurring, predictable cash flow.", severity:"green", confidence:87, needsReview:false, confidenceReasoning:"Revenue recognition schedule tracks attach rate by customer cohort.", recommendation:"Document sales process for service contract bundling; protect attach rate in transition plan" },
+    { id:"cogs-sourcing-initiative",    item:"Domestic Sourcing Initiative — $94K Annualized COGS Reduction", type:"COGS & Margin", amount:"$94.0K", finding:"Procurement team successfully qualified two domestic component suppliers in FY2024, replacing higher-cost overseas components. Annualized COGS savings of $94K projected at full run-rate.", severity:"green", confidence:84, needsReview:false, confidenceReasoning:"Vendor concentration file shows new domestic vendors with pricing. AP aging confirms active orders placed.", recommendation:"Confirm savings are captured in forward EBITDA projections; assess qualification status of additional domestic alternatives" },
+    { id:"ar-collections-improvement",  item:"AR Collections Process — DSO Improved 8 Days on Core Accounts", type:"Accounts Receivable", amount:"N/A", finding:"Dedicated AR collections process implemented in Q2 FY2024 reduced DSO on core (non-Pacific Trading) AR by 8 days. 23 accounts moved from 60+ days to current status during the year.", severity:"green", confidence:81, needsReview:false, confidenceReasoning:"AR aging schedule shows period-over-period improvement on non-Pacific Trading accounts.", recommendation:"Assess whether collections improvement is sustainable; include in working capital normalization analysis" },
+    { id:"inventory-management",        item:"Demand Planning System — 15% Reduction in Stockouts FY2024", type:"Inventory", amount:"N/A", finding:"Implementation of basic demand planning (Excel-based with weekly review) reduced stockout incidents from 47 to 40 in FY2024. Customer satisfaction scores improved 12 points.", severity:"green", confidence:79, needsReview:false, confidenceReasoning:"Inventory schedule shows stockout count by quarter. Customer satisfaction metric referenced in CEO commentary.", recommendation:"Assess whether ERP implementation will formalize and improve demand planning further" },
+    { id:"payroll-compliance",          item:"Payroll Tax Compliance — No Material Issues FY2022–2024", type:"Tax", amount:"N/A", finding:"Federal and state payroll tax filings are current with no material penalties or assessments noted in tax return summary for the three-year review period.", severity:"green", confidence:90, needsReview:false, confidenceReasoning:"Tax return summary confirms no payroll tax issues. GL shows timely remittance of withholding taxes.", recommendation:"Standard diligence verification; no specific action required" },
+    { id:"banking-relationship",        item:"Primary Bank Relationship — 12-Year History, No Defaults", type:"Debt & Leverage", amount:"N/A", finding:"12-year relationship with First National Midwest. No formal defaults outside of the FY2022 covenant breach (waived in writing). Bank has expressed verbal interest in supporting a qualified buyer with assumption or refinancing.", severity:"green", confidence:85, needsReview:false, confidenceReasoning:"Debt schedule lists loan history. CEO confirmed bank relationship and change of control stance in management Q&A notes.", recommendation:"Obtain written bank consent to assignment; explore refinancing terms in parallel with deal timeline" }
   ],
   _meta: {
-    filesProcessed: 18, totalTransactions: 312,
+    filesProcessed: 18, totalTransactions: 487,
     tokenUsage: { inputTokens: 24840, outputTokens: 9180, totalTokens: 34020 },
     parsedAt: "2024-01-15T18:29:41.000Z", isDemo: true
   }
@@ -872,6 +1115,8 @@ const DEMO_REPORT = {
 
 function loadDemo() {
   // Always use hardcoded demo — zero API calls, instant, permanent
+  _exportTriggered = false;
+  document.getElementById('export-ready-banner')?.remove();
   report = DEMO_REPORT;
   finishReport();
   showDemoBanner();
@@ -888,7 +1133,7 @@ function showDemoBanner() {
   `;
   bar.innerHTML = `
     <span style="color:var(--teal)">◆ DEMO</span>
-    <span>Showing sample QoE analysis — Acme Manufacturing Inc. (7 files, FY2022–2024)</span>
+    <span>Showing sample QoE analysis — Acme Manufacturing Inc. (18 files, FY2022–2024)</span>
     <button onclick="document.getElementById('demo-bar').remove();resetAll();" style="margin-left:auto;background:var(--teal);color:var(--ink);border:none;border-radius:4px;padding:4px 10px;font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer;">Upload your own files →</button>
   `;
   document.body.appendChild(bar);

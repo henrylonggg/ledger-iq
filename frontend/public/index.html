@@ -696,16 +696,18 @@ tr:hover td { background: var(--ink2); }
   position: relative; z-index: 1;
   flex: 1;
   display: grid;
-  grid-template-columns: 52% 48%;
+  grid-template-columns: minmax(0, 50%) minmax(0, 50%);
   align-items: center;
   padding: 0 7% 0 7%;
-  gap: 48px;
+  gap: 40px;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* Left column */
 .ld-left {
   display: flex; flex-direction: column; gap: 22px;
+  min-width: 0; overflow: hidden;
 }
 
 .ld-eyebrow {
@@ -721,9 +723,10 @@ tr:hover td { background: var(--ink2); }
 }
 
 .ld-headline {
-  font-family: var(--display); font-size: clamp(56px, 6.5vw, 92px);
-  font-weight: 800; line-height: .92; letter-spacing: -.04em;
+  font-family: var(--display); font-size: clamp(44px, 5vw, 76px);
+  font-weight: 800; line-height: .94; letter-spacing: -.04em;
   color: var(--bright);
+  word-break: break-word;
 }
 .ld-headline em {
   font-style: normal;
@@ -795,6 +798,7 @@ tr:hover td { background: var(--ink2); }
 .ld-right {
   position: relative;
   display: flex; flex-direction: column; gap: 12px;
+  min-width: 0;
 }
 
 /* Outer glow on card */

@@ -1048,37 +1048,46 @@ async function startAnalysis() {
 }
 
 // ═══════════════════════════════════
-// DEMO — real GPT-4o via /api/demo
+// DEMO — silent background refresh
 // ═══════════════════════════════════
-async function runDemoAnalysis() {
-  showProgressPage();
-  addLog('Loading demo files (Acme Manufacturing Inc.)…', 'info');
-
+async function refreshDemoInBackground() {
+  // Silently fetch a fresh real GPT-4o result without touching the UI
   try {
     const resp = await fetch(`${API_BASE}/api/demo`);
+    if (!resp.ok) return;
 
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error || `HTTP ${resp.status}`);
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let   buf     = '';
+    let   freshReport = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const events = buf.split('\n\n');
+      buf = events.pop();
+      for (const raw of events) {
+        const lines = raw.split('\n');
+        let evName = '', evData = '';
+        for (const l of lines) {
+          if (l.startsWith('event: ')) evName = l.slice(7).trim();
+          if (l.startsWith('data: '))  evData = l.slice(6).trim();
+        }
+        if (evName === 'result' && evData) {
+          try { freshReport = JSON.parse(evData).report; } catch {}
+        }
+        if (evName === 'done' && freshReport) {
+          // Update cache with real result; re-render if still on dashboard
+          try { localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ ts: Date.now(), data: freshReport })); } catch {}
+          if (document.getElementById('page-dashboard').classList.contains('active')) {
+            report = freshReport;
+            finishReport();
+          }
+        }
+      }
     }
-
-    await readSSEStream(resp, () => {
-      // Cache the real result
-      try {
-        localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ ts: Date.now(), data: report }));
-      } catch {}
-      finishReport();
-      showDemoBanner();
-    });
-
-  } catch (err) {
-    addLog('Demo error: ' + err.message, 'err');
-    // Fall back to hardcoded demo if backend is unavailable
-    report = DEMO_REPORT;
-    try { localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ ts: Date.now(), data: DEMO_REPORT })); } catch {}
-    finishReport();
-    showDemoBanner();
-  }
+  } catch { /* silent — hardcoded demo stays */ }
 }
 
 // ═══════════════════════════════════
@@ -1388,22 +1397,26 @@ const DEMO_REPORT = {
 const DEMO_STORAGE_KEY = 'ledgeriq_demo_v1';
 
 function loadDemo() {
-  // Check localStorage cache first (valid for 7 days)
+  // 1. Always show something immediately — cached real result or hardcoded fallback
+  let usedCache = false;
   try {
     const cached = localStorage.getItem(DEMO_STORAGE_KEY);
     if (cached) {
       const { ts, data } = JSON.parse(cached);
       if (Date.now() - ts < 7 * 24 * 60 * 60 * 1000) {
         report = data;
-        finishReport();
-        showDemoBanner();
-        return;
+        usedCache = true;
       }
     }
   } catch {}
 
-  // No cache — run real GPT-4o analysis via backend
-  runDemoAnalysis();
+  if (!usedCache) report = DEMO_REPORT;
+
+  finishReport();
+  showDemoBanner();
+
+  // 2. Silently refresh with real GPT-4o in background (doesn't block UI)
+  setTimeout(refreshDemoInBackground, 500);
 }
 
 function showDemoBanner() {

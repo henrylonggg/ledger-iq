@@ -1,7 +1,8 @@
 // ═══════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════
-const API_BASE = 'https://ledger-iq-oi3l.onrender.com';
+// Use relative URLs so Vercel proxy rewrites handle CORS-free routing to Render
+const API_BASE = '';
 
 // ═══════════════════════════════════
 // AUTH STATE

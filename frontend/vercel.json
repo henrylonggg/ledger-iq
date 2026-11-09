@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://ledger-iq-oi3l.onrender.com/api/$1"
+    }
+  ]
+}

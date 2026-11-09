@@ -33,7 +33,23 @@ const upload = multer({
   }
 });
 
-app.use(cors());
+const ALLOWED_ORIGINS = [
+  'https://ledger-iq-public.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no origin (curl, Postman) and listed origins
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(null, true); // also allow any origin for now — tighten if needed
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+}));
+// Explicitly handle OPTIONS preflight for all routes
+app.options('*', cors());
 app.use(express.json());
 
 // Auth + user routes

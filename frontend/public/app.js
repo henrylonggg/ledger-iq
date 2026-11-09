@@ -402,26 +402,33 @@ function showProgressPage() {
   setProg(0, 'Starting analysis…', 'Connecting to backend');
 }
 
-async function wakeBackend() {
-  const TIMEOUT = 60000;
+async function wakeBackend({ silent = false } = {}) {
+  const TIMEOUT = 90000;
   const start   = Date.now();
-  addLog('Connecting to backend…', 'info');
-  setProg(2, 'Waking server…', 'Cold-start may take ~30s on first use');
+  if (!silent) {
+    addLog('Connecting to backend…', 'info');
+    setProg(2, 'Waking server…', 'Cold-start may take ~30s on first use');
+  }
 
   while (Date.now() - start < TIMEOUT) {
     try {
       const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 8000);
+      const tid  = setTimeout(() => ctrl.abort(), 10000);
       const r    = await fetch(`${API_BASE}/api/health`, { signal: ctrl.signal });
       clearTimeout(tid);
-      if (r.ok) { addLog('Backend ready.', 'ok'); return true; }
+      if (r.ok) {
+        if (!silent) addLog('Backend ready.', 'ok');
+        return true;
+      }
     } catch { /* still waking */ }
     const elapsed = Math.round((Date.now() - start) / 1000);
-    addLog(`Server starting… (${elapsed}s)`, 'info');
-    setProg(3 + Math.min(elapsed, 25), `Waking server… ${elapsed}s`, 'Render cold-start in progress');
-    await new Promise(r => setTimeout(r, 4000));
+    if (!silent) {
+      addLog(`Server starting… (${elapsed}s)`, 'info');
+      setProg(3 + Math.min(elapsed, 25), `Waking server… ${elapsed}s`, 'Render cold-start in progress');
+    }
+    await new Promise(r => setTimeout(r, 5000));
   }
-  throw new Error('Backend did not respond within 60 seconds. Try again.');
+  throw new Error('Backend did not respond within 90 seconds. Please wait a moment and try again.');
 }
 
 async function startAnalysis() {
@@ -710,7 +717,10 @@ async function generateNarrative() {
   if (!report) return;
 
   // Wake backend if cold (Render free tier)
-  await wakeBackend().catch(() => {});
+  try { await wakeBackend({ silent: true }); } catch (e) {
+    showToast('Server is starting up — please wait 30 seconds and try again.');
+    return;
+  }
 
   // Show loading state in the narrative gate
   const narrativeEl = document.getElementById('dash-narrative');
@@ -751,7 +761,10 @@ async function generateNarrative() {
 async function generateSummary() {
   if (!report) return;
 
-  await wakeBackend().catch(() => {});
+  try { await wakeBackend({ silent: true }); } catch (e) {
+    showToast('Server is starting up — please wait 30 seconds and try again.');
+    return;
+  }
 
   const meth = document.getElementById('methodology');
   const loadingHtml = `<div class="narrative-gate">

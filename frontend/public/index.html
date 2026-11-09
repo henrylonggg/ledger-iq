@@ -3,398 +3,821 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Ledger IQ — Quality of Earnings</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<title>Ledger IQ</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
-:root{
-  --bg:#08090D;
-  --surface:#0F1117;
-  --surface2:#151820;
-  --surface3:#1B1F2A;
-  --border:#232733;
-  --border2:#2D3240;
-  --text:#E9EDF8;
-  --text2:#7C8699;
-  --text3:#3D4455;
-  --accent:#4B87F5;
-  --accent2:#7C6FF5;
-  --glow:rgba(75,135,245,.12);
-  --green:#1DB954;
-  --green-bg:rgba(29,185,84,.09);
-  --green-b:rgba(29,185,84,.22);
-  --yellow:#F0A500;
-  --yellow-bg:rgba(240,165,0,.09);
-  --yellow-b:rgba(240,165,0,.22);
-  --red:#E8445A;
-  --red-bg:rgba(232,68,90,.09);
-  --red-b:rgba(232,68,90,.22);
-  --purple:#9B6CF5;
-  --purple-bg:rgba(155,108,245,.09);
-  --mono:'JetBrains Mono',monospace;
-  --sans:'Inter',system-ui,sans-serif;
-  --r:9px;
+/* ─── TOKENS ──────────────────────────────────────────────── */
+:root {
+  --ink:      #060A14;
+  --ink1:     #0C1220;
+  --ink2:     #111827;
+  --ink3:     #182236;
+  --line:     #1D2D44;
+  --line2:    #263348;
+  --dim:      #445572;
+  --muted:    #6B7FA0;
+  --body:     #C2CEDF;
+  --bright:   #E8EDF6;
+
+  --teal:     #0CCED4;
+  --teal-dim: rgba(12,206,212,.1);
+  --teal-mid: rgba(12,206,212,.22);
+
+  --amber:    #E8A020;
+  --amber-dim:rgba(232,160,32,.1);
+  --amber-mid:rgba(232,160,32,.22);
+
+  --crimson:  #DC3545;
+  --crim-dim: rgba(220,53,69,.1);
+  --crim-mid: rgba(220,53,69,.22);
+
+  --emerald:  #10B981;
+  --emer-dim: rgba(16,185,129,.1);
+  --emer-mid: rgba(16,185,129,.22);
+
+  --violet:   #818CF8;
+  --viol-dim: rgba(129,140,248,.1);
+  --viol-mid: rgba(129,140,248,.2);
+
+  --display: 'Syne', system-ui, sans-serif;
+  --ui:      'DM Sans', system-ui, sans-serif;
+  --mono:    'JetBrains Mono', monospace;
+  --r: 6px;
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;min-height:100vh}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
-/* ══ LAYOUT ══════════════════════════════════════════════════ */
-.shell{display:flex;min-height:100vh}
-.sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
-.main{flex:1;display:flex;flex-direction:column;min-width:0}
-
-/* ══ LOGO ════════════════════════════════════════════════════ */
-.brand{padding:18px 18px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.brand-icon{width:32px;height:32px;flex-shrink:0}
-.brand-text{line-height:1.15}
-.brand-name{font-size:14px;font-weight:700;letter-spacing:-.025em;color:var(--text)}
-.brand-tagline{font-size:10px;font-family:var(--mono);color:var(--text3);letter-spacing:.08em}
-
-/* ══ SIDEBAR NAV ═════════════════════════════════════════════ */
-.nav{padding:10px 8px;flex:1}
-.nav-section{font-size:10px;font-family:var(--mono);color:var(--text3);letter-spacing:.1em;padding:10px 8px 4px}
-.nav-btn{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:7px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;transition:all .15s;user-select:none;border:none;background:none;width:100%;text-align:left;position:relative}
-.nav-btn:hover{background:var(--surface2);color:var(--text)}
-.nav-btn.active{background:var(--glow);color:var(--accent)}
-.nav-btn.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:14px;background:var(--accent);border-radius:0 2px 2px 0}
-.nav-ico{font-size:14px;width:16px;text-align:center;flex-shrink:0}
-.nb{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-family:var(--mono);padding:1px 6px;border-radius:9px;display:none}
-.nb.on{display:block}
-.sidebar-foot{padding:12px;border-top:1px solid var(--border)}
-.key-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 12px}
-.key-row{display:flex;align-items:center;gap:6px;margin-bottom:7px}
-.key-label{font-size:10px;font-family:var(--mono);color:var(--text3);letter-spacing:.07em;flex:1}
-.key-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);transition:background .2s;flex-shrink:0}
-.key-dot.ok{background:var(--green)}
-.key-input{width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 9px;outline:none;transition:border-color .15s}
-.key-input:focus{border-color:var(--accent)}
-.key-hint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.4}
-
-/* ══ TOPBAR ══════════════════════════════════════════════════ */
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:50px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.topbar-left{display:flex;align-items:center;gap:14px}
-.topbar-title{font-size:14px;font-weight:600}
-.topbar-meta{font-size:11px;font-family:var(--mono);color:var(--text3)}
-.topbar-right{display:flex;gap:8px}
-
-/* ══ BUTTONS ═════════════════════════════════════════════════ */
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;font-size:13px;font-weight:500;font-family:var(--sans);cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-primary:hover:not(:disabled){filter:brightness(1.1)}
-.btn-primary:disabled{opacity:.35;cursor:not-allowed}
-.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}
-.btn-ghost:hover{background:var(--surface2);color:var(--text)}
-.btn-approve{background:var(--green-bg);border:1px solid var(--green-b);color:var(--green)}
-.btn-approve:hover{filter:brightness(1.1)}
-.btn-reject{background:var(--red-bg);border:1px solid var(--red-b);color:var(--red)}
-.btn-reject:hover{filter:brightness(1.1)}
-.btn-sm{padding:5px 10px;font-size:12px}
-
-/* ══ PAGES ═══════════════════════════════════════════════════ */
-.page{display:none;flex:1;overflow-y:auto;padding:24px}
-.page.active{display:block}
-
-/* ══ UPLOAD ══════════════════════════════════════════════════ */
-.upload-wrap{max-width:600px;margin:0 auto;padding-top:12px}
-.upload-wrap h1{font-size:24px;font-weight:700;letter-spacing:-.03em;margin-bottom:6px}
-.upload-wrap h1 em{font-style:normal;background:linear-gradient(120deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.upload-wrap p{color:var(--text2);font-size:13px;margin-bottom:22px;line-height:1.6;max-width:460px}
-.drop-zone{border:2px dashed var(--border2);border-radius:var(--r);padding:36px 28px;cursor:pointer;transition:all .2s;background:var(--surface);position:relative;text-align:center;margin-bottom:12px}
-.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:var(--glow)}
-.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.dz-icon{margin-bottom:10px;display:inline-block}
-.dz-title{font-size:14px;font-weight:600;margin-bottom:4px}
-.dz-sub{font-size:12px;color:var(--text2);margin-bottom:10px}
-.fmt-row{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
-.fmt{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text3)}
-.file-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
-.file-row{display:flex;align-items:center;gap:9px;padding:9px 13px;background:var(--surface);border:1px solid var(--border);border-radius:7px}
-.file-ico{font-size:16px;flex-shrink:0}
-.file-name{flex:1;font-weight:500;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.file-sz{font-family:var(--mono);font-size:11px;color:var(--text3);flex-shrink:0}
-.file-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:3px;border-radius:4px;transition:color .15s;flex-shrink:0}
-.file-del:hover{color:var(--red)}
-.analyze-btn{width:100%;padding:13px;font-size:14px}
-
-/* ══ PROGRESS ════════════════════════════════════════════════ */
-.prog-wrap{max-width:520px;margin:0 auto;padding-top:32px}
-.prog-title{font-size:18px;font-weight:600;margin-bottom:4px}
-.prog-sub{font-size:13px;color:var(--text2);margin-bottom:20px}
-.prog-track{background:var(--surface2);border-radius:3px;height:4px;overflow:hidden;margin-bottom:4px}
-.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .4s ease;width:0%}
-.prog-pct{text-align:right;font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:14px}
-.log-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;max-height:220px;overflow-y:auto;font-family:var(--mono);font-size:11.5px;line-height:2}
-.ll{display:block}.ll.ok{color:var(--green)}.ll.warn{color:var(--yellow)}.ll.info{color:var(--accent)}.ll.err{color:var(--red)}
-
-/* ══ DASHBOARD ═══════════════════════════════════════════════ */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
-.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px}
-.kpi-lbl{font-size:10px;font-family:var(--mono);color:var(--text3);letter-spacing:.06em;margin-bottom:7px}
-.kpi-val{font-size:28px;font-weight:700;line-height:1;letter-spacing:-.04em;margin-bottom:2px}
-.kpi-sub{font-size:12px;color:var(--text2)}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
-.box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px}
-.box.full{grid-column:1/-1}
-.box-head{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:14px}
-.score-flex{display:flex;gap:18px;align-items:flex-start}
-.ring-wrap{position:relative;width:76px;height:76px;flex-shrink:0}
-.ring-wrap svg{transform:rotate(-90deg)}
-.ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--mono)}
-.ring-num{font-size:19px;font-weight:700;line-height:1}
-.ring-den{font-size:9px;color:var(--text3);margin-top:1px}
-.cat-list{flex:1;display:flex;flex-direction:column;gap:7px}
-.cat-row{display:flex;align-items:center;gap:8px}
-.cat-name{font-size:12px;color:var(--text2);width:134px;flex-shrink:0}
-.cat-track{flex:1;background:var(--surface2);border-radius:2px;height:4px;overflow:hidden}
-.cat-fill{height:100%;border-radius:2px;transition:width .8s ease}
-.cat-score{font-family:var(--mono);font-size:12px;width:30px;text-align:right;flex-shrink:0}
-.flag-item{display:flex;gap:9px;padding:10px 12px;border-radius:7px;margin-bottom:6px;font-size:12px;line-height:1.5;border:1px solid transparent}
-.flag-item.red{background:var(--red-bg);border-color:var(--red-b);color:var(--red)}
-.flag-item.yellow{background:var(--yellow-bg);border-color:var(--yellow-b);color:var(--yellow)}
-.flag-item.green{background:var(--green-bg);border-color:var(--green-b);color:var(--green)}
-.flag-ico{flex-shrink:0;font-size:13px;line-height:1.6}
-.flag-title{font-weight:600;display:block;margin-bottom:1px}
-.narrative{font-size:13px;color:var(--text2);line-height:1.8}
-.narrative p+p{margin-top:10px}
-.token-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-size:12px;color:var(--text2);font-family:var(--mono);flex-wrap:wrap;gap:12px}
-.token-item{display:flex;gap:5px}
-.token-label{color:var(--text3)}
-
-/* ══ REVIEW QUEUE ════════════════════════════════════════════ */
-.review-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
-.filter-row{display:flex;gap:5px}
-.flt{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .15s}
-.flt.active{background:var(--glow);border-color:var(--accent);color:var(--accent)}
-.review-cards{display:flex;flex-direction:column;gap:9px}
-.rc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:border-color .15s}
-.rc:hover{border-color:var(--border2)}
-.rc.rv-red{border-left:3px solid var(--red)}
-.rc.rv-yellow{border-left:3px solid var(--yellow)}
-.rc.rv-green{border-left:3px solid var(--green)}
-.rc.st-approved{opacity:.55}
-.rc.st-rejected{opacity:.45}
-.rc-body{display:flex;align-items:flex-start;gap:12px;padding:13px 15px}
-.rc-info{flex:1;min-width:0}
-.rc-title{font-size:13px;font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.rc-desc{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:7px}
-.rc-chips{display:flex;gap:7px;flex-wrap:wrap}
-.chip-amount{font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text2)}
-.chip-type{font-size:11px;padding:2px 8px;border-radius:4px;background:var(--purple-bg);color:var(--purple);border:1px solid rgba(155,108,245,.2)}
-.rc-actions{display:flex;gap:5px;align-items:center;flex-shrink:0}
-.status-pill{font-size:11px;font-family:var(--mono);font-weight:600;padding:3px 8px;border-radius:5px}
-.sp-pending{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-b)}
-.sp-approved{background:var(--green-bg);color:var(--green);border:1px solid var(--green-b)}
-.sp-rejected{background:var(--red-bg);color:var(--red);border:1px solid var(--red-b)}
-.conf-bar-row{display:flex;align-items:center;gap:8px;padding:8px 15px;border-top:1px solid var(--border)}
-.conf-label{font-size:11px;font-family:var(--mono);color:var(--text3);width:94px;flex-shrink:0}
-.conf-track{flex:1;background:var(--surface2);border-radius:2px;height:4px;overflow:hidden}
-.conf-fill{height:100%;border-radius:2px}
-.conf-num{font-size:11px;font-family:var(--mono);font-weight:600;width:34px;text-align:right;flex-shrink:0}
-.reasoning-toggle{padding:0 15px 8px;font-size:11px;color:var(--text3);cursor:pointer;font-family:var(--mono);transition:color .15s;border:none;background:none;text-align:left;width:100%}
-.reasoning-toggle:hover{color:var(--accent)}
-.reasoning-box{padding:0 15px 12px;font-size:12px;color:var(--text3);line-height:1.6;border-top:1px solid var(--border);padding-top:10px;display:none}
-
-/* ══ TX TABLE ════════════════════════════════════════════════ */
-.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r)}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{text-align:left;padding:9px 12px;background:var(--surface2);border-bottom:1px solid var(--border);color:var(--text3);font-weight:500;font-size:11px;letter-spacing:.04em;position:sticky;top:0;white-space:nowrap}
-td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--surface2)}
-.pill{display:inline-flex;align-items:center;padding:2px 7px;border-radius:5px;font-size:11px;font-family:var(--mono);font-weight:500;border:1px solid transparent}
-.pill.red{background:var(--red-bg);border-color:var(--red-b);color:var(--red)}
-.pill.yellow{background:var(--yellow-bg);border-color:var(--yellow-b);color:var(--yellow)}
-.pill.green{background:var(--green-bg);border-color:var(--green-b);color:var(--green)}
-.pill.review{background:var(--purple-bg);border-color:rgba(155,108,245,.2);color:var(--purple)}
-.pill.auto{background:var(--surface2);border-color:var(--border);color:var(--text3)}
-.mini-bar{display:flex;align-items:center;gap:5px}
-.mini-track{width:46px;background:var(--surface2);border-radius:2px;height:3px;overflow:hidden;flex-shrink:0}
-.mini-fill{height:100%;border-radius:2px}
-
-/* ══ NARRATIVE PAGE ══════════════════════════════════════════ */
-.narrative-page{max-width:700px}
-.narrative-page .box+.box{margin-top:12px}
-
-/* ══ EMPTY ═══════════════════════════════════════════════════ */
-.empty{text-align:center;padding:52px 20px;color:var(--text3)}
-.empty-ico{font-size:36px;margin-bottom:10px;display:block}
-.empty h3{font-size:14px;font-weight:600;color:var(--text2);margin-bottom:4px}
-.empty p{font-size:12px}
-
-/* ══ SPINNER ═════════════════════════════════════════════════ */
-@keyframes spin{to{transform:rotate(360deg)}}
-.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
-
-/* ══ RESPONSIVE ══════════════════════════════════════════════ */
-@media(max-width:860px){
-  .kpi-row{grid-template-columns:1fr 1fr}
-  .two-col{grid-template-columns:1fr}
+/* ─── RESET ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  font-family: var(--ui);
+  background: var(--ink);
+  color: var(--body);
+  font-size: 13.5px;
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
-@media(max-width:620px){
-  .sidebar{width:46px}
-  .brand-text,.nav-btn span:not(.nav-ico),.nav-section,.sidebar-foot{display:none}
-  .nav-btn{justify-content:center}
-  .page{padding:16px}
-  .kpi-row{grid-template-columns:1fr}
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 2px; }
+button { cursor: pointer; font-family: var(--ui); }
+
+/* ─── SHELL ───────────────────────────────────────────────── */
+.shell { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 220px;
+  background: var(--ink1);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ─── BRAND ───────────────────────────────────────────────── */
+.brand {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.brand-mark {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--bright);
+  letter-spacing: -.04em;
+  line-height: 1;
+}
+.brand-mark span {
+  color: var(--teal);
+}
+.brand-rule {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--teal-mid), transparent);
+  margin-top: 8px;
+}
+.brand-sub {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--dim);
+  letter-spacing: .12em;
+  margin-top: 4px;
+}
+
+/* ─── NAV ─────────────────────────────────────────────────── */
+.nav { flex: 1; padding: 8px 10px 10px; }
+.nav-group { margin-bottom: 2px; }
+.nav-divider {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: .14em;
+  padding: 12px 8px 4px;
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+}
+.nav-divider:first-child { border-top: none; margin-top: 0; padding-top: 4px; }
+.nb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background .12s, color .12s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  position: relative;
+}
+.nb:hover { background: var(--ink2); color: var(--body); }
+.nb.active { background: var(--teal-dim); color: var(--teal); }
+.nb.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 2px; height: 14px;
+  background: var(--teal);
+  border-radius: 0 1px 1px 0;
+}
+.nb-ico {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: .6;
+}
+.nb.active .nb-ico { opacity: 1; }
+.nb-badge {
+  margin-left: auto;
+  background: var(--crimson);
+  color: #fff;
+  font-size: 10px;
+  font-family: var(--mono);
+  padding: 0 5px;
+  border-radius: 8px;
+  line-height: 16px;
+  min-width: 16px;
+  text-align: center;
+  display: none;
+}
+.nb-badge.on { display: block; }
+
+/* ─── SIDEBAR FOOTER ──────────────────────────────────────── */
+.sidebar-foot {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+.key-wrap {
+  background: var(--ink2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 10px 11px;
+}
+.key-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.key-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--dim);
+  letter-spacing: .1em;
+}
+.key-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--line2);
+  transition: background .2s;
+}
+.key-dot.ok { background: var(--emerald); }
+.key-input {
+  width: 100%;
+  background: var(--ink3);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--body);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 6px 8px;
+  outline: none;
+  transition: border-color .15s;
+}
+.key-input:focus { border-color: var(--teal); }
+.key-hint { font-size: 10.5px; color: var(--dim); margin-top: 6px; line-height: 1.5; }
+
+/* ─── TOPBAR ──────────────────────────────────────────────── */
+.topbar {
+  background: var(--ink1);
+  border-bottom: 1px solid var(--line);
+  padding: 0 24px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.tb-left { display: flex; align-items: center; gap: 12px; }
+.tb-title { font-family: var(--display); font-size: 14px; font-weight: 700; color: var(--bright); letter-spacing: -.02em; }
+.tb-meta { font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+.tb-right { display: flex; gap: 6px; }
+
+/* ─── BUTTONS ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px;
+  border-radius: var(--r);
+  font-size: 12.5px; font-weight: 500;
+  border: none; transition: all .12s; white-space: nowrap;
+}
+.btn-primary { background: var(--teal); color: var(--ink); font-weight: 600; }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-primary:disabled { opacity: .3; cursor: not-allowed; }
+.btn-ghost { background: transparent; border: 1px solid var(--line2); color: var(--muted); }
+.btn-ghost:hover { background: var(--ink2); color: var(--body); }
+.btn-approve { background: var(--emer-dim); border: 1px solid var(--emer-mid); color: var(--emerald); }
+.btn-approve:hover { filter: brightness(1.1); }
+.btn-reject  { background: var(--crim-dim); border: 1px solid var(--crim-mid); color: var(--crimson); }
+.btn-reject:hover  { filter: brightness(1.1); }
+.btn-sm { padding: 5px 10px; font-size: 11.5px; }
+
+/* ─── PAGES ───────────────────────────────────────────────── */
+.page { display: none; flex: 1; overflow-y: auto; padding: 24px; }
+.page.active { display: block; }
+
+/* ─── UPLOAD PAGE ─────────────────────────────────────────── */
+.upload-shell {
+  max-width: 580px;
+  margin: 0 auto;
+  padding-top: 8px;
+}
+.upload-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--teal);
+  letter-spacing: .14em;
+  margin-bottom: 10px;
+}
+.upload-heading {
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--bright);
+  letter-spacing: -.04em;
+  line-height: 1.1;
+  margin-bottom: 10px;
+}
+.upload-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.65;
+  max-width: 440px;
+  margin-bottom: 24px;
+}
+.terminal-drop {
+  background: var(--ink1);
+  border: 1px solid var(--line2);
+  border-radius: var(--r);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 10px;
+  transition: border-color .15s;
+  cursor: pointer;
+}
+.terminal-drop:hover, .terminal-drop.drag { border-color: var(--teal); }
+.terminal-drop:hover .td-inner, .terminal-drop.drag .td-inner { background: var(--teal-dim); }
+.terminal-drop input {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer;
+  width: 100%; height: 100%;
+}
+.td-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink2);
+}
+.td-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line2); }
+.td-dot.r { background: var(--crim-mid); }
+.td-dot.y { background: var(--amber-dim); }
+.td-dot.g { background: var(--emer-mid); }
+.td-chrome-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  margin-left: auto;
+  letter-spacing: .06em;
+}
+.td-inner {
+  padding: 28px 24px;
+  text-align: center;
+  transition: background .15s;
+}
+.td-prompt {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--teal);
+  margin-bottom: 4px;
+}
+.td-prompt::before { content: '> '; opacity: .5; }
+.td-desc { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.td-formats { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
+.td-fmt {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: var(--ink3);
+  border: 1px solid var(--line);
+  color: var(--dim);
+}
+
+/* ─── FILE LIST ───────────────────────────────────────────── */
+.file-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.file-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 12px;
+  background: var(--ink1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.file-ext {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: var(--ink3);
+  border: 1px solid var(--line2);
+  color: var(--teal);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.file-name { flex: 1; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--bright); }
+.file-size { font-family: var(--mono); font-size: 10.5px; color: var(--dim); flex-shrink: 0; }
+.file-del { background: none; border: none; color: var(--dim); font-size: 13px; padding: 2px 4px; border-radius: 3px; transition: color .12s; flex-shrink: 0; }
+.file-del:hover { color: var(--crimson); }
+
+/* ─── ANALYZE BUTTON ──────────────────────────────────────── */
+.analyze-btn { width: 100%; padding: 12px; font-size: 13.5px; border-radius: var(--r); font-weight: 600; }
+
+/* ─── PROGRESS PAGE ───────────────────────────────────────── */
+.prog-shell { max-width: 500px; margin: 0 auto; padding-top: 32px; }
+.prog-heading { font-family: var(--display); font-size: 20px; font-weight: 700; color: var(--bright); letter-spacing: -.03em; margin-bottom: 4px; }
+.prog-sub { font-size: 12.5px; color: var(--muted); margin-bottom: 20px; }
+.prog-track { background: var(--ink2); border-radius: 2px; height: 3px; overflow: hidden; margin-bottom: 3px; }
+.prog-fill { height: 100%; background: var(--teal); border-radius: 2px; transition: width .4s ease; width: 0%; }
+.prog-pct { font-family: var(--mono); font-size: 10px; color: var(--dim); text-align: right; margin-bottom: 14px; }
+.log-terminal {
+  background: var(--ink1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.log-chrome {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink2);
+}
+.log-chrome-title { font-family: var(--mono); font-size: 9.5px; color: var(--dim); letter-spacing: .06em; margin-left: auto; }
+.log-body {
+  padding: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 2;
+}
+.ll { display: block; }
+.ll.ok   { color: var(--emerald); }
+.ll.warn { color: var(--amber); }
+.ll.info { color: var(--teal); }
+.ll.err  { color: var(--crimson); }
+
+/* ─── DASHBOARD ───────────────────────────────────────────── */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.kpi {
+  background: var(--ink1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+}
+.kpi-label { font-family: var(--mono); font-size: 9.5px; color: var(--dim); letter-spacing: .08em; margin-bottom: 8px; }
+.kpi-value { font-family: var(--display); font-size: 32px; font-weight: 800; line-height: 1; letter-spacing: -.05em; color: var(--bright); margin-bottom: 2px; }
+.kpi-sub { font-size: 11.5px; color: var(--muted); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.panel {
+  background: var(--ink1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px;
+}
+.panel.full { grid-column: 1 / -1; }
+.panel-label { font-family: var(--mono); font-size: 9.5px; color: var(--dim); letter-spacing: .1em; margin-bottom: 14px; }
+
+/* ─── SCORE RING ──────────────────────────────────────────── */
+.ring-flex { display: flex; gap: 20px; align-items: flex-start; }
+.ring-wrap { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-family: var(--mono);
+}
+.ring-num { font-size: 20px; font-weight: 500; color: var(--bright); line-height: 1; }
+.ring-den { font-size: 9px; color: var(--dim); margin-top: 1px; }
+
+/* ─── CATEGORIES ──────────────────────────────────────────── */
+.cat-stack { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.cat-row { display: flex; align-items: center; gap: 8px; }
+.cat-name { font-size: 11.5px; color: var(--muted); width: 128px; flex-shrink: 0; }
+.cat-track { flex: 1; height: 3px; background: var(--ink3); border-radius: 2px; overflow: hidden; }
+.cat-fill { height: 100%; border-radius: 2px; transition: width .9s ease; }
+.cat-num { font-family: var(--mono); font-size: 11px; width: 28px; text-align: right; flex-shrink: 0; }
+
+/* ─── FLAGS ───────────────────────────────────────────────── */
+.flag {
+  display: flex; gap: 10px;
+  padding: 10px 12px;
+  border-radius: 5px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  border-left: 2px solid transparent;
+}
+.flag.red    { background: var(--crim-dim); border-color: var(--crimson);  color: var(--crimson);  }
+.flag.yellow { background: var(--amber-dim); border-color: var(--amber);   color: var(--amber);    }
+.flag.green  { background: var(--emer-dim); border-color: var(--emerald);  color: var(--emerald);  }
+.flag-title  { font-weight: 600; display: block; margin-bottom: 1px; }
+.flag-detail { opacity: .8; }
+
+/* ─── NARRATIVE ───────────────────────────────────────────── */
+.prose { font-size: 13px; color: var(--muted); line-height: 1.8; }
+.prose p + p { margin-top: 10px; }
+
+/* ─── TOKEN ROW ───────────────────────────────────────────── */
+.token-strip {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  padding: 10px 13px;
+  background: var(--ink2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-bottom: 14px;
+}
+.tok-item { display: flex; gap: 5px; }
+.tok-k { color: var(--dim); }
+.tok-v { color: var(--body); }
+
+/* ─── REVIEW QUEUE ────────────────────────────────────────── */
+.rq-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.rq-heading { font-family: var(--display); font-size: 16px; font-weight: 700; color: var(--bright); letter-spacing: -.025em; margin-bottom: 2px; }
+.rq-desc { font-size: 12px; color: var(--dim); }
+.filter-row { display: flex; gap: 4px; }
+.flt {
+  padding: 5px 11px;
+  border-radius: 5px;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--line2);
+  background: var(--ink2);
+  color: var(--muted);
+  transition: all .12s;
+}
+.flt:hover { background: var(--ink3); color: var(--body); }
+.flt.active { background: var(--teal-dim); border-color: var(--teal); color: var(--teal); }
+
+/* ─── REVIEW CARDS ────────────────────────────────────────── */
+.rv-cards { display: flex; flex-direction: column; gap: 8px; }
+.rv {
+  background: var(--ink1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  transition: border-color .12s;
+}
+.rv:hover { border-color: var(--line2); }
+.rv.sev-red    { border-left: 2px solid var(--crimson); }
+.rv.sev-yellow { border-left: 2px solid var(--amber);   }
+.rv.sev-green  { border-left: 2px solid var(--emerald); }
+.rv.st-approved { opacity: .5; }
+.rv.st-rejected { opacity: .4; }
+.rv-body { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; }
+.rv-info { flex: 1; min-width: 0; }
+.rv-title { font-size: 13px; font-weight: 600; color: var(--bright); margin-bottom: 3px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.rv-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 7px; }
+.rv-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip-amt { font-family: var(--mono); font-size: 10.5px; padding: 2px 7px; border-radius: 3px; background: var(--ink3); border: 1px solid var(--line2); color: var(--muted); }
+.chip-type { font-size: 10.5px; padding: 2px 7px; border-radius: 3px; background: var(--viol-dim); border: 1px solid var(--viol-mid); color: var(--violet); }
+.rv-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.sp { font-family: var(--mono); font-size: 10.5px; font-weight: 500; padding: 3px 8px; border-radius: 4px; }
+.sp-pending  { background: var(--amber-dim); border: 1px solid var(--amber-mid);  color: var(--amber);   }
+.sp-approved { background: var(--emer-dim);  border: 1px solid var(--emer-mid);   color: var(--emerald); }
+.sp-rejected { background: var(--crim-dim);  border: 1px solid var(--crim-mid);   color: var(--crimson); }
+
+.conf-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--line); }
+.conf-label { font-family: var(--mono); font-size: 10px; color: var(--dim); width: 88px; flex-shrink: 0; }
+.conf-track { flex: 1; height: 3px; background: var(--ink3); border-radius: 2px; overflow: hidden; }
+.conf-fill { height: 100%; border-radius: 2px; }
+.conf-num { font-family: var(--mono); font-size: 11px; font-weight: 500; width: 32px; text-align: right; flex-shrink: 0; }
+
+.reason-toggle { padding: 0 14px 8px; font-family: var(--mono); font-size: 10.5px; color: var(--dim); border: none; background: none; text-align: left; width: 100%; transition: color .12s; }
+.reason-toggle:hover { color: var(--teal); }
+.reason-body { padding: 0 14px 12px; font-size: 11.5px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--line); padding-top: 10px; display: none; }
+
+/* ─── TX TABLE ────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th {
+  text-align: left; padding: 9px 12px;
+  background: var(--ink2);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono); font-size: 10px;
+  color: var(--dim); letter-spacing: .06em;
+  position: sticky; top: 0; white-space: nowrap;
+}
+td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--ink2); }
+
+.pill {
+  display: inline-flex; align-items: center;
+  padding: 2px 7px; border-radius: 3px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+  border: 1px solid transparent;
+}
+.pill.red    { background: var(--crim-dim); border-color: var(--crim-mid); color: var(--crimson);  }
+.pill.yellow { background: var(--amber-dim);border-color: var(--amber-mid);color: var(--amber);    }
+.pill.green  { background: var(--emer-dim); border-color: var(--emer-mid); color: var(--emerald);  }
+.pill.review { background: var(--viol-dim); border-color: var(--viol-mid); color: var(--violet);   }
+.pill.auto   { background: var(--ink3);     border-color: var(--line2);    color: var(--dim);      }
+
+.bar-cell { display: flex; align-items: center; gap: 5px; }
+.bar-mini { width: 42px; height: 3px; background: var(--ink3); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.bar-fill { height: 100%; border-radius: 2px; }
+
+/* ─── NARRATIVE PAGE ──────────────────────────────────────── */
+.narrative-page { max-width: 680px; }
+.narrative-page .panel + .panel { margin-top: 10px; }
+
+/* ─── EMPTY ───────────────────────────────────────────────── */
+.empty {
+  text-align: center; padding: 48px 20px; color: var(--dim);
+  font-family: var(--mono); font-size: 11px; line-height: 2;
+}
+.empty-ico { font-size: 28px; margin-bottom: 10px; display: block; opacity: .5; }
+.empty h3 { font-family: var(--display); font-size: 14px; color: var(--muted); font-weight: 700; letter-spacing: -.02em; margin-bottom: 4px; }
+
+/* ─── RESPONSIVE ──────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .two-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .sidebar { width: 44px; }
+  .brand-mark, .brand-rule, .brand-sub, .nav-divider, .nb span:not(.nb-ico), .nb-badge, .sidebar-foot { display: none; }
+  .nb { justify-content: center; padding: 8px; }
+  .nb.active::before { display: none; }
+  .page { padding: 14px; }
+  .kpi-row { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .prog-fill, .cat-fill, #score-arc { transition: none !important; }
 }
 </style>
 </head>
 <body>
 <div class="shell">
 
-<!-- ══ SIDEBAR ════════════════════════════════════════════════ -->
+<!-- ════════════════ SIDEBAR ════════════════ -->
 <aside class="sidebar">
   <div class="brand">
-    <!-- SVG logo: candlestick chart + pulse line = financial intelligence -->
-    <svg class="brand-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="32" height="32" rx="8" fill="url(#g1)"/>
-      <!-- Candlesticks -->
-      <rect x="6" y="10" width="3" height="12" rx="1" fill="white" opacity=".25"/>
-      <rect x="7" y="8" width="1" height="3" rx=".5" fill="white" opacity=".4"/>
-      <rect x="7" y="19" width="1" height="3" rx=".5" fill="white" opacity=".4"/>
-      <rect x="11" y="14" width="3" height="7" rx="1" fill="white" opacity=".6"/>
-      <rect x="12" y="12" width="1" height="3" rx=".5" fill="white" opacity=".6"/>
-      <rect x="12" y="21" width="1" height="2" rx=".5" fill="white" opacity=".6"/>
-      <rect x="16" y="11" width="3" height="9" rx="1" fill="white" opacity=".9"/>
-      <rect x="17" y="9" width="1" height="3" rx=".5" fill="white"/>
-      <rect x="17" y="20" width="1" height="3" rx=".5" fill="white"/>
-      <rect x="21" y="13" width="3" height="6" rx="1" fill="white" opacity=".6"/>
-      <rect x="22" y="11" width="1" height="3" rx=".5" fill="white" opacity=".6"/>
-      <!-- Pulse dot on latest -->
-      <circle cx="22.5" cy="10.5" r="2.5" fill="#4BF5A0"/>
-      <circle cx="22.5" cy="10.5" r="1.2" fill="white"/>
-      <defs>
-        <linearGradient id="g1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#3A6FEB"/>
-          <stop offset="1" stop-color="#6C5CE7"/>
-        </linearGradient>
-      </defs>
-    </svg>
-    <div class="brand-text">
-      <div class="brand-name">Ledger IQ</div>
-      <div class="brand-tagline">QoE PLATFORM</div>
+    <div class="brand-logo">
+      <div class="brand-mark">Ledger<span>IQ</span></div>
     </div>
+    <div class="brand-rule"></div>
+    <div class="brand-sub">QoE PLATFORM</div>
   </div>
 
   <nav class="nav">
-    <div class="nav-section">ANALYSIS</div>
-    <button class="nav-btn active" onclick="go('upload')" id="nb-upload"><span class="nav-ico">⬆</span><span>Upload</span></button>
-    <button class="nav-btn" onclick="go('dashboard')" id="nb-dashboard"><span class="nav-ico">◈</span><span>Dashboard</span></button>
-    <div class="nav-section">REVIEW</div>
-    <button class="nav-btn" onclick="go('review')" id="nb-review"><span class="nav-ico">⚑</span><span>Review Queue</span><span class="nb" id="rev-badge">0</span></button>
-    <button class="nav-btn" onclick="go('transactions')" id="nb-transactions"><span class="nav-ico">≡</span><span>Transactions</span></button>
-    <div class="nav-section">REPORT</div>
-    <button class="nav-btn" onclick="go('narrative')" id="nb-narrative"><span class="nav-ico">✦</span><span>Narrative</span></button>
+    <div class="nav-divider">Analysis</div>
+
+    <button class="nb active" onclick="go('upload')" id="nb-upload">
+      <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 11V3M5 6l3-3 3 3M3 13h10"/>
+      </svg>
+      <span>Upload</span>
+    </button>
+
+    <button class="nb" onclick="go('dashboard')" id="nb-dashboard">
+      <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="5" height="5" rx="1"/>
+        <rect x="9" y="2" width="5" height="5" rx="1"/>
+        <rect x="2" y="9" width="5" height="5" rx="1"/>
+        <rect x="9" y="9" width="5" height="5" rx="1"/>
+      </svg>
+      <span>Dashboard</span>
+    </button>
+
+    <div class="nav-divider">Review</div>
+
+    <button class="nb" onclick="go('review')" id="nb-review">
+      <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="8" cy="8" r="6"/>
+        <path d="M8 5v3.5L10 10"/>
+      </svg>
+      <span>Review Queue</span>
+      <span class="nb-badge" id="rev-badge">0</span>
+    </button>
+
+    <button class="nb" onclick="go('transactions')" id="nb-transactions">
+      <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 4h12M2 8h12M2 12h7"/>
+      </svg>
+      <span>Transactions</span>
+    </button>
+
+    <div class="nav-divider">Report</div>
+
+    <button class="nb" onclick="go('narrative')" id="nb-narrative">
+      <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 3h10M3 7h10M3 11h6"/>
+      </svg>
+      <span>Narrative</span>
+    </button>
   </nav>
 
   <div class="sidebar-foot">
-    <div class="key-box">
-      <div class="key-row">
-        <span class="key-label">ANTHROPIC KEY</span>
+    <div class="key-wrap">
+      <div class="key-head">
+        <span class="key-label">API KEY</span>
         <div class="key-dot" id="key-dot"></div>
       </div>
       <input class="key-input" id="api-key" type="password" placeholder="sk-ant-api03-…" oninput="checkKey()" autocomplete="off"/>
-      <div class="key-hint">Used only for confidence scoring. All parsing is done server-side.</div>
+      <div class="key-hint">Parsing happens server-side. Claude scores confidence only.</div>
     </div>
   </div>
 </aside>
 
-<!-- ══ MAIN ═══════════════════════════════════════════════════ -->
+<!-- ════════════════ MAIN ════════════════ -->
 <div class="main">
+
+  <!-- TOPBAR -->
   <div class="topbar">
-    <div class="topbar-left">
-      <span class="topbar-title" id="tb-title">Upload Files</span>
-      <span class="topbar-meta" id="tb-meta"></span>
+    <div class="tb-left">
+      <span class="tb-title" id="tb-title">Upload</span>
+      <span class="tb-meta" id="tb-meta"></span>
     </div>
-    <div class="topbar-right">
-      <button class="btn btn-ghost btn-sm" id="btn-export" style="display:none" onclick="exportReport()">↓ Export</button>
-      <button class="btn btn-ghost btn-sm" id="btn-reset" style="display:none" onclick="resetAll()">↺ New</button>
+    <div class="tb-right">
+      <button class="btn btn-ghost btn-sm" id="btn-export" style="display:none" onclick="exportReport()">Export</button>
+      <button class="btn btn-ghost btn-sm" id="btn-reset"  style="display:none" onclick="resetAll()">New analysis</button>
     </div>
   </div>
 
-  <!-- UPLOAD PAGE -->
+  <!-- ── UPLOAD ── -->
   <div class="page active" id="page-upload">
-    <div class="upload-wrap">
-      <h1>Quality of Earnings<br/><em>Analysis Platform</em></h1>
-      <p>Upload financial documents. The backend parses and classifies every line item — Claude is called once to assign confidence scores and compute the overall earnings quality score.</p>
-      <div class="drop-zone" id="drop">
+    <div class="upload-shell">
+      <div class="upload-eyebrow">Quality of Earnings</div>
+      <h1 class="upload-heading">Drop your financials.<br/>Get a full QoE report.</h1>
+      <p class="upload-sub">Upload income statements, cash flows, revenue schedules, or balance sheets. The backend parses everything — Claude is called once to score confidence and compute the earnings quality grade.</p>
+
+      <div class="terminal-drop" id="drop">
         <input type="file" id="file-input" multiple accept=".csv,.pdf,.xlsx,.xls,.txt" onchange="addFiles(this.files)"/>
-        <div class="dz-icon">
-          <svg width="38" height="38" viewBox="0 0 38 38" fill="none"><rect width="38" height="38" rx="9" fill="#151820"/><path d="M19 25V13M13 19L19 13L25 19" stroke="#4B87F5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 28h14" stroke="#4B87F5" stroke-width="2" stroke-linecap="round" opacity=".45"/></svg>
+        <div class="td-chrome">
+          <div class="td-dot r"></div><div class="td-dot y"></div><div class="td-dot g"></div>
+          <span class="td-chrome-label">file upload</span>
         </div>
-        <div class="dz-title">Drop financial files here</div>
-        <div class="dz-sub">Income statements, balance sheets, cash flows, revenue schedules</div>
-        <div class="fmt-row">
-          <span class="fmt">PDF</span><span class="fmt">CSV</span><span class="fmt">XLSX</span><span class="fmt">TXT</span>
+        <div class="td-inner">
+          <div class="td-prompt">drop files here or click to browse</div>
+          <div class="td-desc">Income statements · Balance sheets · Cash flows · Revenue schedules</div>
+          <div class="td-formats">
+            <span class="td-fmt">PDF</span>
+            <span class="td-fmt">CSV</span>
+            <span class="td-fmt">XLSX</span>
+            <span class="td-fmt">TXT</span>
+          </div>
         </div>
       </div>
+
       <div class="file-list" id="file-list"></div>
+
       <button class="btn btn-primary analyze-btn" id="analyze-btn" disabled onclick="startAnalysis()">
         <span id="analyze-txt">Add files to begin</span>
       </button>
     </div>
   </div>
 
-  <!-- PROGRESS PAGE -->
+  <!-- ── PROGRESS ── -->
   <div class="page" id="page-progress">
-    <div class="prog-wrap">
-      <div class="prog-title" id="prog-title">Analyzing…</div>
-      <div class="prog-sub" id="prog-sub">Backend is parsing your files</div>
+    <div class="prog-shell">
+      <div class="prog-heading" id="prog-title">Analyzing…</div>
+      <div class="prog-sub" id="prog-sub">Backend is parsing your documents</div>
       <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
       <div class="prog-pct" id="prog-pct">0%</div>
-      <div class="log-box" id="log-box"></div>
+      <div class="log-terminal">
+        <div class="log-chrome">
+          <div class="td-dot r"></div><div class="td-dot y"></div><div class="td-dot g"></div>
+          <span class="log-chrome-title">analysis log</span>
+        </div>
+        <div class="log-body" id="log-box"></div>
+      </div>
     </div>
   </div>
 
-  <!-- DASHBOARD PAGE -->
+  <!-- ── DASHBOARD ── -->
   <div class="page" id="page-dashboard">
     <div class="kpi-row">
-      <div class="kpi"><div class="kpi-lbl">OVERALL SCORE</div><div class="kpi-val" id="k-score" style="color:var(--accent)">—</div><div class="kpi-sub" id="k-grade">—</div></div>
-      <div class="kpi"><div class="kpi-lbl">AVG AI CONFIDENCE</div><div class="kpi-val" id="k-conf">—</div><div class="kpi-sub">across all items</div></div>
-      <div class="kpi"><div class="kpi-lbl">REVIEW QUEUE</div><div class="kpi-val" id="k-queue" style="color:var(--yellow)">—</div><div class="kpi-sub">need human review</div></div>
-      <div class="kpi"><div class="kpi-lbl">CRITICAL FLAGS</div><div class="kpi-val" id="k-flags" style="color:var(--red)">—</div><div class="kpi-sub">high severity</div></div>
+      <div class="kpi">
+        <div class="kpi-label">QoE Score</div>
+        <div class="kpi-value" id="k-score" style="color:var(--teal)">—</div>
+        <div class="kpi-sub" id="k-grade">awaiting analysis</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg AI Confidence</div>
+        <div class="kpi-value" id="k-conf">—</div>
+        <div class="kpi-sub">across all items</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Review Queue</div>
+        <div class="kpi-value" id="k-queue" style="color:var(--amber)">—</div>
+        <div class="kpi-sub">need human review</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Critical Flags</div>
+        <div class="kpi-value" id="k-flags" style="color:var(--crimson)">—</div>
+        <div class="kpi-sub">high severity</div>
+      </div>
     </div>
+
+    <div id="token-strip-wrap" style="display:none">
+      <div class="token-strip" id="tok-strip">
+        <div class="tok-item"><span class="tok-k">Claude input</span><span class="tok-v" id="tok-in">—</span></div>
+        <div class="tok-item"><span class="tok-k">output</span><span class="tok-v" id="tok-out">—</span></div>
+        <div class="tok-item"><span class="tok-k">total tokens</span><span class="tok-v" id="tok-total">—</span></div>
+        <div class="tok-item"><span class="tok-k">files</span><span class="tok-v" id="tok-files">—</span></div>
+        <div class="tok-item"><span class="tok-k">line items</span><span class="tok-v" id="tok-tx">—</span></div>
+        <div class="tok-item" style="margin-left:auto"><span class="tok-k">1 Claude call</span></div>
+      </div>
+    </div>
+
     <div class="two-col">
-      <div class="box">
-        <div class="box-head">Score Breakdown</div>
-        <div class="score-flex">
+      <div class="panel">
+        <div class="panel-label">Score breakdown</div>
+        <div class="ring-flex">
           <div class="ring-wrap">
-            <svg width="76" height="76" viewBox="0 0 76 76">
-              <circle cx="38" cy="38" r="30" fill="none" stroke="#1B1F2A" stroke-width="6"/>
-              <circle cx="38" cy="38" r="30" fill="none" id="score-arc" stroke="var(--accent)" stroke-width="6"
-                stroke-dasharray="188" stroke-dashoffset="188" stroke-linecap="round" style="transition:stroke-dashoffset 1.1s ease"/>
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#182236" stroke-width="5.5"/>
+              <circle cx="40" cy="40" r="32" fill="none" id="score-arc"
+                stroke="var(--teal)" stroke-width="5.5"
+                stroke-dasharray="201" stroke-dashoffset="201"
+                stroke-linecap="round"
+                style="transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)"/>
             </svg>
-            <div class="ring-label"><span class="ring-num" id="ring-num">—</span><span class="ring-den">/100</span></div>
+            <div class="ring-center">
+              <span class="ring-num" id="ring-num">—</span>
+              <span class="ring-den">/100</span>
+            </div>
           </div>
-          <div class="cat-list" id="cat-list"></div>
+          <div class="cat-stack" id="cat-stack"></div>
         </div>
       </div>
-      <div class="box" style="overflow-y:auto;max-height:260px">
-        <div class="box-head">Key Findings</div>
+
+      <div class="panel" style="overflow-y:auto; max-height:260px">
+        <div class="panel-label">Key findings</div>
         <div id="flags-box"></div>
       </div>
-      <div class="box full">
-        <div class="box-head">Token Usage <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text3)">(Claude was called once)</span></div>
-        <div class="token-row" id="token-row" style="display:none">
-          <div class="token-item"><span class="token-label">Input:</span><span id="tok-in">—</span></div>
-          <div class="token-item"><span class="token-label">Output:</span><span id="tok-out">—</span></div>
-          <div class="token-item"><span class="token-label">Total:</span><span id="tok-total">—</span></div>
-          <div class="token-item"><span class="token-label">Files:</span><span id="tok-files">—</span></div>
-          <div class="token-item"><span class="token-label">Transactions:</span><span id="tok-tx">—</span></div>
-        </div>
-        <div class="narrative" id="dash-narrative" style="margin-top:14px"></div>
+
+      <div class="panel full">
+        <div class="panel-label">Summary</div>
+        <div class="prose" id="dash-narrative"></div>
       </div>
     </div>
   </div>
 
-  <!-- REVIEW QUEUE -->
+  <!-- ── REVIEW QUEUE ── -->
   <div class="page" id="page-review">
-    <div class="review-top">
+    <div class="rq-top">
       <div>
-        <div style="font-size:15px;font-weight:600;margin-bottom:2px">Human Review Queue</div>
-        <div style="font-size:12px;color:var(--text3)">Items Claude flagged as low-confidence or high-risk</div>
+        <div class="rq-heading">Review Queue</div>
+        <div class="rq-desc">Items Claude flagged as low-confidence or high-risk</div>
       </div>
       <div class="filter-row">
         <button class="flt active" onclick="setFilter('all',this)">All</button>
@@ -403,12 +826,12 @@ tr:hover td{background:var(--surface2)}
         <button class="flt" onclick="setFilter('rejected',this)">Rejected</button>
       </div>
     </div>
-    <div class="review-cards" id="review-cards">
-      <div class="empty"><span class="empty-ico">🔍</span><h3>No items yet</h3><p>Upload files and run an analysis first</p></div>
+    <div class="rv-cards" id="rv-cards">
+      <div class="empty"><span class="empty-ico">○</span><h3>Nothing queued</h3>Upload files to begin an analysis.</div>
     </div>
   </div>
 
-  <!-- TRANSACTIONS TABLE -->
+  <!-- ── TRANSACTIONS TABLE ── -->
   <div class="page" id="page-transactions">
     <div class="table-wrap">
       <table>
@@ -419,417 +842,441 @@ tr:hover td{background:var(--surface2)}
           </tr>
         </thead>
         <tbody id="tx-body">
-          <tr><td colspan="8" class="empty" style="border:none">Run an analysis to see transactions</td></tr>
+          <tr><td colspan="8"><div class="empty">Run an analysis to see transactions.</div></td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- NARRATIVE PAGE -->
+  <!-- ── NARRATIVE ── -->
   <div class="page" id="page-narrative">
     <div class="narrative-page">
-      <div class="box"><div class="box-head">Analyst Narrative</div><div class="narrative" id="narrative-full"></div></div>
-      <div class="box"><div class="box-head">Methodology & Limitations</div><div class="narrative" id="methodology"></div></div>
+      <div class="panel">
+        <div class="panel-label">Analyst narrative</div>
+        <div class="prose" id="narrative-full"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-label">Methodology &amp; limitations</div>
+        <div class="prose" id="methodology"></div>
+      </div>
     </div>
   </div>
+
 </div><!-- /main -->
 </div><!-- /shell -->
 
 <script>
-// ═══════════════════════════════════════════════════════════
-// CONFIG — set backend URL here
-// ═══════════════════════════════════════════════════════════
-const API_BASE = window.location.origin; // same origin in production
+// ═══════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════
+const API_BASE = window.location.origin;
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 let files      = [];
 let report     = null;
-let reviewSt   = {}; // id → pending | approved | rejected
+let reviewSt   = {};
 let filterMode = 'all';
 
-// ═══════════════════════════════════════════════════════════
-// NAVIGATION
-// ═══════════════════════════════════════════════════════════
-const titles = { upload:'Upload Files', dashboard:'Dashboard', review:'Review Queue', transactions:'Transactions', narrative:'Analyst Narrative' };
+// ═══════════════════════════════════
+// NAV
+// ═══════════════════════════════════
+const titles = {
+  upload:'Upload', dashboard:'Dashboard',
+  review:'Review Queue', transactions:'Transactions', narrative:'Narrative'
+};
 function go(page) {
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('page-'+page).classList.add('active');
-  const nb = document.getElementById('nb-'+page);
-  if(nb) nb.classList.add('active');
-  document.getElementById('tb-title').textContent = titles[page]||page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  const nb = document.getElementById('nb-' + page);
+  if (nb) nb.classList.add('active');
+  document.getElementById('tb-title').textContent = titles[page] || page;
   const hasR = !!report;
-  document.getElementById('btn-export').style.display = hasR?'':'none';
-  document.getElementById('btn-reset').style.display  = hasR?'':'none';
+  document.getElementById('btn-export').style.display = hasR ? '' : 'none';
+  document.getElementById('btn-reset').style.display  = hasR ? '' : 'none';
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 // API KEY
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 function checkKey() {
   const v = document.getElementById('api-key').value.trim();
-  document.getElementById('key-dot').className = 'key-dot'+(v.startsWith('sk-ant-')&&v.length>24?' ok':'');
+  document.getElementById('key-dot').className = 'key-dot' + (v.startsWith('sk-ant-') && v.length > 24 ? ' ok' : '');
   updateBtn();
 }
-const getKey = ()=>document.getElementById('api-key').value.trim();
+const getKey = () => document.getElementById('api-key').value.trim();
 
-// ═══════════════════════════════════════════════════════════
-// FILE HANDLING
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
+// FILES
+// ═══════════════════════════════════
 const dz = document.getElementById('drop');
-dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('drag')});
-dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
-dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('drag');addFiles(e.dataTransfer.files)});
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', ()  => dz.classList.remove('drag'));
+dz.addEventListener('drop',      e  => { e.preventDefault(); dz.classList.remove('drag'); addFiles(e.dataTransfer.files); });
 
 function addFiles(list) {
-  for(const f of list) if(!files.find(x=>x.name===f.name)) files.push(f);
+  for (const f of list) if (!files.find(x => x.name === f.name)) files.push(f);
   renderFiles(); updateBtn();
 }
-function removeFile(name) { files=files.filter(f=>f.name!==name); renderFiles(); updateBtn(); }
+function removeFile(name) { files = files.filter(f => f.name !== name); renderFiles(); updateBtn(); }
+
 function renderFiles() {
-  document.getElementById('file-list').innerHTML = files.map(f=>`
-    <div class="file-row">
-      <span class="file-ico">${fIco(f.name)}</span>
+  document.getElementById('file-list').innerHTML = files.map(f => {
+    const ext = f.name.split('.').pop().toUpperCase();
+    return `<div class="file-row">
+      <span class="file-ext">${esc(ext)}</span>
       <span class="file-name">${esc(f.name)}</span>
-      <span class="file-sz">${sz(f.size)}</span>
+      <span class="file-size">${sz(f.size)}</span>
       <button class="file-del" onclick="removeFile('${esc(f.name)}')" title="Remove">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
-function fIco(n){return{pdf:'📄',csv:'📊',xlsx:'📊',xls:'📊',txt:'📃'}[n.split('.').pop().toLowerCase()]||'📁'}
-function sz(b){return b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'KB':(b/1048576).toFixed(1)+'MB'}
+function sz(b) { return b < 1024 ? b + 'B' : b < 1048576 ? (b/1024).toFixed(1) + 'KB' : (b/1048576).toFixed(1) + 'MB'; }
+
 function updateBtn() {
   const btn = document.getElementById('analyze-btn');
   const txt = document.getElementById('analyze-txt');
-  const hasKey = getKey().startsWith('sk-ant-')&&getKey().length>24;
-  const hasF   = files.length>0;
-  btn.disabled = !(hasKey&&hasF);
-  txt.textContent = !hasF?'Add files to begin':!hasKey?'Enter your API key →':`Analyze ${files.length} file${files.length>1?'s':''}`;
+  const hasKey  = getKey().startsWith('sk-ant-') && getKey().length > 24;
+  const hasFiles = files.length > 0;
+  btn.disabled = !(hasKey && hasFiles);
+  txt.textContent = !hasFiles ? 'Add files to begin'
+    : !hasKey ? 'Enter your API key'
+    : `Analyze ${files.length} file${files.length > 1 ? 's' : ''}`;
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 // PROGRESS
-// ═══════════════════════════════════════════════════════════
-function setProg(pct,title,sub){
-  document.getElementById('prog-fill').style.width=pct+'%';
-  document.getElementById('prog-pct').textContent=Math.round(pct)+'%';
-  if(title) document.getElementById('prog-title').textContent=title;
-  if(sub)   document.getElementById('prog-sub').textContent=sub;
+// ═══════════════════════════════════
+function setProg(pct, title, sub) {
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-pct').textContent  = Math.round(pct) + '%';
+  if (title) document.getElementById('prog-title').textContent = title;
+  if (sub)   document.getElementById('prog-sub').textContent   = sub;
 }
-function addLog(msg,type='info'){
-  const box=document.getElementById('log-box');
-  const el=document.createElement('span');
-  el.className='ll '+type;
-  const ts=new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  el.textContent=`[${ts}]  ${msg}`;
-  box.appendChild(el); box.appendChild(document.createElement('br'));
-  box.scrollTop=box.scrollHeight;
+function addLog(msg, type = 'info') {
+  const box = document.getElementById('log-box');
+  const el  = document.createElement('span');
+  el.className = 'll ' + type;
+  const ts = new Date().toLocaleTimeString('en-US', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  el.textContent = `[${ts}]  ${msg}`;
+  box.appendChild(el);
+  box.appendChild(document.createElement('br'));
+  box.scrollTop = box.scrollHeight;
 }
 
-// ═══════════════════════════════════════════════════════════
-// ANALYSIS — streams SSE from the backend
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
+// ANALYSIS  — SSE stream from backend
+// ═══════════════════════════════════
 async function startAnalysis() {
-  if(!getKey()||!files.length) return;
+  if (!getKey() || !files.length) return;
 
-  // Switch to progress view
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-progress').classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tb-title').textContent='Analyzing…';
-  document.getElementById('log-box').innerHTML='';
-  setProg(0,'Starting analysis…','Building request');
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  document.getElementById('tb-title').textContent = 'Analyzing…';
+  document.getElementById('log-box').innerHTML = '';
+  setProg(0, 'Starting analysis…', 'Connecting to backend');
 
   const fd = new FormData();
-  for(const f of files) fd.append('files', f);
+  for (const f of files) fd.append('files', f);
 
-  addLog('Connecting to backend…','info');
+  addLog('Connecting to backend…', 'info');
 
-  let evtSource;
   try {
-    // Use fetch + ReadableStream to handle SSE manually (works with POST + FormData)
     const resp = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
       headers: { 'x-api-key': getKey() },
       body: fd
     });
 
-    if(!resp.ok) {
-      const err = await resp.json().catch(()=>({}));
-      throw new Error(err.error||`HTTP ${resp.status}`);
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${resp.status}`);
     }
 
     const reader  = resp.body.getReader();
     const decoder = new TextDecoder();
     let   buf     = '';
 
-    while(true) {
-      const {done, value} = await reader.read();
-      if(done) break;
-      buf += decoder.decode(value, {stream:true});
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
       const events = buf.split('\n\n');
-      buf = events.pop(); // keep incomplete last chunk
+      buf = events.pop();
 
-      for(const raw of events) {
-        if(!raw.trim()) continue;
+      for (const raw of events) {
+        if (!raw.trim()) continue;
         const lines = raw.split('\n');
-        let evName='message', evData='';
-        for(const l of lines){
-          if(l.startsWith('event: ')) evName=l.slice(7).trim();
-          if(l.startsWith('data: '))  evData=l.slice(6).trim();
+        let evName = 'message', evData = '';
+        for (const l of lines) {
+          if (l.startsWith('event: ')) evName = l.slice(7).trim();
+          if (l.startsWith('data: '))  evData = l.slice(6).trim();
         }
-        if(!evData) continue;
-        let d;
-        try { d=JSON.parse(evData); } catch { continue; }
+        if (!evData) continue;
+        let d; try { d = JSON.parse(evData); } catch { continue; }
 
-        if(evName==='progress') { setProg(d.pct, d.message); }
-        if(evName==='log')      { addLog(d.message, d.type||'info'); }
-        if(evName==='result')   { report=d.report; }
-        if(evName==='error')    { throw new Error(d.message); }
-        if(evName==='done') {
-          addLog('Report ready.','ok');
-          await new Promise(r=>setTimeout(r,400));
+        if (evName === 'progress') setProg(d.pct, d.message);
+        if (evName === 'log')      addLog(d.message, d.type || 'info');
+        if (evName === 'result')   report = d.report;
+        if (evName === 'error')    throw new Error(d.message);
+        if (evName === 'done') {
+          addLog('Report ready.', 'ok');
+          await new Promise(r => setTimeout(r, 400));
           finishReport();
         }
       }
     }
-  } catch(err) {
-    addLog('Error: '+err.message,'err');
-    setProg(0,'Analysis failed',err.message);
-    const b=document.createElement('button');
-    b.className='btn btn-ghost'; b.style.marginTop='16px';
-    b.textContent='← Back'; b.onclick=()=>{go('upload')};
+  } catch (err) {
+    addLog('Error: ' + err.message, 'err');
+    setProg(0, 'Analysis failed', err.message);
+    const b = document.createElement('button');
+    b.className = 'btn btn-ghost'; b.style.marginTop = '16px';
+    b.textContent = 'Back'; b.onclick = () => go('upload');
     document.getElementById('page-progress').appendChild(b);
   }
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 // RENDER
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 function finishReport() {
-  if(!report) return;
-  const r=report;
+  if (!report) return;
+  const r = report;
 
-  // init review states
-  reviewSt={};
-  (r.transactions||[]).forEach(t=>{ if(t.needsReview) reviewSt[t.id]='pending'; });
+  reviewSt = {};
+  (r.transactions || []).forEach(t => { if (t.needsReview) reviewSt[t.id] = 'pending'; });
 
-  const score   = Math.max(0,Math.min(100,r.score||0));
-  const pending = Object.values(reviewSt).filter(s=>s==='pending').length;
-  const redCt   = (r.flags||[]).filter(f=>f.severity==='red').length;
+  const score   = Math.max(0, Math.min(100, r.score || 0));
+  const pending = Object.values(reviewSt).filter(s => s === 'pending').length;
+  const redCt   = (r.flags || []).filter(f => f.severity === 'red').length;
   const avgConf = r.transactions?.length
-    ? Math.round(r.transactions.reduce((s,t)=>s+(t.confidence||0),0)/r.transactions.length) : 0;
+    ? Math.round(r.transactions.reduce((s, t) => s + (t.confidence || 0), 0) / r.transactions.length) : 0;
 
   // KPIs
-  document.getElementById('k-score').textContent=score;
-  document.getElementById('k-grade').textContent=r.grade||'—';
-  document.getElementById('k-conf').textContent=avgConf+'%';
-  document.getElementById('k-conf').style.color=avgConf>=75?'var(--green)':avgConf>=50?'var(--yellow)':'var(--red)';
-  document.getElementById('k-queue').textContent=pending;
-  document.getElementById('k-flags').textContent=redCt;
+  document.getElementById('k-score').textContent = score;
+  document.getElementById('k-grade').textContent = r.grade || '—';
+  const confEl = document.getElementById('k-conf');
+  confEl.textContent = avgConf + '%';
+  confEl.style.color = avgConf >= 75 ? 'var(--emerald)' : avgConf >= 50 ? 'var(--amber)' : 'var(--crimson)';
+  document.getElementById('k-queue').textContent = pending;
+  document.getElementById('k-flags').textContent = redCt;
 
-  // Ring
-  document.getElementById('ring-num').textContent=score;
-  const arc=document.getElementById('score-arc');
-  arc.style.stroke=score>=70?'var(--green)':score>=45?'var(--yellow)':'var(--red)';
-  setTimeout(()=>{ arc.style.strokeDashoffset=188-(score/100)*188; },150);
+  // Ring arc
+  document.getElementById('ring-num').textContent = score;
+  const arc = document.getElementById('score-arc');
+  arc.style.stroke = score >= 70 ? 'var(--emerald)' : score >= 45 ? 'var(--amber)' : 'var(--crimson)';
+  setTimeout(() => { arc.style.strokeDashoffset = 201 - (score / 100) * 201; }, 200);
+
+  // Grade color
+  const g = r.grade || '';
+  document.getElementById('k-score').style.color = g.startsWith('A') ? 'var(--emerald)' : g.startsWith('B') ? 'var(--teal)' : g.startsWith('C') ? 'var(--amber)' : 'var(--crimson)';
 
   // Categories
-  document.getElementById('cat-list').innerHTML=(r.categories||[]).map(c=>{
-    const col=c.color==='green'?'var(--green)':c.color==='red'?'var(--red)':'var(--yellow)';
+  document.getElementById('cat-stack').innerHTML = (r.categories || []).map(c => {
+    const col = c.color === 'green' ? 'var(--emerald)' : c.color === 'red' ? 'var(--crimson)' : 'var(--amber)';
     return `<div class="cat-row">
       <span class="cat-name">${esc(c.name)}</span>
       <div class="cat-track"><div class="cat-fill" style="width:${c.score||0}%;background:${col}"></div></div>
-      <span class="cat-score" style="color:${col}">${c.score||0}</span>
+      <span class="cat-num" style="color:${col}">${c.score || 0}</span>
     </div>`;
   }).join('');
 
   // Flags
-  document.getElementById('flags-box').innerHTML=(r.flags||[]).map(f=>`
-    <div class="flag-item ${f.severity||'yellow'}">
-      <span class="flag-ico">${f.severity==='red'?'🔴':f.severity==='green'?'🟢':'🟡'}</span>
-      <div><span class="flag-title">${esc(f.title||'')}</span><span>${esc(f.detail||'')}</span></div>
+  document.getElementById('flags-box').innerHTML = (r.flags || []).map(f => `
+    <div class="flag ${f.severity || 'yellow'}">
+      <div><span class="flag-title">${esc(f.title || '')}</span><span class="flag-detail">${esc(f.detail || '')}</span></div>
     </div>`).join('');
 
   // Narrative
-  const nHtml=(r.narrative||'').split('\n\n').map(p=>`<p>${esc(p)}</p>`).join('');
-  document.getElementById('dash-narrative').innerHTML=nHtml;
-  document.getElementById('narrative-full').innerHTML=nHtml;
-  document.getElementById('methodology').innerHTML=(r.methodology||'').split('\n\n').map(p=>`<p>${esc(p)}</p>`).join('');
+  const nHtml = (r.narrative || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+  document.getElementById('dash-narrative').innerHTML = nHtml;
+  document.getElementById('narrative-full').innerHTML = nHtml;
+  document.getElementById('methodology').innerHTML   = (r.methodology || '').split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
 
   // Token usage
-  if(r._meta?.tokenUsage) {
-    const u=r._meta.tokenUsage;
-    document.getElementById('tok-in').textContent=u.inputTokens?.toLocaleString();
-    document.getElementById('tok-out').textContent=u.outputTokens?.toLocaleString();
-    document.getElementById('tok-total').textContent=u.totalTokens?.toLocaleString();
-    document.getElementById('tok-files').textContent=r._meta.filesProcessed;
-    document.getElementById('tok-tx').textContent=r._meta.totalTransactions;
-    document.getElementById('token-row').style.display='flex';
+  if (r._meta?.tokenUsage) {
+    const u = r._meta.tokenUsage;
+    document.getElementById('tok-in').textContent    = u.inputTokens?.toLocaleString();
+    document.getElementById('tok-out').textContent   = u.outputTokens?.toLocaleString();
+    document.getElementById('tok-total').textContent = u.totalTokens?.toLocaleString();
+    document.getElementById('tok-files').textContent = r._meta.filesProcessed;
+    document.getElementById('tok-tx').textContent    = r._meta.totalTransactions;
+    document.getElementById('token-strip-wrap').style.display = '';
   }
 
-  // Review queue & tx table
   renderReview();
   renderTxTable();
 
-  // Badge
-  document.getElementById('rev-badge').textContent=pending;
-  document.getElementById('rev-badge').className='nb'+(pending>0?' on':'');
-
-  document.getElementById('tb-meta').textContent=`Score ${score}/100 · ${(r.transactions||[]).length} items · ${pending} pending review`;
+  document.getElementById('rev-badge').textContent  = pending;
+  document.getElementById('rev-badge').className    = 'nb-badge' + (pending > 0 ? ' on' : '');
+  document.getElementById('tb-meta').textContent    = `score ${score}/100 · ${(r.transactions||[]).length} items · ${pending} pending`;
 
   go('dashboard');
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 // REVIEW QUEUE
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 function renderReview() {
-  if(!report) return;
-  const reviewItems=(report.transactions||[]).filter(t=>t.needsReview);
-  const container=document.getElementById('review-cards');
-  if(!reviewItems.length){
-    container.innerHTML=`<div class="empty"><span class="empty-ico">✅</span><h3>Nothing to review</h3><p>All items had high confidence</p></div>`;
+  if (!report) return;
+  const items = (report.transactions || []).filter(t => t.needsReview);
+  const wrap  = document.getElementById('rv-cards');
+
+  if (!items.length) {
+    wrap.innerHTML = `<div class="empty"><span class="empty-ico">✓</span><h3>Nothing to review</h3>All items had high confidence.</div>`;
     return;
   }
-  const shown=filterMode==='all'?reviewItems:reviewItems.filter(t=>(reviewSt[t.id]||'pending')===filterMode);
-  if(!shown.length){
-    container.innerHTML=`<div class="empty"><span class="empty-ico">🔍</span><h3>No items match filter</h3></div>`;
+
+  const shown = filterMode === 'all' ? items : items.filter(t => (reviewSt[t.id] || 'pending') === filterMode);
+  if (!shown.length) {
+    wrap.innerHTML = `<div class="empty"><span class="empty-ico">○</span><h3>No items match filter</h3></div>`;
     return;
   }
-  container.innerHTML=shown.map(t=>{
-    const st=reviewSt[t.id]||'pending';
-    const conf=t.confidence||0;
-    const cc=conf>=75?'var(--green)':conf>=50?'var(--yellow)':'var(--red)';
-    const sev=t.severity||'yellow';
+
+  wrap.innerHTML = shown.map(t => {
+    const st   = reviewSt[t.id] || 'pending';
+    const conf = t.confidence || 0;
+    const cc   = conf >= 75 ? 'var(--emerald)' : conf >= 50 ? 'var(--amber)' : 'var(--crimson)';
+    const sev  = t.severity || 'yellow';
     return `
-    <div class="rc rv-${sev} st-${st}" id="rc-${t.id}">
-      <div class="rc-body">
-        <div class="rc-info">
-          <div class="rc-title">${esc(t.item||'')} <span class="pill ${sev}">${sev.toUpperCase()}</span></div>
-          <div class="rc-desc">${esc(t.finding||'')}</div>
-          <div class="rc-chips">
-            ${t.amount&&t.amount!=='N/A'?`<span class="chip-amount">${esc(t.amount)}</span>`:''}
+    <div class="rv sev-${sev} st-${st}" id="rv-${t.id}">
+      <div class="rv-body">
+        <div class="rv-info">
+          <div class="rv-title">${esc(t.item||'')} <span class="pill ${sev}">${sev}</span></div>
+          <div class="rv-desc">${esc(t.finding||'')}</div>
+          <div class="rv-chips">
+            ${t.amount && t.amount !== 'N/A' ? `<span class="chip-amt">${esc(t.amount)}</span>` : ''}
             <span class="chip-type">${esc(t.type||'Other')}</span>
           </div>
         </div>
-        <div class="rc-actions">
-          ${st==='pending'
-            ?`<button class="btn btn-sm btn-approve" onclick="doReview('${t.id}','approved')">✓ Approve</button>
-               <button class="btn btn-sm btn-reject" onclick="doReview('${t.id}','rejected')">✕ Reject</button>`
-            :`<span class="status-pill sp-${st}">${st.toUpperCase()}</span>`}
+        <div class="rv-actions">
+          ${st === 'pending'
+            ? `<button class="btn btn-sm btn-approve" onclick="doReview('${t.id}','approved')">Approve</button>
+               <button class="btn btn-sm btn-reject"  onclick="doReview('${t.id}','rejected')">Reject</button>`
+            : `<span class="sp sp-${st}">${st}</span>`}
         </div>
       </div>
-      <div class="conf-bar-row">
-        <span class="conf-label">AI Confidence</span>
+      <div class="conf-row">
+        <span class="conf-label">AI confidence</span>
         <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${cc}"></div></div>
         <span class="conf-num" style="color:${cc}">${conf}%</span>
       </div>
-      <button class="reasoning-toggle" onclick="toggleR('${t.id}')">▸ View Claude's reasoning</button>
-      <div class="reasoning-box" id="rb-${t.id}">${esc(t.confidenceReasoning||'No reasoning provided.')}<br/><br/><strong>Recommendation:</strong> ${esc(t.recommendation||'—')}</div>
+      <button class="reason-toggle" onclick="toggleR('${t.id}')">▸ Claude's reasoning</button>
+      <div class="reason-body" id="rb-${t.id}">${esc(t.confidenceReasoning||'No reasoning provided.')}<br/><br/><strong>Recommendation:</strong> ${esc(t.recommendation||'—')}</div>
     </div>`;
   }).join('');
 
-  // Update badge
-  const p=Object.values(reviewSt).filter(s=>s==='pending').length;
-  document.getElementById('rev-badge').textContent=p;
-  document.getElementById('rev-badge').className='nb'+(p>0?' on':'');
-  document.getElementById('k-queue').textContent=p;
+  const p = Object.values(reviewSt).filter(s => s === 'pending').length;
+  document.getElementById('rev-badge').textContent = p;
+  document.getElementById('rev-badge').className   = 'nb-badge' + (p > 0 ? ' on' : '');
+  document.getElementById('k-queue').textContent   = p;
 }
 
-function toggleR(id){
-  const el=document.getElementById('rb-'+id);
-  const tog=el.previousElementSibling;
-  if(el.style.display==='block'){el.style.display='none';tog.textContent='▸ View Claude\'s reasoning';}
-  else{el.style.display='block';tog.textContent='▾ Hide reasoning';}
+function toggleR(id) {
+  const el  = document.getElementById('rb-' + id);
+  const tog = el.previousElementSibling;
+  if (el.style.display === 'block') { el.style.display = 'none'; tog.textContent = '▸ Claude\'s reasoning'; }
+  else                               { el.style.display = 'block'; tog.textContent = '▾ Claude\'s reasoning'; }
 }
-function doReview(id,action){ reviewSt[id]=action; renderReview(); renderTxTable(); }
-function setFilter(f,btn){ filterMode=f; document.querySelectorAll('.flt').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderReview(); }
+function doReview(id, action) { reviewSt[id] = action; renderReview(); renderTxTable(); }
+function setFilter(f, btn) {
+  filterMode = f;
+  document.querySelectorAll('.flt').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReview();
+}
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 // TRANSACTIONS TABLE
-// ═══════════════════════════════════════════════════════════
-function renderTxTable(){
-  if(!report) return;
-  document.getElementById('tx-body').innerHTML=(report.transactions||[]).map(t=>{
-    const conf=t.confidence||0;
-    const cc=conf>=75?'var(--green)':conf>=50?'var(--yellow)':'var(--red)';
-    const st=t.needsReview?(reviewSt[t.id]||'pending'):null;
-    const spill=st
-      ?`<span class="pill ${st==='approved'?'green':st==='rejected'?'red':'review'}">${st.toUpperCase()}</span>`
-      :`<span class="pill auto">AUTO</span>`;
-    const change=t.pctChange!=null?((t.pctChange>0?'+':'')+t.pctChange.toFixed(1)+'%'):'—';
-    const changeColor=t.pctChange==null?'var(--text3)':Math.abs(t.pctChange)>40?'var(--red)':Math.abs(t.pctChange)>15?'var(--yellow)':'var(--green)';
+// ═══════════════════════════════════
+function renderTxTable() {
+  if (!report) return;
+  document.getElementById('tx-body').innerHTML = (report.transactions || []).map(t => {
+    const conf = t.confidence || 0;
+    const cc   = conf >= 75 ? 'var(--emerald)' : conf >= 50 ? 'var(--amber)' : 'var(--crimson)';
+    const st   = t.needsReview ? (reviewSt[t.id] || 'pending') : null;
+    const spill = st
+      ? `<span class="pill ${st==='approved'?'green':st==='rejected'?'red':'review'}">${st}</span>`
+      : `<span class="pill auto">auto</span>`;
+    const change = t.pctChange != null
+      ? (t.pctChange > 0 ? '+' : '') + t.pctChange.toFixed(1) + '%' : '—';
+    const chColor = t.pctChange == null ? 'var(--dim)'
+      : Math.abs(t.pctChange) > 40 ? 'var(--crimson)'
+      : Math.abs(t.pctChange) > 15 ? 'var(--amber)' : 'var(--emerald)';
     return `<tr>
-      <td style="font-weight:500;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.item||'')}</td>
-      <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:var(--purple-bg);color:var(--purple)">${esc(t.type||'')}</span></td>
-      <td style="font-family:var(--mono);font-size:12px;white-space:nowrap">${esc(t.amount||'—')}</td>
-      <td style="font-family:var(--mono);font-size:12px;color:${changeColor};white-space:nowrap">${change}</td>
-      <td style="color:var(--text2);max-width:260px;font-size:12px">${esc(t.finding||'')}</td>
+      <td style="font-weight:500;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--bright)">${esc(t.item||'')}</td>
+      <td><span class="chip-type">${esc(t.type||'')}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${esc(t.amount||'—')}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:${chColor};white-space:nowrap">${change}</td>
+      <td style="color:var(--muted);max-width:260px;font-size:12px">${esc(t.finding||'')}</td>
       <td>
-        <div class="mini-bar">
-          <div class="mini-track"><div class="mini-fill" style="width:${conf}%;background:${cc}"></div></div>
-          <span style="font-family:var(--mono);font-size:11px;color:${cc};width:30px;text-align:right">${conf}%</span>
+        <div class="bar-cell">
+          <div class="bar-mini"><div class="bar-fill" style="width:${conf}%;background:${cc}"></div></div>
+          <span style="font-family:var(--mono);font-size:10.5px;color:${cc};width:28px;text-align:right">${conf}%</span>
         </div>
       </td>
-      <td><span class="pill ${t.severity||'yellow'}">${(t.severity||'').toUpperCase()}</span></td>
+      <td><span class="pill ${t.severity||'yellow'}">${t.severity||'yellow'}</span></td>
       <td>${spill}</td>
     </tr>`;
   }).join('');
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 // EXPORT
-// ═══════════════════════════════════════════════════════════
-function exportReport(){
-  if(!report) return;
-  const r=report;
-  const lines=[
-    'LEDGER IQ — QUALITY OF EARNINGS REPORT',
-    '='.repeat(60),'',
-    `SCORE: ${r.score}/100   GRADE: ${r.grade}`,
-    `VERDICT: ${r.verdict}`,'',
-    'CATEGORIES','-'.repeat(40),
-    ...(r.categories||[]).map(c=>`  ${c.name.padEnd(28)} ${c.score}/100`),
-    '','KEY FINDINGS','-'.repeat(40),
-    ...(r.flags||[]).map(f=>`  [${(f.severity||'').toUpperCase()}] ${f.title}\n         ${f.detail}`),
-    '','ANALYST NARRATIVE','-'.repeat(40),r.narrative||'',
-    '','METHODOLOGY','-'.repeat(40),r.methodology||'',
-    '','TRANSACTION DETAIL','-'.repeat(40),
-    ...(r.transactions||[]).map(t=>{
-      const st=t.needsReview?(reviewSt[t.id]||'PENDING'):'AUTO';
-      return `  [${(t.severity||'').toUpperCase()}] ${t.item}  (${t.amount||'N/A'})\n  Type:${t.type} | Change:${t.pctChange!=null?t.pctChange.toFixed(1)+'%':'—'} | Conf:${t.confidence}% | Review:${st}\n  Finding: ${t.finding}\n  Rec: ${t.recommendation}\n  AI Reasoning: ${t.confidenceReasoning}\n`;
-    }),
-    '','TOKEN USAGE','-'.repeat(40),
-    r._meta?.tokenUsage?`  Input: ${r._meta.tokenUsage.inputTokens}  Output: ${r._meta.tokenUsage.outputTokens}  Total: ${r._meta.tokenUsage.totalTokens}`:'N/A',
-    '','Exported: '+new Date().toLocaleString()
+// ═══════════════════════════════════
+function exportReport() {
+  if (!report) return;
+  const r = report;
+  const lines = [
+    'LEDGER IQ — QUALITY OF EARNINGS REPORT', '='.repeat(60), '',
+    `Score: ${r.score}/100   Grade: ${r.grade}`,
+    `Verdict: ${r.verdict}`, '',
+    'Categories', '-'.repeat(40),
+    ...(r.categories||[]).map(c => `  ${c.name.padEnd(28)} ${c.score}/100`), '',
+    'Key Findings', '-'.repeat(40),
+    ...(r.flags||[]).map(f => `  [${(f.severity||'').toUpperCase()}] ${f.title}\n         ${f.detail}`), '',
+    'Analyst Narrative', '-'.repeat(40), r.narrative||'', '',
+    'Methodology', '-'.repeat(40), r.methodology||'', '',
+    'Transaction Detail', '-'.repeat(40),
+    ...(r.transactions||[]).map(t => {
+      const st = t.needsReview ? (reviewSt[t.id]||'PENDING').toUpperCase() : 'AUTO';
+      return `  [${(t.severity||'').toUpperCase()}] ${t.item}  (${t.amount||'N/A'})\n  Type:${t.type} | Change:${t.pctChange!=null?t.pctChange.toFixed(1)+'%':'—'} | Conf:${t.confidence}% | Review:${st}\n  Finding: ${t.finding}\n  Rec: ${t.recommendation}\n  Reasoning: ${t.confidenceReasoning}\n`;
+    }), '',
+    r._meta?.tokenUsage ? `Token usage: ${r._meta.tokenUsage.totalTokens} total (${r._meta.tokenUsage.inputTokens} in / ${r._meta.tokenUsage.outputTokens} out)` : '',
+    'Exported: ' + new Date().toLocaleString()
   ];
-  const blob=new Blob([lines.join('\n')],{type:'text/plain'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='LedgerIQ-QoE-'+new Date().toISOString().slice(0,10)+'.txt'; a.click();
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'LedgerIQ-QoE-' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click();
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 // RESET
-// ═══════════════════════════════════════════════════════════
-function resetAll(){
-  files=[]; report=null; reviewSt={}; filterMode='all';
-  document.getElementById('file-list').innerHTML='';
-  document.getElementById('log-box').innerHTML='';
-  document.getElementById('prog-fill').style.width='0%';
-  document.getElementById('prog-pct').textContent='0%';
-  document.getElementById('file-input').value='';
-  document.getElementById('rev-badge').className='nb';
-  document.getElementById('tb-meta').textContent='';
-  document.getElementById('token-row').style.display='none';
+// ═══════════════════════════════════
+function resetAll() {
+  files = []; report = null; reviewSt = {}; filterMode = 'all';
+  document.getElementById('file-list').innerHTML = '';
+  document.getElementById('log-box').innerHTML   = '';
+  document.getElementById('prog-fill').style.width = '0%';
+  document.getElementById('prog-pct').textContent  = '0%';
+  document.getElementById('file-input').value = '';
+  document.getElementById('rev-badge').className = 'nb-badge';
+  document.getElementById('tb-meta').textContent   = '';
+  document.getElementById('token-strip-wrap').style.display = 'none';
   go('upload'); updateBtn();
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════
 // UTILS
-// ═══════════════════════════════════════════════════════════
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// ═══════════════════════════════════
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 checkKey();
 </script>

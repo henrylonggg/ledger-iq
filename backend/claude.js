@@ -109,11 +109,27 @@ async function scoreWithClaude(parsedFiles, apiKey) {
   const summary = buildClaudeSummary(parsedFiles);
   const allTxFull = parsedFiles.flatMap(f => f.transactions);
 
-  // Prioritize: red first, then yellow, then green — cap at 80 for token safety
-  const red    = allTxFull.filter(t => t.severity === 'red');
-  const yellow = allTxFull.filter(t => t.severity === 'yellow');
-  const green  = allTxFull.filter(t => t.severity === 'green');
-  const allTx  = [...red, ...yellow, ...green].slice(0, 80);
+  // Deduplicate by label — prefer the most informative copy (most periods, lowest heuristic severity)
+  const sevRank = { red: 0, yellow: 1, green: 2 };
+  const txByLabel = new Map();
+  for (const t of allTxFull) {
+    const key = (t.label || '').toLowerCase().trim();
+    const existing = txByLabel.get(key);
+    if (!existing) { txByLabel.set(key, t); continue; }
+    // Keep the one with more period data, or worse severity (more important)
+    const tPeriods = (t.periods || []).filter(p => p.value !== null).length;
+    const ePeriods = (existing.periods || []).filter(p => p.value !== null).length;
+    if (sevRank[t.severity] < sevRank[existing.severity] || tPeriods > ePeriods) {
+      txByLabel.set(key, t);
+    }
+  }
+  const deduped = Array.from(txByLabel.values());
+
+  // Prioritize: red first, then yellow, then green — cap at 200 for gpt-4o-mini context
+  const red    = deduped.filter(t => t.severity === 'red');
+  const yellow = deduped.filter(t => t.severity === 'yellow');
+  const green  = deduped.filter(t => t.severity === 'green');
+  const allTx  = [...red, ...yellow, ...green].slice(0, 200);
 
   const docContext = summary.uploadedDocTypes.map(d => {
     const qoeLink = DOC_TO_QOE_CATEGORY[d] || 'General';
@@ -194,15 +210,21 @@ Respond ONLY with valid JSON — no markdown fences, no commentary:
 
 Include ALL transactions from the input list. Use labels exactly as given.`;
 
-  const userMessage = `Documents uploaded: ${summary.uploadedDocTypes.join(', ')}
-Total line items: ${allTx.length}
+  // Compact stats block (avoids sending huge JSON.stringify(summary))
+  const sheetInfo = parsedFiles[0]?.sheetSummary
+    ? '\nSheets: ' + parsedFiles[0].sheetSummary
+        .map(s => `${s.name}(${s.skipped ? 'skipped' : s.count + ' items'})`)
+        .join(', ')
+    : '';
 
-FULL SUMMARY:
-${JSON.stringify(summary, null, 2)}
+  const userMessage = `Documents uploaded: ${summary.uploadedDocTypes.join(', ')}
+Files: ${parsedFiles.map(f => `${f.filename}(${f.count} items)`).join(', ')}${sheetInfo}
+Total unique line items being scored: ${allTx.length} (${allTxFull.length} total before dedup)
+Heuristic breakdown: ${red.length} red, ${yellow.length} yellow, ${green.length} green
 
 TRANSACTION LIST TO SCORE (${allTx.length} items):
 ${allTx.map((t, i) =>
-  `${i + 1}. "${t.label}" | type:${t.type} | amount:${t.formattedAmount} | change:${t.pctChange !== null ? t.pctChange.toFixed(1) + '%' : 'n/a'} | heuristic:${t.severity}${t.meta ? ' | meta:' + JSON.stringify(t.meta) : ''}`
+  `${i + 1}. "${t.label}" | sheet:${t.sourceSheet || t.docType || '?'} | type:${t.type} | amount:${t.formattedAmount} | change:${t.pctChange !== null ? t.pctChange.toFixed(1) + '%' : 'n/a'} | heuristic:${t.severity}${t.meta ? ' | meta:' + JSON.stringify(t.meta) : ''}`
 ).join('\n')}`;
 
   const response = await client.chat.completions.create({

@@ -701,7 +701,7 @@ tr:hover td { background: var(--ink2); }
       <p class="upload-sub">Upload any combination of financial documents. The backend auto-detects each document type and parses it — Claude scores based only on what you provide. Missing files don't hurt the score.</p>
 
       <div class="terminal-drop" id="drop">
-        <input type="file" id="file-input" multiple accept=".csv,.pdf,.xlsx,.xls,.txt" onchange="addFiles(this.files)"/>
+        <input type="file" id="file-input" multiple accept=".csv,.pdf,.xlsx,.xls,.txt"/>
         <div class="td-chrome">
           <div class="td-dot r"></div><div class="td-dot y"></div><div class="td-dot g"></div>
           <span class="td-chrome-label">file upload</span>
@@ -905,17 +905,10 @@ function go(page) {
 // API KEY — handled server-side only
 // ═══════════════════════════════════
 function checkKey() { updateBtn(); }
-const getKey = () => '__server_side__';
 
 // ═══════════════════════════════════
 // FILES
 // ═══════════════════════════════════
-const dz = document.getElementById('drop');
-const fi = document.getElementById('file-input');
-dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
-dz.addEventListener('dragleave', ()  => dz.classList.remove('drag'));
-dz.addEventListener('drop',      e  => { e.preventDefault(); dz.classList.remove('drag'); addFiles(e.dataTransfer.files); });
-dz.addEventListener('click',     e  => { if (e.target !== fi) fi.click(); });
 
 function addFiles(list) {
   for (const f of list) if (!files.find(x => x.name === f.name)) files.push(f);
@@ -1335,8 +1328,6 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-checkKey();
-
 // ═══════════════════════════════════
 // DEMO DATA — preloaded on first visit
 // ═══════════════════════════════════
@@ -1436,9 +1427,25 @@ function showDemoBanner() {
   document.body.appendChild(bar);
 }
 
-// Auto-load demo on first visit (or if no real analysis done)
+// ═══════════════════════════════════
+// INIT — wire everything after DOM ready
+// ═══════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
-  setTimeout(loadDemo, 100);
+  // Wire file drop zone
+  const dz = document.getElementById('drop');
+  const fi = document.getElementById('file-input');
+  if (dz && fi) {
+    dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+    dz.addEventListener('dragleave', ()  => dz.classList.remove('drag'));
+    dz.addEventListener('drop',      e  => { e.preventDefault(); dz.classList.remove('drag'); addFiles(e.dataTransfer.files); });
+    dz.addEventListener('click',     ()  => fi.click());
+    fi.addEventListener('change',    ()  => { addFiles(fi.files); fi.value = ''; });
+  }
+
+  updateBtn();
+
+  // Load demo immediately (instant — no spinner, no blocking)
+  loadDemo();
 });
 
 </body>

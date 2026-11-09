@@ -206,7 +206,7 @@ ${allTx.map((t, i) =>
 ).join('\n')}`;
 
   const response = await client.chat.completions.create({
-    model:       'gpt-4o',
+    model:       'gpt-4o-mini',
     max_tokens:  16000,
     temperature: 0.2,
     messages: [

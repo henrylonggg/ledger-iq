@@ -204,7 +204,7 @@ async function startAnalysis() {
 // DEMO — silent background refresh
 // ═══════════════════════════════════
 async function refreshDemoInBackground() {
-  // Silently fetch a fresh real GPT-4o result without touching the UI
+  // Silently fetch a fresh real GPT-4o mini result without touching the UI
   try {
     const resp = await fetch(`${API_BASE}/api/demo`);
     if (!resp.ok) return;
@@ -378,7 +378,7 @@ function renderReview() {
         <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${cc}"></div></div>
         <span class="conf-num" style="color:${cc}">${conf}%</span>
       </div>
-      <button class="reason-toggle" onclick="toggleR('${t.id}')">▸ GPT-4o reasoning</button>
+      <button class="reason-toggle" onclick="toggleR('${t.id}')">▸ GPT-4o mini reasoning</button>
       <div class="reason-body" id="rb-${t.id}">${esc(t.confidenceReasoning||'No reasoning provided.')}\n\nRecommendation: ${esc(t.recommendation||'—')}</div>
     </div>`;
   }).join('');
@@ -392,8 +392,8 @@ function renderReview() {
 function toggleR(id) {
   const el  = document.getElementById('rb-' + id);
   const tog = el.previousElementSibling;
-  if (el.style.display === 'block') { el.style.display = 'none'; tog.textContent = '▸ GPT-4o reasoning'; }
-  else                               { el.style.display = 'block'; tog.textContent = '▾ GPT-4o reasoning'; }
+  if (el.style.display === 'block') { el.style.display = 'none'; tog.textContent = '▸ GPT-4o mini reasoning'; }
+  else                               { el.style.display = 'block'; tog.textContent = '▾ GPT-4o mini reasoning'; }
 }
 function doReview(id, action) { reviewSt[id] = action; renderReview(); renderTxTable(); }
 function setFilter(f, btn) {
@@ -939,7 +939,7 @@ function loadDemo() {
   finishReport();
   showDemoBanner();
 
-  // 2. Silently refresh with real GPT-4o in background (doesn't block UI)
+  // 2. Silently refresh with real GPT-4o mini in background (doesn't block UI)
   setTimeout(refreshDemoInBackground, 500);
 }
 

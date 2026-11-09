@@ -267,6 +267,165 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
   }
 });
 
+// ─── Shared helper: get authed user from request ──────────────────────────────
+function getAuthedUser(req) {
+  const header = req.headers.authorization || '';
+  if (!header.startsWith('Bearer ')) return null;
+  try {
+    const jwt = require('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'ledgeriq-dev-secret-change-me';
+    const decoded = jwt.verify(header.slice(7), JWT_SECRET);
+    return usersDb.findById(decoded.id);
+  } catch { return null; }
+}
+
+// ─── POST /api/generate-narrative ────────────────────────────────────────────
+app.post('/api/generate-narrative', async (req, res) => {
+  if (!DEMO_API_KEY) return res.status(503).json({ error: 'API not configured' });
+
+  const authedUser = getAuthedUser(req);
+  if (authedUser !== null && authedUser.credits <= 0) {
+    return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
+  }
+
+  const payload = req.body || {};
+  const {
+    score, originalScore, companyName, period, filesProcessed,
+    categories = [], flags = [], rejectedItems = [], approvedItems = [],
+    reviewedCount, rejectedCount, approvedCount
+  } = payload;
+
+  const catSummary = categories.map(c =>
+    `${c.name}: ${c.score}/100 (${c.color})`
+  ).join('\n');
+
+  const flagSummary = flags.slice(0, 8).map(f =>
+    `- [${f.severity?.toUpperCase()}] ${f.title}: ${f.detail}`
+  ).join('\n');
+
+  const rejSummary = rejectedItems.map(t =>
+    `- ${t.item} (${t.type}, ${t.severity}): ${t.reason || 'analyst excluded'}`
+  ).join('\n');
+
+  const prompt = `You are a senior M&A financial analyst writing a Quality of Earnings (QoE) narrative report.
+
+Write a detailed, professional QoE narrative for ${companyName} covering ${period}.
+
+ANALYSIS DATA:
+- Adjusted QoE Score: ${score}/100 (original AI score: ${originalScore}/100)
+- Files analyzed: ${filesProcessed}
+- Transactions reviewed: ${reviewedCount} total (${approvedCount} approved, ${rejectedCount} excluded by analyst)
+
+CATEGORY SCORES (post-review):
+${catSummary}
+
+KEY FLAGS IDENTIFIED:
+${flagSummary || 'No significant flags.'}
+
+ANALYST EXCLUSIONS (${rejectedCount} items rejected):
+${rejSummary || 'None — all items approved.'}
+
+Write a 4–6 paragraph professional narrative covering:
+1. Overall earnings quality assessment and what the score means
+2. Key findings by category — highlight the strongest and weakest areas specifically
+3. Analysis of the flagged items and what they mean for deal risk
+4. Impact of analyst review decisions — why excluded items were removed and how they affected the score
+5. Final assessment and considerations for the acquirer
+
+Write in a formal analyst voice. Be specific to the actual data above — do not use generic filler. Vary the language and insights based on the specific numbers and items. Do not start sentences with "In conclusion" or use bullet points.`;
+
+  try {
+    const { OpenAI } = require('openai');
+    const openai = new OpenAI({ apiKey: DEMO_API_KEY });
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 1200,
+    });
+    const narrative = completion.choices[0].message.content;
+    const tokens    = completion.usage?.total_tokens || 0;
+
+    // Deduct credits
+    if (authedUser) {
+      const dr = usersDb.deductCredits(authedUser.id, tokens);
+      console.log(`[narrative] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(2)}`);
+    }
+
+    res.json({ narrative, tokens });
+  } catch (err) {
+    console.error('[generate-narrative] error:', err);
+    res.status(500).json({ error: err.message || 'Generation failed' });
+  }
+});
+
+// ─── POST /api/generate-summary ──────────────────────────────────────────────
+app.post('/api/generate-summary', async (req, res) => {
+  if (!DEMO_API_KEY) return res.status(503).json({ error: 'API not configured' });
+
+  const authedUser = getAuthedUser(req);
+  if (authedUser !== null && authedUser.credits <= 0) {
+    return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
+  }
+
+  const payload = req.body || {};
+  const {
+    score, companyName, period, filesProcessed, totalTransactions,
+    categories = [], flags = [], rejectedItems = [], approvedItems = [],
+    rejectedCount, approvedCount
+  } = payload;
+
+  const catLines = categories.map(c =>
+    `${c.name}: ${c.score}/100`
+  ).join(' | ');
+
+  const topFlags = flags.filter(f => f.severity === 'red').slice(0, 5).map(f => f.title).join('; ');
+
+  const prompt = `You are a senior M&A analyst. Write a concise executive summary for a Quality of Earnings report.
+
+DEAL DATA:
+- Company: ${companyName}
+- Period: ${period}
+- Final QoE Score: ${score}/100
+- Risk Tier: ${score >= 70 ? 'LOW RISK' : score >= 45 ? 'MODERATE RISK' : 'HIGH RISK'}
+- Documents analyzed: ${filesProcessed} | Total transactions: ${totalTransactions}
+- Review: ${approvedCount} items approved, ${rejectedCount} items excluded by analyst
+
+CATEGORY SCORES: ${catLines}
+TOP RED FLAGS: ${topFlags || 'None'}
+
+Write a 3-paragraph executive summary:
+1. One-sentence verdict + overall score context (what this score means for the deal)
+2. The 2-3 most important findings from the category scores and flags — be specific
+3. Key recommendation for the deal team — what to watch, negotiate on, or investigate further
+
+Be direct, specific, and vary the language based on the actual scores. Do not use generic statements. Write like a real analyst briefing a PE partner.`;
+
+  try {
+    const { OpenAI } = require('openai');
+    const openai = new OpenAI({ apiKey: DEMO_API_KEY });
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 600,
+    });
+    const summary = completion.choices[0].message.content;
+    const tokens  = completion.usage?.total_tokens || 0;
+
+    // Deduct credits
+    if (authedUser) {
+      const dr = usersDb.deductCredits(authedUser.id, tokens);
+      console.log(`[generate-summary] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(2)}`);
+    }
+
+    res.json({ summary, tokens });
+  } catch (err) {
+    console.error('[generate-summary] error:', err);
+    res.status(500).json({ error: err.message || 'Generation failed' });
+  }
+});
+
 // ─── Catch-all → frontend ─────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/public/index.html'));

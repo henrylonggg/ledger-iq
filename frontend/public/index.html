@@ -703,6 +703,14 @@ tr:hover td { background: var(--ink2); }
   color: var(--bright); letter-spacing: -.03em;
 }
 .ld-nav-brand em { font-style: normal; color: var(--teal); }
+.ld-nav-links {
+  display: flex; align-items: center; gap: 24px;
+}
+.ld-nav-link {
+  font-family: var(--ui); font-size: 13px; color: var(--muted);
+  text-decoration: none; transition: color .15s;
+}
+.ld-nav-link:hover { color: var(--teal); }
 .ld-nav-tag {
   font-family: var(--mono); font-size: 10px; color: var(--dim);
   letter-spacing: .08em; border: 1px solid var(--line2);
@@ -1027,6 +1035,10 @@ tr:hover td { background: var(--ink2); }
   <!-- Top nav -->
   <div class="ld-nav">
     <div class="ld-nav-brand">Ledger<em>IQ</em></div>
+    <div class="ld-nav-links">
+      <a href="#" class="ld-nav-link" onclick="showContactModal();return false;">Contact</a>
+      <a href="#" class="ld-nav-link" onclick="showTermsModal();return false;">Terms &amp; Conditions</a>
+    </div>
     <div class="ld-nav-tag">QoE PLATFORM · BETA</div>
   </div>
 
@@ -1272,6 +1284,24 @@ tr:hover td { background: var(--ink2); }
       </svg>
       <span>Narrative</span>
     </button>
+
+    <div class="nav-divider">Info</div>
+
+    <button class="nb" onclick="go('contact')" id="nb-contact">
+      <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 4a1 1 0 011-1h10a1 1 0 011 1v8a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/>
+        <path d="M2 4l6 5 6-5"/>
+      </svg>
+      <span>Contact</span>
+    </button>
+
+    <button class="nb" onclick="go('terms')" id="nb-terms">
+      <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/>
+        <path d="M5 6h6M5 9h6M5 12h3"/>
+      </svg>
+      <span>Terms</span>
+    </button>
   </nav>
 
   <div class="sidebar-foot">
@@ -1378,6 +1408,11 @@ tr:hover td { background: var(--ink2); }
       </div>
     </div>
 
+    <div id="rejected-bar" style="display:none;background:var(--crim-dim);border:1px solid var(--crim-mid);border-radius:var(--r);padding:10px 16px;margin-bottom:12px;font-size:12.5px;color:var(--crimson);align-items:center;gap:8px;">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M5 8h6"/></svg>
+      <strong><span class="rej-count">0</span> item(s) rejected</strong> — excluded from QoE score and Export. Score reflects accepted &amp; pending items only.
+    </div>
+
     <div id="token-strip-wrap" style="display:none">
       <div class="token-strip" id="tok-strip">
         <div class="tok-item"><span class="tok-k">GPT-4o mini input</span><span class="tok-v" id="tok-in">—</span></div>
@@ -1474,11 +1509,144 @@ tr:hover td { background: var(--ink2); }
     </div>
   </div>
 
+  <!-- ── CONTACT ── -->
+  <div class="page" id="page-contact" style="overflow-y:auto;padding:32px 36px;">
+    <div style="max-width:620px;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--teal);letter-spacing:.12em;margin-bottom:8px;">LEDGERIQ · CONTACT</div>
+      <h2 style="font-family:var(--display);font-size:24px;font-weight:800;color:var(--bright);letter-spacing:-.03em;margin-bottom:4px;">Get in touch</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:28px;">Questions, feedback, or partnership inquiries — we'd love to hear from you.</p>
+
+      <div style="display:grid;gap:14px;">
+        <div style="background:var(--ink1);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;">
+          <div style="font-family:var(--mono);font-size:9.5px;color:var(--dim);letter-spacing:.1em;margin-bottom:6px;">GENERAL INQUIRIES</div>
+          <a href="mailto:ledgeriq@henrylong.dev" style="color:var(--teal);text-decoration:none;font-size:14px;font-weight:500;">ledgeriq@henrylong.dev</a>
+        </div>
+        <div style="background:var(--ink1);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;">
+          <div style="font-family:var(--mono);font-size:9.5px;color:var(--dim);letter-spacing:.1em;margin-bottom:6px;">CREATED BY</div>
+          <div style="color:var(--bright);font-size:14px;font-weight:500;">Henry Long</div>
+          <div style="color:var(--muted);font-size:12px;margin-top:3px;">University of Delaware · Finance</div>
+        </div>
+        <div style="background:var(--ink1);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;">
+          <div style="font-family:var(--mono);font-size:9.5px;color:var(--dim);letter-spacing:.1em;margin-bottom:10px;">ABOUT LEDGERIQ</div>
+          <p style="color:var(--body);font-size:13px;line-height:1.75;">
+            LedgerIQ is an AI-powered Quality of Earnings platform built to streamline M&amp;A due diligence.
+            Upload financial documents and receive a full QoE report — scored, flagged, and graded — in seconds.
+            Built on GPT-4o mini with a secure server-side architecture.
+          </p>
+          <p style="color:var(--muted);font-size:12px;margin-top:12px;font-style:italic;">
+            LedgerIQ is a demonstration platform. Output is informational only and does not constitute professional financial advice.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TERMS ── -->
+  <div class="page" id="page-terms" style="overflow-y:auto;padding:32px 36px;">
+    <div style="max-width:720px;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--teal);letter-spacing:.12em;margin-bottom:8px;">LEDGERIQ · LEGAL</div>
+      <h2 style="font-family:var(--display);font-size:24px;font-weight:800;color:var(--bright);letter-spacing:-.03em;margin-bottom:4px;">Terms &amp; Conditions</h2>
+      <p style="color:var(--muted);font-size:12px;margin-bottom:28px;">Last updated: January 1, 2025</p>
+      <div style="font-size:13px;line-height:1.8;color:var(--body);display:grid;gap:20px;">
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">1. Acceptance of Terms</h3>
+          <p>By accessing or using LedgerIQ (the "Platform"), you agree to be bound by these Terms and Conditions. If you do not agree, do not use the Platform.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">2. Description of Service</h3>
+          <p>LedgerIQ is an AI-assisted Quality of Earnings (QoE) analysis platform for financial professionals and M&amp;A deal teams. It uses GPT-4o mini (OpenAI) to parse, classify, and score financial data provided by users.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">3. No Professional Advice</h3>
+          <p><strong style="color:var(--bright)">LedgerIQ does not provide professional financial, accounting, legal, tax, or investment advice.</strong> All output is automated and informational only. It is not a substitute for judgment by a licensed CPA, financial advisor, attorney, or other qualified professional. Users are solely responsible for independently verifying all findings.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">4. AI Limitations and Accuracy</h3>
+          <p>The Platform relies on AI models that are inherently imperfect. Output may be inaccurate, incomplete, or misleading. The Operator expressly disclaims all liability for errors or inaccuracies in AI-generated content.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">5. User Responsibilities</h3>
+          <p>You represent that: (a) you are 18+ with legal capacity to accept these Terms; (b) documents you upload are owned by you or you have lawful right to upload; (c) you will not upload documents with third-party PII without consent; (d) you will use the Platform only for lawful purposes.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">6. Data and Privacy</h3>
+          <p>Files you upload are transmitted to our backend and to OpenAI's API for processing. We do not permanently store your documents beyond your session. We do not sell your data. OpenAI may retain API inputs per their own privacy policy.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">7. Disclaimer of Warranties</h3>
+          <p>THE PLATFORM IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND. THE OPERATOR DOES NOT WARRANT THAT THE PLATFORM WILL MEET YOUR REQUIREMENTS OR OPERATE ERROR-FREE.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">8. Limitation of Liability</h3>
+          <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE OPERATOR SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES. TOTAL LIABILITY SHALL NOT EXCEED $100.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">9. Governing Law</h3>
+          <p>These Terms are governed by the laws of the State of Delaware. Disputes shall be resolved in state or federal courts in Delaware.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--bright);margin-bottom:6px;">10. Contact</h3>
+          <p>Questions about these Terms? Email <a href="mailto:ledgeriq@henrylong.dev" style="color:var(--teal);">ledgeriq@henrylong.dev</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /main -->
 </div><!-- /shell -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="app.js"></script>
+<script>
+// Landing page modal helpers — shown before entering the app
+function showContactModal() {
+  _showLdModal('Contact', `
+    <p style="color:#6B7FA0;font-size:13px;margin-bottom:20px">Questions, feedback, or inquiries — reach out anytime.</p>
+    <div style="display:grid;gap:12px">
+      <div style="background:#0C1220;border:1px solid #1D2D44;border-radius:6px;padding:16px 18px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#445572;letter-spacing:.1em;margin-bottom:5px">EMAIL</div>
+        <a href="mailto:ledgeriq@henrylong.dev" style="color:#0CCED4;text-decoration:none;font-size:14px">ledgeriq@henrylong.dev</a>
+      </div>
+      <div style="background:#0C1220;border:1px solid #1D2D44;border-radius:6px;padding:16px 18px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#445572;letter-spacing:.1em;margin-bottom:5px">CREATED BY</div>
+        <div style="color:#E8EDF6;font-size:14px;font-weight:500">Henry Long</div>
+        <div style="color:#6B7FA0;font-size:12px;margin-top:3px">University of Delaware · Finance</div>
+      </div>
+    </div>
+  `);
+}
+
+function showTermsModal() {
+  _showLdModal('Terms & Conditions', `
+    <p style="color:#6B7FA0;font-size:11px;margin-bottom:20px">Last updated: January 1, 2025</p>
+    <div style="font-size:12.5px;line-height:1.75;color:#C2CEDF;display:grid;gap:14px;max-height:52vh;overflow-y:auto;padding-right:4px">
+      <div><strong style="color:#E8EDF6">1. Acceptance.</strong> By using LedgerIQ, you agree to these Terms.</div>
+      <div><strong style="color:#E8EDF6">2. No Professional Advice.</strong> LedgerIQ output is informational only and does not constitute financial, accounting, legal, or investment advice. Always consult a qualified professional before making decisions.</div>
+      <div><strong style="color:#E8EDF6">3. AI Limitations.</strong> Output may be inaccurate or incomplete. The Operator disclaims all liability for AI-generated errors.</div>
+      <div><strong style="color:#E8EDF6">4. Data.</strong> Uploaded files are processed by our backend and OpenAI's API. Files are not permanently stored. We do not sell your data.</div>
+      <div><strong style="color:#E8EDF6">5. Disclaimer.</strong> THE PLATFORM IS PROVIDED "AS IS" WITHOUT WARRANTIES. TOTAL LIABILITY SHALL NOT EXCEED $100.</div>
+      <div><strong style="color:#E8EDF6">6. Governing Law.</strong> These Terms are governed by the laws of Delaware.</div>
+    </div>
+  `);
+}
+
+function _showLdModal(title, bodyHtml) {
+  const existing = document.getElementById('ld-modal-overlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'ld-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(6,10,20,.88);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:#0D1626;border:1px solid #1D2D44;border-radius:10px;padding:28px 32px;max-width:520px;width:100%;position:relative;max-height:90vh;overflow-y:auto">
+      <button onclick="document.getElementById('ld-modal-overlay').remove()" style="position:absolute;top:14px;right:14px;background:transparent;border:none;color:#445572;font-size:18px;cursor:pointer;line-height:1;padding:2px 6px" title="Close">✕</button>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#0CCED4;letter-spacing:.12em;margin-bottom:6px">LEDGERIQ</div>
+      <h2 style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#E8EDF6;letter-spacing:-.03em;margin-bottom:16px">${title}</h2>
+      ${bodyHtml}
+    </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+</script>
 
 </body>
 </html>

@@ -315,26 +315,140 @@ function extractTaxRows(rows) {
 }
 
 // ─── GENERIC TABLE EXTRACTOR ──────────────────────────────────────────────────
+
+// Utility: check if a row is essentially blank
+function isBlankRow(row) {
+  if (!row || !row.length) return true;
+  return row.every(c => c === null || c === undefined || String(c).trim() === '');
+}
+
+// Utility: count how many cells in a row are non-empty
+function nonEmptyCount(row) {
+  return (row || []).filter(c => c !== null && c !== undefined && String(c).trim() !== '').length;
+}
+
+// Utility: how many cells parse as a number
+function numericCount(row) {
+  return (row || []).filter(c => parseAmount(c) !== null && String(c).trim() !== '').length;
+}
+
+// Detect if a sheet is a "long" format table (each row is label/period/value)
+function isLongFormat(rows) {
+  if (!rows || rows.length < 3) return false;
+  // Look for column headers that suggest long format
+  const headerCandidates = rows.slice(0, 5).find(r => !isBlankRow(r));
+  if (!headerCandidates) return false;
+  const hdrs = headerCandidates.map(h => String(h || '').toLowerCase());
+  const hasLabel = hdrs.some(h => /label|item|description|name|account/.test(h));
+  const hasYear  = hdrs.some(h => /fiscal.?year|year|period|fy/.test(h));
+  const hasValue = hdrs.some(h => /value|amount|balance/.test(h));
+  return hasLabel && hasYear && hasValue;
+}
+
+// Parse long-format sheet (each row = one data point with period + value columns)
+function extractLongFormat(rows) {
+  const txs = [];
+  if (!rows || rows.length < 2) return txs;
+
+  // Find header row
+  let headerRow = rows.find(r => !isBlankRow(r));
+  if (!headerRow) return txs;
+  const headers = headerRow.map(h => String(h || '').toLowerCase().trim());
+
+  const labelCol = headers.findIndex(h => /label|item|description|name|account/.test(h));
+  const yearCol  = headers.findIndex(h => /fiscal.?year|year/.test(h));
+  const valCol   = headers.findIndex(h => /^value$|^amount$|^balance$/.test(h));
+  if (labelCol < 0 || yearCol < 0 || valCol < 0) return txs;
+
+  // Group by label, collect per-year values
+  const byLabel = {};
+  for (const row of rows) {
+    if (isBlankRow(row)) continue;
+    const label = String(row[labelCol] || '').trim();
+    const year  = String(row[yearCol]  || '').trim();
+    const val   = parseAmount(row[valCol]);
+    if (!label || !year || val === null) continue;
+    if (label === headers[labelCol]) continue; // header row
+    if (!byLabel[label]) byLabel[label] = {};
+    byLabel[label][year] = val;
+  }
+
+  for (const [label, yearMap] of Object.entries(byLabel)) {
+    const years   = Object.keys(yearMap).sort();
+    const nums    = years.map(y => yearMap[y]);
+    if (!nums.length) continue;
+    const latest  = nums[nums.length - 1];
+    const prior   = nums.length >= 2 ? nums[nums.length - 2] : null;
+    const pctChange = pctChangeFn(prior, latest);
+    const absMax  = Math.max(...nums.map(Math.abs));
+    const type    = classifyType(label);
+    txs.push({
+      label, type,
+      latestValue: latest, priorValue: prior,
+      pctChange, absMax,
+      formattedAmount: formatAmount(latest),
+      periods: years.map((y, i) => ({ period: y, value: nums[i], formatted: formatAmount(nums[i]) })),
+      severity: heuristicSeverity({ label, type, pctChange, absMax })
+    });
+  }
+  return txs;
+}
+
+// Find the best header row in a messy sheet (look up to 15 rows deep)
+function findHeaderRow(rows, maxScan) {
+  const limit = Math.min(maxScan || 15, rows.length);
+  let bestIdx = -1, bestScore = -1;
+  for (let i = 0; i < limit; i++) {
+    const row = rows[i];
+    if (!row || isBlankRow(row)) continue;
+    // Score: more non-numeric text cells = better header
+    const textCells = row.filter(c => {
+      const s = String(c || '').trim();
+      return s.length > 0 && parseAmount(c) === null;
+    }).length;
+    // Penalise rows that look like metadata (URL, long sentences)
+    const hasURL = row.some(c => /http|View |On EDGAR|Source:|©/i.test(String(c)));
+    if (hasURL) continue;
+    // Prefer rows that have period-like text in them (FY, year, 20xx, Q1)
+    const hasPeriod = row.some(c => /FY\d{4}|20\d{2}|Q[1-4]/i.test(String(c || '')));
+    const score = textCells + (hasPeriod ? 10 : 0);
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  }
+  return bestIdx >= 0 ? bestIdx : 0;
+}
+
+// Find the label column (usually 0, but can be non-zero if there's an index/outline col)
+function findLabelCol(headerRow, dataRows) {
+  if (!headerRow) return 0;
+  // Col 0 is label unless col 0 is entirely numeric
+  const col0Header = String((headerRow || [])[0] || '').trim().toLowerCase();
+  if (/line.?item|description|account|label|item|name/.test(col0Header)) return 0;
+  // Check if col 0 data are all numeric (index column) — if so, use col 1
+  const col0Nums = dataRows.slice(0, 10).filter(r => r && parseAmount(r[0]) !== null).length;
+  const col0Pop  = dataRows.slice(0, 10).filter(r => r && String(r[0] || '').trim()).length;
+  if (col0Pop > 3 && col0Nums / col0Pop > 0.7) return 1;
+  return 0;
+}
+
 function extractTransactionsFromTable(rows, docType) {
   if (!rows || !rows.length) return [];
 
-  // Find header row
-  let headerIdx = 0;
-  for (let i = 0; i < Math.min(8, rows.length); i++) {
-    const row = rows[i];
-    if (!row) continue;
-    const nonNum = row.filter(c => isNaN(parseAmount(c)) && String(c || '').trim().length > 0).length;
-    if (nonNum >= 2) { headerIdx = i; break; }
-  }
+  // Long-format detection
+  if (isLongFormat(rows)) return extractLongFormat(rows);
 
+  // Find header row (look up to 15 rows into the sheet)
+  const headerIdx = findHeaderRow(rows, 15);
   const headers   = (rows[headerIdx] || []).map(h => String(h || '').trim());
-  const dataRows  = rows.slice(headerIdx + 1);
+  const dataRows  = rows.slice(headerIdx + 1).filter(r => r && nonEmptyCount(r) > 0);
 
-  // Find numeric columns
+  const labelCol  = findLabelCol(rows[headerIdx], dataRows);
+
+  // Find numeric columns: allow sparse data (10% threshold instead of 25%)
   const numericColIdxs = [];
-  for (let ci = 1; ci < headers.length; ci++) {
+  for (let ci = 0; ci < headers.length; ci++) {
+    if (ci === labelCol) continue;
     const vals = dataRows.map(r => parseAmount((r || [])[ci])).filter(v => v !== null);
-    if (vals.length >= dataRows.length * 0.25) numericColIdxs.push(ci);
+    if (vals.length >= Math.max(2, dataRows.length * 0.10)) numericColIdxs.push(ci);
   }
 
   // Route to specialized extractors based on docType
@@ -346,18 +460,29 @@ function extractTransactionsFromTable(rows, docType) {
 
   // Generic extraction
   const transactions = [];
+  let currentSection = ''; // track mid-sheet section headers
+
   for (const row of dataRows) {
     if (!row) continue;
-    const label = String(row[0] || '').trim();
-    if (!label || label.length < 2) continue;
-    if (/^[-=_*]+$/.test(label)) continue;
-    if (/^(total|subtotal|sum|grand total)/i.test(label) && label.length < 20) {
-      // Keep totals but mark them
-    }
+    const rawLabel = String(row[labelCol] || '').trim();
+    if (!rawLabel || rawLabel.length < 2) continue;
+    if (/^[-=_*\/]{3,}$/.test(rawLabel)) continue;
+    // Skip obvious metadata rows
+    if (/^(page\s*\d|prepared by|report date|source:|on edgar|view |http)/i.test(rawLabel)) continue;
 
     const vals    = numericColIdxs.map(ci => parseAmount(row[ci]));
     const numeric = vals.filter(v => v !== null);
-    if (!numeric.length) continue;
+
+    // If this row has no numbers, it may be a section header — track for context
+    if (!numeric.length) {
+      if (rawLabel.length > 2 && rawLabel.length < 80) currentSection = rawLabel;
+      continue;
+    }
+
+    // Build contextual label: prepend section if it's not already in the label
+    const label = (currentSection && !rawLabel.toLowerCase().includes(currentSection.toLowerCase().slice(0, 10)))
+      ? rawLabel
+      : rawLabel;
 
     const latest  = numeric[numeric.length - 1];
     const prior   = numeric.length >= 2 ? numeric[numeric.length - 2] : null;
@@ -368,6 +493,7 @@ function extractTransactionsFromTable(rows, docType) {
     transactions.push({
       label,
       type,
+      section: currentSection || undefined,
       latestValue: latest,
       priorValue: prior,
       pctChange,
@@ -398,20 +524,30 @@ async function parsePDF(buffer, filename) {
   const lines   = text.split('\n').map(l => l.trim()).filter(Boolean);
   const transactions = [];
 
-  // Try to reconstruct table rows from PDF lines
-  // PDF text is flat — we look for lines with label + 1-4 numbers
-  const linePattern = /^(.{3,80?}?)\s{2,}([-$()0-9,\.]+(?:\s{2,}[-$()0-9,\.]+)*)\s*$/;
+  // Try to reconstruct table rows from PDF lines.
+  // PDF text is flat — we look for lines with label + 1-N numbers.
+  // Pattern 1: label then numbers separated by 2+ spaces (most common)
+  // Pattern 2: leader dots "..........." before numbers
+  // Pattern 3: indented label (leading spaces) — still valid
+  const linePattern = /^(.{2,80?}?)(?:\.{3,}|\s{2,})([-$()0-9,\.]+(?:(?:\s{1,4}|\s*,\s*)[-$()0-9,\.]+)*)\s*$/;
 
   for (const line of lines) {
-    if (line.length > 200) continue;
+    if (line.length > 300) continue;
+    // Strip common PDF artifacts: page numbers, URLs, section breaks
+    if (/^[=\-_]{5,}$/.test(line)) continue;
+    if (/^(page\s*\d|www\.|http|\d{1,3}$)/i.test(line)) continue;
+
     const m = line.match(linePattern);
     if (!m) continue;
 
-    const label = m[1].replace(/\.{3,}/g, '').trim();
+    const label = m[1].replace(/\.{3,}/g, '').replace(/^\s+/, '').trim();
     if (!label || label.length < 3) continue;
-    if (/^(page|date|prepared|report|schedule|\d+)$/i.test(label)) continue;
+    if (/^(page|date|prepared|report|schedule)$/i.test(label)) continue;
+    // Skip pure-number "labels" (e.g. row indices)
+    if (/^\d+$/.test(label)) continue;
 
-    const numStrs = m[2].trim().split(/\s{2,}/);
+    // Parse numbers — allow single-space separation between adjacent numbers
+    const numStrs = m[2].trim().split(/\s{2,}|\s*,\s*/);
     const nums    = numStrs.map(parseAmount).filter(v => v !== null);
     if (!nums.length) continue;
 
@@ -455,18 +591,85 @@ function parseCSV(buffer, filename) {
 }
 
 // ─── XLSX PARSER ──────────────────────────────────────────────────────────────
+
+// Sheets to skip — metadata, checks, aliases, instructions
+const SKIP_SHEET_PATTERNS = [
+  /read.?me|instructions?|notes?|cover|about/i,
+  /master.?check|check.?sheet|reconcil.*check/i,
+  /tag.?alias|xbrl|taxonomy/i,
+  /template|example|sample/i,
+  /^\s*sheet\d+\s*$/i,
+];
+
+function shouldSkipSheet(name, rows) {
+  // Name-based skip
+  if (SKIP_SHEET_PATTERNS.some(p => p.test(name))) return true;
+  // Skip tiny sheets (< 3 rows with data)
+  const datRows = (rows || []).filter(r => !isBlankRow(r));
+  if (datRows.length < 3) return true;
+  // Skip sheets that have no numeric data at all
+  const totalNums = datRows.reduce((s, r) => s + numericCount(r), 0);
+  if (totalNums === 0) return true;
+  return false;
+}
+
 function parseXLSX(buffer, filename) {
-  const wb   = XLSX.read(buffer, { type: 'buffer' });
-  const rows = [];
-  let textSample = '';
+  const wb = XLSX.read(buffer, { type: 'buffer' });
+  const allTransactions = [];
+
   for (const sheetName of wb.SheetNames) {
     const ws   = wb.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-    textSample += sheetName + ' ' + (data.slice(0, 5).flat().join(' '));
-    rows.push(...data);
+
+    if (shouldSkipSheet(sheetName, data)) continue;
+
+    // Detect doc type per-sheet using sheet name + first content rows
+    const contentSample = sheetName + ' ' + data.slice(0, 10).flat()
+      .map(c => String(c || ''))
+      .filter(s => s.length > 0 && s.length < 100)
+      .join(' ');
+    const docType = detectDocType(filename + ' ' + sheetName, contentSample);
+
+    const txs = extractTransactionsFromTable(data, docType);
+
+    // Tag each transaction with its source sheet
+    for (const tx of txs) {
+      tx.sourceSheet = sheetName;
+      if (!tx.docType) tx.docType = docType;
+    }
+
+    allTransactions.push(...txs);
   }
-  const docType = detectDocType(filename || '', textSample);
-  return extractTransactionsFromTable(rows, docType);
+
+  return allTransactions;
+}
+
+// Also export a multi-sheet version that returns per-sheet results (for server.js logging)
+function parseXLSXDetailed(buffer, filename) {
+  const wb = XLSX.read(buffer, { type: 'buffer' });
+  const sheets = [];
+
+  for (const sheetName of wb.SheetNames) {
+    const ws   = wb.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    if (shouldSkipSheet(sheetName, data)) {
+      sheets.push({ sheetName, skipped: true, transactions: [] });
+      continue;
+    }
+
+    const contentSample = sheetName + ' ' + data.slice(0, 10).flat()
+      .map(c => String(c || ''))
+      .filter(s => s.length > 0 && s.length < 100)
+      .join(' ');
+    const docType = detectDocType(filename + ' ' + sheetName, contentSample);
+    const txs = extractTransactionsFromTable(data, docType);
+    for (const tx of txs) { tx.sourceSheet = sheetName; tx.docType = docType; }
+
+    sheets.push({ sheetName, docType, transactions: txs, count: txs.length });
+  }
+
+  return sheets;
 }
 
 // ─── TXT PARSER ───────────────────────────────────────────────────────────────
@@ -541,8 +744,25 @@ async function parseFile(filename, buffer) {
       transactions = parseCSV(buffer, filename);
       docType      = detectDocType(filename, buffer.toString('utf8').slice(0, 2000));
     } else if (['xlsx', 'xls'].includes(ext)) {
-      transactions = parseXLSX(buffer, filename);
-      docType      = detectDocType(filename, '');
+      const sheets = parseXLSXDetailed(buffer, filename);
+      transactions = sheets.flatMap(s => s.transactions || []);
+      // Pick the most representative sheet's docType
+      const primary = sheets.find(s => !s.skipped && s.count > 0);
+      docType = (primary && primary.docType) || detectDocType(filename, '');
+      // Attach sheet summary to result
+      parseError = null;
+      return {
+        filename, docType, transactions,
+        rawText: '',
+        sheetSummary: sheets.map(s => ({
+          name: s.sheetName,
+          skipped: s.skipped || false,
+          docType: s.docType,
+          count: s.count || 0
+        })),
+        parseError: null,
+        count: transactions.length
+      };
     } else {
       transactions = parseTXT(buffer, filename);
       docType      = detectDocType(filename, buffer.toString('utf8').slice(0, 2000));
@@ -555,4 +775,4 @@ async function parseFile(filename, buffer) {
   return { filename, docType, transactions, rawText, parseError, count: transactions.length };
 }
 
-module.exports = { parseFile, computeStats, formatAmount, detectDocType };
+module.exports = { parseFile, computeStats, formatAmount, detectDocType, parseXLSXDetailed };

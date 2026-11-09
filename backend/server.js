@@ -124,10 +124,11 @@ app.get('/api/demo', async (req, res) => {
 
 // ─── Main analysis endpoint ───────────────────────────────────────────────────
 app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
-  const apiKey = req.headers['x-api-key'] || req.body?.apiKey;
+  // Use server-side key only — never trust the client
+  const apiKey = DEMO_API_KEY;
 
   if (!apiKey || !apiKey.startsWith('sk-')) {
-    return res.status(401).json({ error: 'Valid OpenAI API key required (starts with sk-)' });
+    return res.status(503).json({ error: 'API key not configured on this server. Set DEMO_API_KEY env var.' });
   }
 
   if (!req.files || req.files.length === 0) {

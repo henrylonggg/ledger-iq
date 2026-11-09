@@ -107,7 +107,13 @@ function buildClaudeSummary(parsedFiles) {
 async function scoreWithClaude(parsedFiles, apiKey) {
   const client  = new OpenAI({ apiKey });
   const summary = buildClaudeSummary(parsedFiles);
-  const allTx   = parsedFiles.flatMap(f => f.transactions);
+  const allTxFull = parsedFiles.flatMap(f => f.transactions);
+
+  // Prioritize: red first, then yellow, then green — cap at 80 for token safety
+  const red    = allTxFull.filter(t => t.severity === 'red');
+  const yellow = allTxFull.filter(t => t.severity === 'yellow');
+  const green  = allTxFull.filter(t => t.severity === 'green');
+  const allTx  = [...red, ...yellow, ...green].slice(0, 80);
 
   const docContext = summary.uploadedDocTypes.map(d => {
     const qoeLink = DOC_TO_QOE_CATEGORY[d] || 'General';
@@ -201,7 +207,7 @@ ${allTx.map((t, i) =>
 
   const response = await client.chat.completions.create({
     model:       'gpt-4o',
-    max_tokens:  8000,
+    max_tokens:  16000,
     temperature: 0.2,
     messages: [
       { role: 'system', content: systemPrompt },
@@ -215,9 +221,42 @@ ${allTx.map((t, i) =>
   try {
     parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
   } catch {
+    // Try to extract the outermost JSON object
     const m = raw.match(/\{[\s\S]+\}/);
-    if (m) parsed = JSON.parse(m[0]);
-    else throw new Error('OpenAI returned invalid JSON — raw: ' + raw.slice(0, 300));
+    if (m) {
+      try {
+        parsed = JSON.parse(m[0]);
+      } catch {
+        // JSON was cut off mid-transactions array — repair by closing it
+        let attempt = m[0];
+        // Close any open arrays/objects by counting brackets
+        let opens = 0;
+        for (const ch of attempt) {
+          if (ch === '{' || ch === '[') opens++;
+          else if (ch === '}' || ch === ']') opens--;
+        }
+        // Strip trailing incomplete item (find last complete object in transactions)
+        const lastComplete = attempt.lastIndexOf('},\n');
+        if (lastComplete > 0) attempt = attempt.slice(0, lastComplete + 1);
+        // Close remaining open brackets
+        const closes = [];
+        let o2 = 0;
+        for (const ch of attempt) {
+          if (ch === '{') o2++;
+          else if (ch === '[') closes.push(']');
+          else if (ch === '}') { o2--; if (closes.length && closes[closes.length-1] === ']') {} }
+          else if (ch === ']') closes.pop();
+        }
+        attempt += closes.reverse().join('') + (o2 > 0 ? '}'.repeat(o2) : '');
+        try {
+          parsed = JSON.parse(attempt);
+        } catch {
+          throw new Error('OpenAI returned invalid JSON that could not be repaired. Try uploading fewer files at once.');
+        }
+      }
+    } else {
+      throw new Error('OpenAI returned no JSON. Raw response: ' + raw.slice(0, 300));
+    }
   }
 
   const usage = {

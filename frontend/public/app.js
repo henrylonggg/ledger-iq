@@ -1686,12 +1686,75 @@ const DEMO_REPORT = {
   }
 };
 
-function loadDemo() {
-  // Always use hardcoded demo — zero API calls, instant, permanent
- 
-  report = DEMO_REPORT;
-  finishReport();
-  showDemoBanner();
+async function loadDemo() {
+  showProgressPage();
+
+  try {
+    await wakeBackend();
+
+    addLog('Loading demo files…', 'info');
+    setProg(10, 'Connecting to server…');
+
+    let resp = null;
+    let attempt = 0;
+    while (true) {
+      attempt++;
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 300000);
+      try {
+        resp = await fetch(`${API_BASE}/api/demo`, { signal: ctrl.signal });
+      } catch (fetchErr) {
+        clearTimeout(tid);
+        if (attempt >= 6) {
+          // Fall back to hardcoded demo if server unreachable
+          addLog('Server unreachable — loading cached demo', 'info');
+          report = DEMO_REPORT;
+          finishReport();
+          showDemoBanner();
+          return;
+        }
+        addLog(`Connection error — retrying (${attempt})…`, 'info');
+        await new Promise(r => setTimeout(r, 8000));
+        continue;
+      }
+      clearTimeout(tid);
+
+      if (resp.status === 502 || resp.status === 503 || resp.status === 504) {
+        if (attempt >= 6) {
+          addLog('Server not ready — loading cached demo', 'info');
+          report = DEMO_REPORT;
+          finishReport();
+          showDemoBanner();
+          return;
+        }
+        addLog(`Server warming up — retrying (${attempt})…`, 'info');
+        await new Promise(r => setTimeout(r, 10000 * attempt));
+        continue;
+      }
+
+      break;
+    }
+
+    if (!resp.ok) {
+      addLog('Demo load failed — using cached demo', 'info');
+      report = DEMO_REPORT;
+      finishReport();
+      showDemoBanner();
+      return;
+    }
+
+    await readSSEStream(resp, () => {
+      finishReport();
+      showDemoBanner();
+    });
+
+  } catch (err) {
+    // Fall back to hardcoded demo on any error
+    addLog('Error — loading cached demo: ' + err.message, 'info');
+    report = DEMO_REPORT;
+    finishReport();
+    showDemoBanner();
+  }
 }
 
 function showDemoBanner() {
@@ -1705,7 +1768,7 @@ function showDemoBanner() {
   `;
   bar.innerHTML = `
     <span style="color:var(--teal)">◆ DEMO</span>
-    <span>Showing sample QoE analysis — Acme Manufacturing Inc. (18 files, FY2022–2024)</span>
+    <span>Showing sample QoE analysis — Acme Manufacturing Inc. (25 files, FY2022–2024)</span>
     <button onclick="document.getElementById('demo-bar').remove();resetAll();" style="margin-left:auto;background:var(--teal);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer;">Upload your own files →</button>
   `;
   document.body.appendChild(bar);

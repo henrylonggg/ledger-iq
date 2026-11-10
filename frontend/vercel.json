@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://eve-preserve-rice-pond.trycloudflare.com/api/$1"
+      "destination": "https://ledger-iq-oi3l.onrender.com/api/$1"
     }
   ]
 }

@@ -775,4 +775,130 @@ async function parseFile(filename, buffer) {
   return { filename, docType, transactions, rawText, parseError, count: transactions.length };
 }
 
-module.exports = { parseFile, computeStats, formatAmount, detectDocType, parseXLSXDetailed };
+// ─── AI FALLBACK EXTRACTOR ───────────────────────────────────────────────────
+// Called by server.js when structured parsing yields too few results.
+// apiKey is passed in (never stored here) so the key stays server-side only.
+
+async function extractWithAI(filename, buffer, ext, apiKey) {
+  if (!apiKey) return { transactions: [], tokensUsed: 0, aiUsed: false };
+
+  // Convert file to readable text
+  let rawText = '';
+  try {
+    if (ext === 'pdf') {
+      const data = await pdfParse(buffer);
+      rawText = data.text || '';
+    } else if (['xlsx', 'xls'].includes(ext)) {
+      const wb = XLSX.read(buffer, { type: 'buffer' });
+      const parts = [];
+      for (const name of wb.SheetNames.slice(0, 6)) {
+        const ws   = wb.Sheets[name];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        parts.push(`=== Sheet: ${name} ===`);
+        parts.push(rows.slice(0, 80).map(r => r.join('\t')).join('\n'));
+      }
+      rawText = parts.join('\n\n');
+    } else if (ext === 'csv') {
+      rawText = buffer.toString('utf8');
+    } else {
+      rawText = buffer.toString('utf8');
+    }
+  } catch (e) {
+    return { transactions: [], tokensUsed: 0, aiUsed: false, error: e.message };
+  }
+
+  // Truncate to stay within token budget (~60k chars ≈ 15k tokens)
+  const truncated = rawText.slice(0, 60000);
+  const docType   = detectDocType(filename, truncated.slice(0, 3000));
+
+  const systemPrompt = `You are a financial data extraction expert for M&A Quality of Earnings analysis.
+Extract ALL financial line items from the document. Return a JSON object with an "items" array.
+
+Each item in the array must follow this exact shape:
+{
+  "label": "string — the line item name exactly as it appears (include section context, e.g. 'Revenue: Product Sales')",
+  "latestValue": number or null,
+  "priorValue": number or null,
+  "type": "one of: Revenue | EBITDA Adj | COGS & Margin | SG&A | Payroll | Owner Compensation | Non-Recurring | Related Party | Accounts Receivable | Accounts Payable | Inventory | Debt & Leverage | Tax | Cash & Bank | CapEx & Fixed Assets | D&A | Working Capital | Revenue Recognition | Backlog & Pipeline | Prepaids & Accruals | Contractors | Other",
+  "note": "optional brief note about significance for QoE"
+}
+
+CRITICAL RULES:
+- The document may be messy, poorly formatted, or use non-standard layouts — extract everything anyway
+- latestValue and priorValue are plain numbers only (no $ signs, no commas). Negative numbers = losses/expenses shown in parentheses
+- For percentages (margins, rates), store as the percentage number (e.g. 42.5 for 42.5%)
+- If only one time period exists, set priorValue to null
+- Extract EVERY row that has at least one dollar amount, count, or percentage — even small items matter
+- For multi-period data (e.g. FY2022, FY2023), use FY2023 as latestValue and FY2022 as priorValue
+- Never skip rows due to formatting — if you can read a number, include it
+- If the document has no financial data at all, return {"items": []}
+- Always return JSON with an "items" key`;
+
+  const userPrompt = `File: ${filename}
+Document type detected: ${docType}
+
+RAW CONTENT:
+${truncated}
+
+Extract all financial line items as a JSON array.`;
+
+  try {
+    const { OpenAI } = require('openai');
+    const openai = new OpenAI({ apiKey });
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt   },
+      ],
+      temperature: 0.1,
+      max_tokens: 4000,
+      response_format: { type: 'json_object' },
+    });
+
+    const tokensUsed = completion.usage?.total_tokens || 0;
+    let items = [];
+    try {
+      const parsed = JSON.parse(completion.choices[0].message.content);
+      // Accept { items: [...] } or { transactions: [...] } or bare array
+      if (Array.isArray(parsed))             items = parsed;
+      else if (Array.isArray(parsed.items))  items = parsed.items;
+      else if (Array.isArray(parsed.transactions)) items = parsed.transactions;
+      else {
+        // Try first array-valued key
+        const arrKey = Object.keys(parsed).find(k => Array.isArray(parsed[k]));
+        if (arrKey) items = parsed[arrKey];
+      }
+    } catch { items = []; }
+
+    // Map to standard transaction format
+    const transactions = items
+      .filter(it => it && it.label && (it.latestValue !== null && it.latestValue !== undefined))
+      .map(it => {
+        const latestValue  = typeof it.latestValue === 'number' ? it.latestValue : parseAmount(it.latestValue);
+        const priorValue   = typeof it.priorValue  === 'number' ? it.priorValue  : parseAmount(it.priorValue);
+        const pctChange    = pctChangeFn(priorValue, latestValue);
+        const absMax       = Math.max(Math.abs(latestValue || 0), Math.abs(priorValue || 0));
+        const type         = it.type && it.type !== 'Other' ? it.type : classifyType(it.label);
+        return {
+          label:          String(it.label).trim(),
+          type,
+          latestValue,
+          priorValue,
+          pctChange,
+          absMax,
+          formattedAmount: formatAmount(latestValue),
+          severity: heuristicSeverity({ label: it.label, type, pctChange, absMax }),
+          aiExtracted:    true,
+          note:           it.note || undefined,
+          docType,
+        };
+      });
+
+    return { transactions, tokensUsed, aiUsed: true, docType };
+  } catch (err) {
+    return { transactions: [], tokensUsed: 0, aiUsed: false, error: err.message };
+  }
+}
+
+module.exports = { parseFile, computeStats, formatAmount, detectDocType, parseXLSXDetailed, extractWithAI };

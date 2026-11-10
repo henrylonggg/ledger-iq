@@ -14,7 +14,7 @@ const cors     = require('cors');
 const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
-const { parseFile, computeStats } = require('./parser');
+const { parseFile, computeStats, extractWithAI } = require('./parser');
 const { scoreWithClaude }         = require('./claude');
 const { router: authRouter, requireAuth } = require('./auth');
 const usersDb  = require('./users');
@@ -210,18 +210,45 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
         emit('log', { type: 'err', message: `${file.originalname}: PARSE EXCEPTION — ${parseEx.message}` });
         result = { filename: file.originalname, docType: 'Financial Document', transactions: [], count: 0, parseError: parseEx.message };
       }
+      // ── AI EXTRACTION: always use GPT-4o mini to scan every file ──
+      if (apiKey) {
+        emit('log', { type: 'info', message: `${file.originalname}: AI scanning document…` });
+        emit('progress', { step: 'parsing', pct: 10 + (i / req.files.length) * 25, message: `AI-extracting ${file.originalname}…` });
+
+        const ext = (file.originalname.split('.').pop() || '').toLowerCase();
+        const aiResult = await extractWithAI(file.originalname, file.buffer, ext, apiKey);
+
+        if (aiResult.aiUsed && aiResult.transactions.length > 0) {
+          // Merge: AI results take priority, but keep structured items AI missed
+          const aiLabels = new Set(aiResult.transactions.map(t => t.label.toLowerCase()));
+          const structuredOnly = result.transactions.filter(t => !aiLabels.has(t.label.toLowerCase()));
+          result.transactions = [...aiResult.transactions, ...structuredOnly];
+          result.count        = result.transactions.length;
+          result.aiExtracted  = true;
+          result.aiTokens     = aiResult.tokensUsed;
+          if (!result.docType || result.docType === 'Financial Document') {
+            result.docType = aiResult.docType || result.docType;
+          }
+          emit('log', { type: 'ok', message: `${file.originalname}: AI extracted ${aiResult.transactions.length} items + ${structuredOnly.length} structured items (${aiResult.tokensUsed} tokens)` });
+        } else if (aiResult.error) {
+          emit('log', { type: 'warn', message: `${file.originalname}: AI extraction error — ${aiResult.error} — using structured parse (${result.count} items)` });
+        } else {
+          emit('log', { type: 'info', message: `${file.originalname}: structured parse used (${result.count} items)` });
+        }
+      }
+
       parsedFiles.push(result);
       totalTx += result.count;
 
       // Log sheet-level breakdown for multi-sheet files
-      if (result.sheetSummary) {
+      if (result.sheetSummary && !result.aiExtracted) {
         const used   = result.sheetSummary.filter(s => !s.skipped && s.count > 0);
         const skipped = result.sheetSummary.filter(s => s.skipped);
         emit('log', { type: result.count > 0 ? 'ok' : 'warn',
           message: `${file.originalname}: extracted ${result.count} items across ${used.length} sheets` +
             (skipped.length ? ` (skipped: ${skipped.map(s=>s.name).join(', ')})` : '')
         });
-      } else {
+      } else if (!result.aiExtracted) {
         emit('log', {
           type: result.parseError ? 'warn' : 'ok',
           message: result.parseError
@@ -229,6 +256,12 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
             : `${file.originalname}: extracted ${result.count} line items`
         });
       }
+    }
+
+    // Track total AI tokens used for extraction fallbacks
+    const aiExtractionTokens = parsedFiles.reduce((s, f) => s + (f.aiTokens || 0), 0);
+    if (aiExtractionTokens > 0) {
+      emit('log', { type: 'info', message: `AI extraction used ${aiExtractionTokens} tokens across messy files` });
     }
 
     // ── STEP 2: Compute backend stats ──────────────────────────────────────
@@ -249,11 +282,12 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
     emit('log', { type: 'ok', message: `GPT-4o mini scoring complete — ${usage.totalTokens} tokens used (${usage.inputTokens} in / ${usage.outputTokens} out)` });
     emit('progress', { step: 'claude', pct: 90, message: 'Scoring complete — building report…' });
 
-    // Deduct credits for authenticated users
+    // Deduct credits for authenticated users (scoring tokens + AI extraction tokens)
     if (authedUser) {
-      const deductResult = usersDb.deductCredits(authedUser.id, usage.totalTokens);
+      const totalBillableTokens = usage.totalTokens + aiExtractionTokens;
+      const deductResult = usersDb.deductCredits(authedUser.id, totalBillableTokens);
       if (deductResult.ok) {
-        emit('log', { type: 'info', message: `Credits used: $${deductResult.cost.toFixed(4)} — balance: $${deductResult.remaining.toFixed(2)}` });
+        emit('log', { type: 'info', message: `Credits used: $${deductResult.cost.toFixed(4)} (${totalBillableTokens} tokens) — balance: $${deductResult.remaining.toFixed(4)}` });
       }
     }
 

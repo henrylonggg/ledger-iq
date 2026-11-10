@@ -80,14 +80,14 @@ const BADGE_COLORS = [
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   const icon = document.getElementById('theme-icon');
-  if (icon) icon.textContent = theme === 'light' ? '🌙' : '☀';
+  if (icon) icon.textContent = theme === 'dark' ? '☀' : '🌙';
   try { localStorage.setItem('liq_theme', theme); } catch {}
   applyBadgeColor(localStorage.getItem('liq_badge_color') || 'Teal');
 }
 
 function toggleTheme() {
-  const current = document.documentElement.dataset.theme || 'dark';
-  applyTheme(current === 'light' ? 'dark' : 'light');
+  const current = document.documentElement.dataset.theme || 'light';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
 }
 
 function applyBadgeColor(label) {
@@ -103,9 +103,9 @@ function applyBadgeColor(label) {
 
 function loadThemePrefs() {
   try {
-    const theme = localStorage.getItem('liq_theme') || 'dark';
+    const theme = localStorage.getItem('liq_theme') || 'light';
     applyTheme(theme);
-  } catch { applyTheme('dark'); }
+  } catch { applyTheme('light'); }
 }
 
 // Call on startup
@@ -2340,7 +2340,7 @@ function renderProfilePage() {
             <div style="font-size:11.5px;color:var(--muted)">Switch between dark and light mode</div>
           </div>
           <button class="theme-pill-btn" id="profile-theme-btn" onclick="toggleTheme();updateThemePillBtn()">
-            <span id="profile-theme-label">${(document.documentElement.dataset.theme||'dark') === 'light' ? '☀ Light' : '🌙 Dark'}</span>
+            <span id="profile-theme-label">${(document.documentElement.dataset.theme||'light') === 'dark' ? '☀ Light' : '🌙 Dark'}</span>
           </button>
         </div>
         <div>
@@ -2368,7 +2368,7 @@ function renderProfilePage() {
 
 function updateThemePillBtn() {
   const lbl = document.getElementById('profile-theme-label');
-  if (lbl) lbl.textContent = (document.documentElement.dataset.theme || 'dark') === 'light' ? '☀ Light' : '🌙 Dark';
+  if (lbl) lbl.textContent = (document.documentElement.dataset.theme || 'light') === 'dark' ? '☀ Light' : '🌙 Dark';
 }
 
 function renderBadgeSwatches() {

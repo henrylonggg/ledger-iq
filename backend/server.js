@@ -385,14 +385,14 @@ ${flagSummary || 'No significant flags.'}
 ANALYST EXCLUSIONS (${rejectedCount} items rejected):
 ${rejSummary || 'None — all items approved.'}
 
-Write a 4–6 paragraph professional narrative covering:
-1. Overall earnings quality assessment and what the score means
-2. Key findings by category — highlight the strongest and weakest areas specifically
-3. Analysis of the flagged items and what they mean for deal risk
-4. Impact of analyst review decisions — why excluded items were removed and how they affected the score
-5. Final assessment and considerations for the acquirer
+Write a detailed QoE narrative of approximately 500 words covering all five of these areas:
+1. Overall earnings quality assessment — what the adjusted score of ${score}/100 means in context, how it compares to the original score, and the high-level earnings quality picture
+2. Category-by-category findings — go through every category with specific scores, explaining what drove each result and which pose deal risk
+3. Analysis of flagged items — discuss the most significant flags, what they reveal about the business, and their implications for deal pricing or structuring
+4. Impact of analyst review decisions — explain which transactions were excluded, why that is significant, and how the ${rejectedCount} exclusions changed the picture from the initial AI assessment
+5. Final acquirer considerations — a frank assessment of what the deal team should focus on, potential earnout triggers or price adjustments to consider, and what warrants deeper diligence
 
-Write in a formal analyst voice. Be specific to the actual data above — do not use generic filler. Vary the language and insights based on the specific numbers and items. Do not start sentences with "In conclusion" or use bullet points.`;
+Target length: approximately 500 words. Write in a formal senior analyst voice. Be specific to the actual data above — no generic filler. Vary sentence structure. Do not start with "In conclusion". Do not use bullet points or headers.`;
 
   try {
     const { OpenAI } = require('openai');
@@ -401,7 +401,7 @@ Write in a formal analyst voice. Be specific to the actual data above — do not
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      max_tokens: 1200,
+      max_tokens: 750,
     });
     const narrative = completion.choices[0].message.content;
     const tokens    = completion.usage?.total_tokens || 0;
@@ -456,12 +456,17 @@ DEAL DATA:
 CATEGORY SCORES: ${catLines}
 TOP RED FLAGS: ${topFlags || 'None'}
 
-Write a 3-paragraph executive summary:
-1. One-sentence verdict + overall score context (what this score means for the deal)
-2. The 2-3 most important findings from the category scores and flags — be specific
-3. Key recommendation for the deal team — what to watch, negotiate on, or investigate further
+Write a plain-language executive summary of approximately 150 words that a non-financial executive or board member could easily understand. Cover:
+1. A simple, plain-English verdict on the deal based on the score — avoid jargon
+2. The most important 2–3 things the buyer needs to know, explained in plain terms (not financial jargon)
+3. The single most important action the deal team should take next
 
-Be direct, specific, and vary the language based on the actual scores. Do not use generic statements. Write like a real analyst briefing a PE partner.`;
+Rules:
+- Write at a 10th-grade reading level — no M&A jargon without explanation
+- Be direct and honest about risk; do not soften bad scores
+- Target exactly 150 words — no more, no less
+- Use short paragraphs; no bullet points
+- Write as if briefing a CEO who is not a financial expert`;
 
   try {
     const { OpenAI } = require('openai');
@@ -470,7 +475,7 @@ Be direct, specific, and vary the language based on the actual scores. Do not us
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      max_tokens: 600,
+      max_tokens: 300,
     });
     const summary = completion.choices[0].message.content;
     const tokens  = completion.usage?.total_tokens || 0;

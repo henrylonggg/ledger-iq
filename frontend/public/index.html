@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Ledger IQ</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 /* ─── TOKENS — LIGHT MODE (default) ──────────────────────── */
 :root {
@@ -47,9 +47,9 @@
   --badge-text:   #0891B2;
 
   /* Typography */
-  --display: 'Inter', system-ui, sans-serif;
-  --ui:      'Inter', system-ui, sans-serif;
-  --mono:    'JetBrains Mono', monospace;
+  --display: 'Syne', system-ui, sans-serif;
+  --ui:      'DM Sans', system-ui, sans-serif;
+  --mono:    'DM Mono', 'JetBrains Mono', monospace;
   --r: 8px;
 
   /* Shadows — crisp, layered */
@@ -109,7 +109,11 @@ html, body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+}
+/* Light mode: crisp rendering for dark-on-light text */
+html:not([data-theme="dark"]) body {
+  -webkit-font-smoothing: auto;
 }
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -138,28 +142,29 @@ button { cursor: pointer; font-family: var(--ui); }
 
 /* ─── BRAND ───────────────────────────────────────────────── */
 .brand {
-  padding: 18px 20px 15px;
+  padding: 16px 18px 14px;
   border-bottom: 1px solid var(--line);
 }
-.brand-logo { display: flex; align-items: center; gap: 0; }
+.brand-logo { display: flex; align-items: center; gap: 10px; }
+.brand-icon { flex-shrink: 0; border-radius: 7px; display: block; }
 .brand-mark {
   font-family: var(--display);
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--bright);
-  letter-spacing: -.05em;
+  letter-spacing: -.04em;
   line-height: 1;
 }
 .brand-mark span { color: var(--teal); }
 .brand-rule {
   width: 100%; height: 1px;
   background: linear-gradient(90deg, var(--teal-mid), transparent);
-  margin-top: 9px;
+  margin-top: 10px;
 }
 .brand-sub {
-  font-family: var(--mono); font-size: 8.5px;
-  color: var(--dim); letter-spacing: .16em;
-  margin-top: 4px; text-transform: uppercase;
+  font-family: var(--mono); font-size: 8px;
+  color: var(--dim); letter-spacing: .1em;
+  margin-top: 5px; text-transform: uppercase;
 }
 
 /* ─── NAV ─────────────────────────────────────────────────── */
@@ -574,11 +579,14 @@ button { cursor: pointer; font-family: var(--ui); }
   line-height: 1.55;
   border-left: 3px solid transparent;
 }
-.flag.red    { background: var(--crim-dim); border-color: var(--crimson);  color: var(--crimson);  }
-.flag.yellow { background: var(--amber-dim); border-color: var(--amber);   color: var(--amber);    }
-.flag.green  { background: var(--emer-dim); border-color: var(--emerald);  color: var(--emerald);  }
+.flag.red    { background: var(--crim-dim); border-color: var(--crimson); color: var(--body); }
+.flag.yellow { background: var(--amber-dim); border-color: var(--amber);  color: var(--body); }
+.flag.green  { background: var(--emer-dim); border-color: var(--emerald); color: var(--body); }
+.flag.red .flag-title    { color: var(--crimson); }
+.flag.yellow .flag-title { color: var(--amber);   }
+.flag.green .flag-title  { color: var(--emerald); }
 .flag-title  { font-weight: 700; display: block; margin-bottom: 2px; letter-spacing: -.01em; }
-.flag-detail { opacity: .8; }
+.flag-detail { color: var(--body); opacity: .85; }
 
 /* ─── NARRATIVE ───────────────────────────────────────────── */
 .prose { font-size: 14px; color: var(--body); line-height: 1.85; letter-spacing: -.01em; }
@@ -689,7 +697,189 @@ tr:hover td { background: var(--ink2); transition: background .1s; }
 .bar-mini { width: 42px; height: 3px; background: var(--ink3); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
 .bar-fill { height: 100%; border-radius: 2px; }
 
-/* ─── NARRATIVE PAGE ──────────────────────────────────────── */
+/* ─── NARRATIVE / REPORT PAGE ─────────────────────────────── */
+.report-page { max-width: 820px; }
+
+/* Tab bar */
+.report-tabs {
+  display: flex; gap: 2px;
+  background: var(--ink2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 20px;
+}
+.report-tab {
+  flex: 1; padding: 10px 16px;
+  border-radius: 7px; border: none;
+  font-family: var(--ui); font-size: 13px; font-weight: 600;
+  letter-spacing: -.01em; cursor: pointer;
+  background: none; color: var(--muted);
+  transition: background .15s, color .15s, box-shadow .15s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.report-tab:hover { color: var(--body); background: var(--ink1); }
+.report-tab.active {
+  background: var(--ink1);
+  color: var(--bright);
+  box-shadow: var(--shadow);
+}
+.report-tab-badge {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 10px;
+  background: var(--teal-dim); border: 1px solid var(--teal-mid);
+  color: var(--teal); letter-spacing: .05em;
+}
+
+/* Tab panes */
+.report-pane { display: none; }
+.report-pane.active { display: block; }
+
+/* Narrative pane */
+.narrative-panel {
+  background: var(--ink1); border: 1px solid var(--line);
+  border-radius: 10px; overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.narrative-panel-header {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink2);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.narrative-panel-title {
+  font-family: var(--display); font-size: 13px; font-weight: 700;
+  color: var(--bright); letter-spacing: -.02em;
+  display: flex; align-items: center; gap: 8px;
+}
+.narrative-panel-body {
+  padding: 28px 32px;
+}
+.narrative-panel .prose {
+  font-size: 15px; line-height: 1.9; color: var(--body);
+  letter-spacing: -.01em;
+}
+.narrative-panel .prose p + p { margin-top: 16px; }
+
+/* Summary pane */
+.summary-card {
+  background: var(--ink1); border: 1px solid var(--line);
+  border-radius: 10px; overflow: hidden;
+  box-shadow: var(--shadow); margin-bottom: 16px;
+}
+.summary-card-header {
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink2);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.summary-card-title {
+  font-family: var(--display); font-size: 12px; font-weight: 700;
+  color: var(--bright); letter-spacing: -.02em;
+  display: flex; align-items: center; gap: 8px;
+}
+.summary-card-body { padding: 22px 26px; }
+.summary-card .prose {
+  font-size: 15px; line-height: 1.85; color: var(--body);
+}
+.summary-card .prose p + p { margin-top: 14px; }
+
+/* Score scorecard row for summary */
+.sum-scorecard {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  margin-bottom: 20px;
+}
+.sum-score-tile {
+  background: var(--ink2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.sum-score-tile-num {
+  font-family: var(--display); font-size: 26px; font-weight: 800;
+  color: var(--bright); letter-spacing: -.04em; line-height: 1;
+}
+.sum-score-tile-label {
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  color: var(--dim); letter-spacing: .1em; text-transform: uppercase;
+}
+.sum-score-tile-trend {
+  font-size: 11px; font-weight: 600; margin-top: 2px;
+}
+.trend-up { color: var(--emerald); }
+.trend-dn { color: var(--crimson); }
+.trend-nt { color: var(--muted); }
+
+/* Regen button */
+.regen-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 6px;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: .04em; border: 1px solid var(--line2);
+  background: var(--ink1); color: var(--muted);
+  cursor: pointer; transition: all .15s;
+}
+.regen-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+
+/* Narrative stats row */
+.narrative-meta {
+  display: flex; gap: 20px; flex-wrap: wrap;
+  padding: 12px 22px; border-bottom: 1px solid var(--line);
+  background: var(--ink2);
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+}
+.nm-item { display: flex; gap: 5px; align-items: center; }
+.nm-val { color: var(--teal); font-weight: 600; }
+
+/* ─── NARRATIVE / SUMMARY PANEL INTERNALS ───────────────────── */
+.narrative-panel-header, .summary-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--line);
+  background: var(--ink2);
+}
+.narrative-panel-title, .summary-card-title {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+}
+.narrative-panel-body, .summary-card-body {
+  padding: 24px 28px;
+}
+.narrative-panel-body .prose, .summary-card-body .prose {
+  font-size: 15px; line-height: 1.9; color: var(--body); letter-spacing: -.01em;
+}
+.narrative-panel-body .prose p + p { margin-top: 16px; }
+.summary-card-body .prose p + p { margin-top: 14px; }
+
+/* Summary scorecard tiles */
+.sum-score-tile {
+  background: var(--ink1); border: 1px solid var(--line);
+  border-radius: 10px; padding: 16px 18px; text-align: center;
+  box-shadow: var(--shadow);
+}
+.sum-score-tile-num {
+  font-family: var(--display); font-size: 32px; font-weight: 800;
+  color: var(--teal); letter-spacing: -.03em; line-height: 1;
+}
+.sum-score-tile-label {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--dim);
+  margin-top: 5px;
+}
+.sum-score-tile-trend {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  margin-top: 4px; min-height: 16px;
+}
+
+/* AI badge */
+.ai-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--teal); padding: 4px 10px; border-radius: 20px;
+  background: var(--teal-dim); border: 1px solid var(--teal-mid);
+  margin-bottom: 16px;
+}
+
 .narrative-page { max-width: 780px; }
 .narrative-page .panel + .panel { margin-top: 12px; }
 .narrative-page .prose { font-size: 14.5px; line-height: 1.9; }
@@ -721,12 +911,18 @@ tr:hover td { background: var(--ink2); transition: background .1s; }
 
 /* ─── GLOBAL INPUT FOCUS ──────────────────────────────────── */
 input:focus-visible, textarea:focus-visible, select:focus-visible {
-  outline: 2px solid rgba(18,216,223,.4);
+  outline: 2px solid rgba(8,145,178,.4);
   outline-offset: 2px;
+}
+[data-theme="dark"] input:focus-visible,
+[data-theme="dark"] textarea:focus-visible,
+[data-theme="dark"] select:focus-visible {
+  outline: 2px solid rgba(18,216,223,.4);
 }
 
 /* ─── SELECTION ───────────────────────────────────────────── */
-::selection { background: rgba(18,216,223,.2); color: var(--bright); }
+::selection { background: rgba(8,145,178,.18); color: var(--bright); }
+[data-theme="dark"] ::selection { background: rgba(18,216,223,.2); }
 
 /* ─── ENHANCED SCROLLBAR ──────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -753,12 +949,47 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 .panel { transition: border-color .15s; }
 .panel:hover { border-color: var(--line2); }
 
+/* ─── LIGHT MODE SPECIFIC LEGIBILITY FIXES ────────────────── */
+/* Headings in light mode need extra contrast */
+.kpi-value, .ring-num, .credits-amount { color: var(--bright); }
+.rq-heading, .prog-heading, .upload-heading { color: var(--bright); }
+/* Profile */
+.profile-name { color: var(--bright); }
+/* Chip / table text */
+.file-name, .rv-title { color: var(--bright); }
+/* Nav active indicator is readable */
+.nb.active { font-weight: 600; }
+/* Table body rows */
+td { color: var(--body); }
+/* Links in light/dark */
+a { color: var(--teal); }
+/* Panel section labels use strong mono */
+.panel-label { font-family: var(--mono); font-weight: 700; color: var(--muted); letter-spacing: .08em; }
+/* KPI subtext legibility */
+.kpi-sub { color: var(--muted); }
+.kpi-label { color: var(--muted); font-weight: 600; }
+
 /* ─── LANDING PAGE ────────────────────────────────────────── */
+/* Landing is always dark-themed regardless of app theme */
 #page-landing {
   position: fixed; inset: 0; z-index: 9999;
-  background: var(--ink);
+  background: #04080F;
+  --ink:      #04080F;
+  --ink1:     #090E1A;
+  --ink2:     #0E1420;
+  --ink3:     #141C2C;
+  --line:     #1A2840;
+  --line2:    #223050;
+  --dim:      #3D5068;
+  --muted:    #6278A0;
+  --body:     #B8C6DF;
+  --bright:   #E2EAF7;
+  --teal:     #12D8DF;
+  --teal-dim: rgba(18,216,223,.08);
+  --teal-mid: rgba(18,216,223,.2);
   display: flex; flex-direction: column;
   overflow-y: auto;
+  color: var(--body);
 }
 #page-landing.exit {
   animation: landingExit .55s cubic-bezier(.4,0,.2,1) forwards;
@@ -783,13 +1014,15 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 .ng-sub   { font-size: 13px; color: var(--dim); max-width: 340px; line-height: 1.65; }
 .ng-btn   {
   margin-top: 6px; padding: 10px 26px;
-  background: var(--teal); color: var(--ink);
+  background: var(--teal); color: #fff;
   border: none; border-radius: var(--r);
   font-family: var(--ui); font-size: 13px; font-weight: 700;
   cursor: pointer; letter-spacing: -.01em;
   transition: filter .15s, transform .1s, box-shadow .15s;
 }
-.ng-btn:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(18,216,223,.3); }
+[data-theme="dark"] .ng-btn { color: #04080F; }
+.ng-btn:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(8,145,178,.3); }
+[data-theme="dark"] .ng-btn:hover { box-shadow: 0 4px 16px rgba(18,216,223,.3); }
 .ai-badge {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--mono); font-size: 9.5px; font-weight: 700;
@@ -808,6 +1041,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   width: 100%;
   max-width: 420px;
   position: relative;
+  box-shadow: 0 8px 32px rgba(15,23,42,.12), 0 32px 80px rgba(15,23,42,.08);
+}
+[data-theme="dark"] .auth-box {
   box-shadow: 0 32px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(18,216,223,.04);
 }
 .auth-logo {
@@ -836,7 +1072,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 }
 .auth-btn {
   width: 100%; padding: 13px; margin-top: 8px;
-  background: var(--teal); color: var(--ink);
+  background: var(--teal); color: #fff;
   border: none; border-radius: var(--r);
   font-family: var(--ui); font-size: 14px; font-weight: 700;
   letter-spacing: -.01em; cursor: pointer;
@@ -951,10 +1187,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 }
 .credits-input:focus { border-color: var(--teal); }
 .cred-btn {
-  padding: 8px 18px; background: var(--teal); color: var(--ink);
+  padding: 8px 18px; background: var(--teal); color: #fff;
   border: none; border-radius: 6px; font-family: var(--mono); font-size: 11px;
   font-weight: 700; cursor: pointer; transition: filter .15s; white-space: nowrap;
 }
+[data-theme="dark"] .cred-btn { color: #04080F; }
 .cred-btn:hover { filter: brightness(1.1); }
 .cred-msg { font-size: 12px; min-height: 18px; }
 .cred-msg.ok  { color: var(--emerald); }
@@ -1191,7 +1428,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 .ld-enter {
   display: inline-flex; align-items: center; gap: 10px;
   padding: 16px 36px;
-  background: var(--teal); color: var(--ink);
+  background: var(--teal); color: #060A14;
   border: none; border-radius: var(--r);
   font-family: var(--display); font-size: 15px; font-weight: 800;
   letter-spacing: -.025em;
@@ -2196,10 +2433,22 @@ th {
 <aside class="sidebar">
   <div class="brand">
     <div class="brand-logo">
+      <!-- LedgerIQ SVG Logo -->
+      <svg class="brand-icon" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="28" height="28" rx="7" fill="var(--teal)"/>
+        <!-- Ledger lines -->
+        <rect x="6" y="8" width="10" height="1.6" rx=".8" fill="white" opacity=".95"/>
+        <rect x="6" y="11.5" width="10" height="1.6" rx=".8" fill="white" opacity=".95"/>
+        <rect x="6" y="15" width="10" height="1.6" rx=".8" fill="white" opacity=".95"/>
+        <!-- IQ spark — upward trend line -->
+        <polyline points="17,19 19.5,13 22,16 24,10" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".95"/>
+        <!-- Dot at peak -->
+        <circle cx="24" cy="10" r="1.4" fill="white" opacity=".95"/>
+      </svg>
       <div class="brand-mark">Ledger<span>IQ</span></div>
     </div>
     <div class="brand-rule"></div>
-    <div class="brand-sub">QoE PLATFORM</div>
+    <div class="brand-sub">M&amp;A Quality of Earnings</div>
   </div>
 
   <nav class="nav">
@@ -2513,23 +2762,89 @@ th {
     </div>
   </div>
 
-  <!-- ── NARRATIVE ── -->
+  <!-- ── NARRATIVE / REPORT PAGE ── -->
   <div class="page" id="page-narrative">
-    <div class="narrative-page">
-      <div class="panel">
-        <div class="panel-label" style="display:flex;align-items:center;justify-content:space-between;">
-          Analyst narrative
-          <button class="ng-btn" style="font-size:10px;padding:5px 14px;" onclick="generateNarrative()">↺ Regenerate</button>
-        </div>
-        <div class="prose" id="narrative-full"></div>
+    <div class="report-page">
+
+      <!-- Tab bar -->
+      <div class="report-tabs" role="tablist">
+        <button class="report-tab active" id="tab-narrative" role="tab" aria-selected="true" onclick="switchReportTab('narrative')">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 2h11M1 5h11M1 8h7"/></svg>
+          Narrative
+          <span class="report-tab-badge">~500 words</span>
+        </button>
+        <button class="report-tab" id="tab-summary" role="tab" aria-selected="false" onclick="switchReportTab('summary')">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6.5 1l1.5 3.5H12l-3 2.5 1 4-3.5-2.5L3 11l1-4L1 4.5h4z"/></svg>
+          Summary
+          <span class="report-tab-badge">~150 words</span>
+        </button>
       </div>
-      <div class="panel">
-        <div class="panel-label" style="display:flex;align-items:center;justify-content:space-between;">
-          Executive summary &amp; methodology
-          <button class="ng-btn" style="font-size:10px;padding:5px 14px;" onclick="generateSummary()">↺ Regenerate</button>
+
+      <!-- NARRATIVE pane -->
+      <div class="report-pane active" id="pane-narrative">
+        <div class="narrative-panel">
+          <div class="narrative-panel-header">
+            <div class="narrative-panel-title">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 2h10M2 5.5h10M2 9h6"/></svg>
+              Analyst Narrative
+            </div>
+            <button class="regen-btn" onclick="generateNarrative()">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 2A5 5 0 1 0 10 7"/><path d="M9 1v3H6"/></svg>
+              Regenerate
+            </button>
+          </div>
+          <div class="narrative-meta" id="narrative-meta" style="display:none">
+            <span class="nm-item">Score: <span class="nm-val" id="nm-score">—</span></span>
+            <span class="nm-item">Company: <span class="nm-val" id="nm-company">—</span></span>
+            <span class="nm-item">Period: <span class="nm-val" id="nm-period">—</span></span>
+            <span class="nm-item">Transactions reviewed: <span class="nm-val" id="nm-txcount">—</span></span>
+            <span class="nm-item">AI confidence: <span class="nm-val" id="nm-confidence">—</span></span>
+          </div>
+          <div class="narrative-panel-body">
+            <div class="prose" id="narrative-full"></div>
+          </div>
         </div>
-        <div class="prose" id="methodology"></div>
       </div>
+
+      <!-- SUMMARY pane -->
+      <div class="report-pane" id="pane-summary">
+        <!-- Scorecard tiles -->
+        <div class="sum-scorecard" id="sum-scorecard" style="display:none">
+          <div class="sum-score-tile">
+            <div class="sum-score-tile-num" id="sum-score">—</div>
+            <div class="sum-score-tile-label">QoE Score</div>
+            <div class="sum-score-tile-trend" id="sum-score-trend"></div>
+          </div>
+          <div class="sum-score-tile">
+            <div class="sum-score-tile-num" id="sum-txreviewed">—</div>
+            <div class="sum-score-tile-label">Tx Reviewed</div>
+            <div class="sum-score-tile-trend" id="sum-txtrend"></div>
+          </div>
+          <div class="sum-score-tile">
+            <div class="sum-score-tile-num" id="sum-flags">—</div>
+            <div class="sum-score-tile-label">Flags Raised</div>
+            <div class="sum-score-tile-trend" id="sum-flagtrend"></div>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="summary-card-header">
+            <div class="summary-card-title">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6.5 1l1.5 3.5H12l-3 2.5 1 4-3.5-2.5L3 11l1-4L1 4.5h4z"/></svg>
+              Executive Summary
+            </div>
+            <button class="regen-btn" onclick="generateSummary()">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 2A5 5 0 1 0 10 7"/><path d="M9 1v3H6"/></svg>
+              Regenerate
+            </button>
+          </div>
+          <div class="summary-card-body">
+            <div class="ai-badge" id="sum-ai-badge" style="display:none">✦ AI Generated · GPT-4o mini · Plain language</div>
+            <div class="prose" id="methodology"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 

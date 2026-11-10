@@ -1091,25 +1091,65 @@ function renderQoECharts(r) {
   section.style.display = 'block';
 }
 
+/* ── Report tab switcher ───────────────────────────────────── */
+function switchReportTab(tab) {
+  ['narrative','summary'].forEach(t => {
+    document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
+    document.getElementById('tab-' + t)?.setAttribute('aria-selected', t === tab);
+    document.getElementById('pane-' + t)?.classList.toggle('active', t === tab);
+  });
+}
+
 function updateNarrativePage() {
   const narrativeEl = document.getElementById('dash-narrative');
   const nFull       = document.getElementById('narrative-full');
   const meth        = document.getElementById('methodology');
 
+  // ── Populate narrative meta bar ─────────────────────────────
+  const r = report;
+  if (r) {
+    const payload     = buildNarrativePayload();
+    const metaBar     = document.getElementById('narrative-meta');
+    const nmScore     = document.getElementById('nm-score');
+    const nmCompany   = document.getElementById('nm-company');
+    const nmPeriod    = document.getElementById('nm-period');
+    const nmTxcount   = document.getElementById('nm-txcount');
+    const nmConf      = document.getElementById('nm-confidence');
+    if (metaBar) metaBar.style.display = 'flex';
+    if (nmScore)   nmScore.textContent   = payload.score + '/100';
+    if (nmCompany) nmCompany.textContent = payload.companyName;
+    if (nmPeriod)  nmPeriod.textContent  = payload.period;
+    if (nmTxcount) nmTxcount.textContent = payload.totalTransactions;
+    // Confidence: scale from score (simple heuristic)
+    const conf = payload.score >= 80 ? 'High' : payload.score >= 60 ? 'Medium' : 'Low';
+    if (nmConf) nmConf.textContent = conf;
+
+    // Summary scorecard
+    const sc = document.getElementById('sum-scorecard');
+    if (sc) {
+      sc.style.display = 'grid';
+      const sumScore    = document.getElementById('sum-score');
+      const sumTxrev    = document.getElementById('sum-txreviewed');
+      const sumFlags    = document.getElementById('sum-flags');
+      const sumScrTrend = document.getElementById('sum-score-trend');
+      const sumTxTrend  = document.getElementById('sum-txtrend');
+      const sumFlgTrend = document.getElementById('sum-flagtrend');
+      if (sumScore) sumScore.textContent = payload.score;
+      if (sumTxrev) sumTxrev.textContent = payload.reviewedCount;
+      if (sumFlags) sumFlags.textContent = (r.flags || []).length;
+      const delta = payload.score - (payload.originalScore || payload.score);
+      if (sumScrTrend) sumScrTrend.textContent = delta > 0 ? `▲ +${delta} vs original` : delta < 0 ? `▼ ${delta} vs original` : 'No change vs original';
+      if (sumTxTrend)  sumTxTrend.textContent  = `${payload.rejectedCount} rejected · ${payload.approvedCount} approved`;
+      if (sumFlgTrend) sumFlgTrend.textContent  = payload.score >= 80 ? 'Low risk profile' : payload.score >= 60 ? 'Moderate risk' : 'High risk — review';
+    }
+  }
+
   // ── NARRATIVE ──────────────────────────────────────────────
   if (generatedNarrative) {
-    // AI-generated content — show it
-    const r = report;
-    let html = `<div class="ai-badge">✦ AI Generated · GPT-4o mini</div>`;
-    if (r?.dataScope) {
-      html += `<p style="font-family:var(--mono);font-size:10.5px;color:var(--teal);margin-bottom:10px;border-left:2px solid var(--teal);padding-left:8px">${esc(r.dataScope)}</p>`;
-    }
     const nHtml = generatedNarrative.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
-    if (narrativeEl) narrativeEl.innerHTML = html + nHtml;
-    if (nFull)       nFull.innerHTML = html + nHtml;
+    if (narrativeEl) narrativeEl.innerHTML = nHtml;
+    if (nFull)       nFull.innerHTML = nHtml;
   } else if (!reviewEdited && report?.narrative) {
-    // No review edits yet — show cached report narrative with a "Generate AI version" CTA
-    const r = report;
     const cachedHtml = report.narrative.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
     const html = `
       <div class="narrative-gate" style="margin-bottom:20px;padding:16px 20px;flex-direction:row;justify-content:space-between;align-items:center;">
@@ -1123,11 +1163,10 @@ function updateNarrativePage() {
     if (narrativeEl) narrativeEl.innerHTML = html;
     if (nFull)       nFull.innerHTML = html;
   } else {
-    // Reviewed but not generated — prompt to generate
     const staleHtml = `<div class="narrative-gate">
       <div class="ng-icon">📋</div>
       <div class="ng-title">Review decisions changed</div>
-      <div class="ng-sub">Click Generate to have GPT-4o mini write a fresh narrative based on your current approve/reject decisions.</div>
+      <div class="ng-sub">Click Generate to have GPT-4o mini write a fresh ~500-word narrative based on your current approve/reject decisions.</div>
       <button class="ng-btn" onclick="generateNarrative()">Generate AI Narrative</button>
     </div>`;
     if (narrativeEl) narrativeEl.innerHTML = staleHtml;
@@ -1135,11 +1174,13 @@ function updateNarrativePage() {
   }
 
   // ── SUMMARY ────────────────────────────────────────────────
+  const aiBadge = document.getElementById('sum-ai-badge');
   if (generatedSummary) {
-    const sHtml = `<div class="ai-badge">✦ AI Generated · GPT-4o mini</div>` +
-      generatedSummary.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
+    if (aiBadge) aiBadge.style.display = 'inline-flex';
+    const sHtml = generatedSummary.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
     if (meth) meth.innerHTML = sHtml;
   } else if (!reviewEdited && report?.methodology) {
+    if (aiBadge) aiBadge.style.display = 'none';
     const cachedSHtml = report.methodology.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
     const html = `
       <div class="narrative-gate" style="margin-bottom:20px;padding:16px 20px;flex-direction:row;justify-content:space-between;align-items:center;">
@@ -1152,10 +1193,11 @@ function updateNarrativePage() {
       ${cachedSHtml}`;
     if (meth) meth.innerHTML = html;
   } else {
+    if (aiBadge) aiBadge.style.display = 'none';
     const staleHtml2 = `<div class="narrative-gate">
       <div class="ng-icon">📊</div>
       <div class="ng-title">Review decisions changed</div>
-      <div class="ng-sub">Click Generate to have GPT-4o mini write a fresh executive summary based on your current decisions.</div>
+      <div class="ng-sub">Click Generate to have GPT-4o mini write a plain-language ~150-word executive summary based on your current decisions.</div>
       <button class="ng-btn" onclick="generateSummary()">Generate AI Summary</button>
     </div>`;
     if (meth) meth.innerHTML = staleHtml2;
@@ -1191,6 +1233,9 @@ function buildNarrativePayload() {
 async function generateNarrative() {
   if (!report) return;
 
+  // Switch to narrative tab so user sees progress
+  switchReportTab('narrative');
+
   // Show loading state
   const narrativeEl = document.getElementById('dash-narrative');
   const nFull       = document.getElementById('narrative-full');
@@ -1203,7 +1248,7 @@ async function generateNarrative() {
     if (narrativeEl) narrativeEl.innerHTML = html;
     if (nFull)       nFull.innerHTML       = html;
   };
-  setLoading('GPT-4o mini is writing a custom analysis based on your review decisions');
+  setLoading('GPT-4o mini is writing a ~500-word custom analysis based on your review decisions');
 
   try {
     const payload = buildNarrativePayload();
@@ -1228,6 +1273,9 @@ async function generateNarrative() {
 async function generateSummary() {
   if (!report) return;
 
+  // Switch to summary tab so user sees progress
+  switchReportTab('summary');
+
   const meth = document.getElementById('methodology');
   const setLoading = (msg) => {
     if (meth) meth.innerHTML = `<div class="narrative-gate">
@@ -1236,7 +1284,7 @@ async function generateSummary() {
       <div class="ng-sub">${msg}</div>
     </div>`;
   };
-  setLoading('GPT-4o mini is writing a custom summary based on your review decisions');
+  setLoading('GPT-4o mini is writing a plain-language ~150-word summary based on your review decisions');
 
   try {
     const payload = buildNarrativePayload();

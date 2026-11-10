@@ -503,15 +503,34 @@ async function startAnalysis() {
     const fd = new FormData();
     for (const f of files) fd.append('files', f);
 
-    const ctrl = new AbortController();
-    const tid  = setTimeout(() => ctrl.abort(), 300000);
-    const resp = await fetch(`${API_BASE}/api/analyze`, {
-      method: 'POST',
-      headers: authToken ? { 'Authorization': 'Bearer ' + authToken } : {},
-      body: fd,
-      signal: ctrl.signal
-    });
-    clearTimeout(tid);
+    // Retry the analyze POST on 502/503/504 (Render cold-start race condition)
+    const MAX_UPLOAD_ATTEMPTS = 4;
+    const UPLOAD_RETRY_DELAY  = 8000;
+    let resp = null;
+
+    for (let attempt = 1; attempt <= MAX_UPLOAD_ATTEMPTS; attempt++) {
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 300000);
+      resp = await fetch(`${API_BASE}/api/analyze`, {
+        method: 'POST',
+        headers: authToken ? { 'Authorization': 'Bearer ' + authToken } : {},
+        body: fd,
+        signal: ctrl.signal
+      });
+      clearTimeout(tid);
+
+      if (resp.status === 502 || resp.status === 503 || resp.status === 504) {
+        if (attempt < MAX_UPLOAD_ATTEMPTS) {
+          addLog(`Server waking up… (attempt ${attempt}/${MAX_UPLOAD_ATTEMPTS})`, 'info');
+          setProg(30, `Server waking up…`, `Attempt ${attempt} of ${MAX_UPLOAD_ATTEMPTS} — retrying in 8s`);
+          await new Promise(r => setTimeout(r, UPLOAD_RETRY_DELAY));
+          continue;
+        }
+        throw new Error('Server unavailable after multiple attempts — please try again in 30 seconds');
+      }
+
+      break; // success or non-502 error — handle below
+    }
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));

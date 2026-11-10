@@ -359,6 +359,28 @@ async function getAuthedUser(req) {
 // GET /api/ai-status         -> { configured }           (free, instant)
 // GET /api/ai-status?deep=1  -> also pings OpenAI (1 token) and reports exactly what it says
 let _probeCache = { at: 0, value: null };
+/* ── Admin: delete user by email (requires ADMIN_SECRET header) ── */
+app.delete('/api/admin/user', async (req, res) => {
+  const secret = req.headers['x-admin-secret'];
+  if (!secret || secret !== process.env.ADMIN_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'email query param required' });
+  try {
+    const deleted = await usersDb.deleteUserByEmail(email);
+    if (deleted) {
+      console.log(`[admin] deleted user: ${email}`);
+      res.json({ ok: true, message: `User ${email} deleted` });
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
+  } catch (err) {
+    console.error('[admin] delete user error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/ai-status', async (req, res) => {
   if (req.query.deep !== '1') {
     return res.json({ configured: !!DEMO_API_KEY, model: DEFAULT_MODEL });

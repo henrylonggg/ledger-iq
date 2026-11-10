@@ -163,6 +163,23 @@ async function deductCredits(id, tokens) {
   }
 }
 
+async function deleteUserByEmail(email) {
+  if (USE_PG) {
+    const res = await pool.query('DELETE FROM users WHERE email=$1 RETURNING id', [email]);
+    if (res.rowCount > 0) {
+      await pool.query('DELETE FROM usage WHERE user_id=$1', [res.rows[0].id]);
+    }
+    return res.rowCount > 0;
+  } else {
+    const data = loadUsers();
+    const idx = data.users.findIndex(u => u.email === email);
+    if (idx === -1) return false;
+    data.users.splice(idx, 1);
+    fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2));
+    return true;
+  }
+}
+
 function safeUser(u) {
   const { passwordHash, ...safe } = u;
   return safe;
@@ -172,5 +189,6 @@ module.exports = {
   findByEmail, findById,
   createUser, updateUser,
   addCredits, deductCredits,
+  deleteUserByEmail,
   safeUser, loadUsers
 };

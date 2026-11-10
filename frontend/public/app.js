@@ -135,10 +135,7 @@ function renderAuthForm(mode) {
   const isLogin = mode === 'login';
   box.innerHTML = `
     <div class="auth-logo">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <rect width="28" height="28" rx="6" fill="var(--teal)" fill-opacity=".15"/>
-        <path d="M7 14h4l3-7 3 14 3-7h4" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true"><use href="#liq-mark"/></svg>
       <span>LedgerIQ</span>
     </div>
     <h2 class="auth-title">${isLogin ? 'Sign in to your account' : 'Create your account'}</h2>
@@ -484,46 +481,56 @@ async function wakeBackend({ silent = false } = {}) {
   throw new Error('Backend did not respond within 90 seconds. Please wait a moment and try again.');
 }
 
-// Calls a generate endpoint with automatic 502 retry (Render cold-start)
+// Calls a generate endpoint. Retries only what is worth retrying:
+//  - per-minute rate limits (waits the time the server asks for, with a visible countdown)
+//  - gateway hiccups (502/503/504 with no JSON body, e.g. a cold-starting host)
+// Quota, auth and model errors fail immediately with the server's explanation.
 async function callGenerateAPI(endpoint, payload, onStatus) {
-  const MAX_ATTEMPTS = 4;
-  const RETRY_DELAY  = 8000; // ms between retries on 502
+  const MAX_ATTEMPTS = 5;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let res;
     try {
       const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 90000);
-      const res  = await fetch(`${API_BASE}${endpoint}`, {
+      const tid  = setTimeout(() => ctrl.abort(), 95000);
+      res = await fetch(`${API_BASE}${endpoint}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body:    JSON.stringify(payload),
         signal:  ctrl.signal,
       });
       clearTimeout(tid);
-
-      if (res.status === 502 || res.status === 503 || res.status === 504) {
-        if (attempt < MAX_ATTEMPTS) {
-          onStatus && onStatus(`Server waking up… (attempt ${attempt}/${MAX_ATTEMPTS})`);
-          await new Promise(r => setTimeout(r, RETRY_DELAY));
-          continue;
-        }
-        throw new Error('Server unavailable — please try again in 30 seconds');
-      }
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${res.status}`);
-      }
-
-      return await res.json();
     } catch (err) {
-      if (err.name === 'AbortError') throw new Error('Request timed out — server may still be starting');
-      if (attempt < MAX_ATTEMPTS && (err.message.includes('fetch') || err.message.includes('network'))) {
-        onStatus && onStatus(`Retrying… (attempt ${attempt}/${MAX_ATTEMPTS})`);
-        await new Promise(r => setTimeout(r, RETRY_DELAY));
+      if (err.name === 'AbortError') throw new Error('The request timed out. Please try again.');
+      if (attempt < MAX_ATTEMPTS) {
+        onStatus && onStatus(`Connection lost — retrying (attempt ${attempt + 1}/${MAX_ATTEMPTS})…`);
+        await sleep(4000);
         continue;
       }
+      throw new Error('Could not reach the server. Check your connection and try again.');
+    }
+
+    if (res.ok) return await res.json();
+
+    const body = await res.json().catch(() => null);
+    const retryable = body ? body.retryable === true : [429, 502, 503, 504].includes(res.status);
+
+    if (!retryable || attempt === MAX_ATTEMPTS) {
+      const err = new Error(body?.error ||
+        (res.status === 429 ? 'The service is receiving too many requests right now. Please wait a minute and try again.'
+                            : `Server error (${res.status}). Please try again.`));
+      err.code = body?.code;
+      err.retryable = retryable;
       throw err;
+    }
+
+    const hdr  = parseInt(res.headers.get('Retry-After') || '', 10);
+    const wait = Math.min(30, Math.max(5, body?.retryAfter || hdr || 8));
+    const why  = (body?.code === 'openai_rate_limit' || res.status === 429) ? 'OpenAI is busy' : 'Server is waking up';
+    for (let s = wait; s > 0; s--) {
+      onStatus && onStatus(`${why} — retrying in ${s}s (attempt ${attempt + 1}/${MAX_ATTEMPTS})`);
+      await sleep(1000);
     }
   }
 }
@@ -539,7 +546,7 @@ async function startAnalysis() {
 
   // Check credits
   if (currentUser.credits <= 0) {
-    showToast('You\'re out of credits. Add credits in your Profile to run analyses.', 4000);
+    showToast('You\'re out of credits. Add credits in your Profile to run analyses.', 'err');
     go('profile');
     return;
   }
@@ -596,7 +603,7 @@ async function startAnalysis() {
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       if (resp.status === 402) {
-        showToast('Out of credits — add more in your Profile.', 4000);
+        showToast('Out of credits — add more in your Profile.', 'err');
         go('profile');
         return;
       }
@@ -707,7 +714,7 @@ function renderDashboardPanels(r) {
     const col = c.color === 'green' ? 'var(--emerald)' : c.color === 'red' ? 'var(--crimson)' : 'var(--amber)';
     const sc = c.score || 0;
     const basisHtml = c.basis
-      ? `<div class="cat-basis">${esc(c.basis)}</div>`
+      ? `<div class="cat-basis" title="${esc(c.basis)}">${esc(c.basis)}</div>`
       : '';
     return `<div class="cat-row">
       <div class="cat-badge" style="background:${col};box-shadow:0 0 6px ${col}44"></div>
@@ -1100,107 +1107,105 @@ function switchReportTab(tab) {
   });
 }
 
+/** Turn model text into <p> blocks. If the model ignored paragraph breaks, split by sentences. */
+function paragraphs(text) {
+  const t = String(text || '').trim();
+  let parts = t.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+  if (parts.length === 1 && t.length > 650) {
+    const sentences = t.match(/[^.!?]+[.!?]+(\s|$)/g) || [t];
+    const groups = Math.min(5, Math.ceil(t.length / 650));
+    const per = Math.ceil(sentences.length / groups);
+    parts = [];
+    for (let i = 0; i < sentences.length; i += per) parts.push(sentences.slice(i, i + per).join('').trim());
+  }
+  return parts.map(p => `<p>${esc(p)}</p>`).join('');
+}
+
+function gateBox(icon, title, sub, btnLabel, call) {
+  return `<div class="narrative-gate">
+    <div class="ng-icon">${icon}</div>
+    <div class="ng-title">${title}</div>
+    <div class="ng-sub">${sub}</div>
+    <button class="ng-btn" data-gen onclick="${call}">${btnLabel}</button>
+  </div>`;
+}
+
+async function copyReport(which) {
+  const text = which === 'narrative' ? generatedNarrative?.text : generatedSummary?.text;
+  const btn  = document.getElementById('copy-' + which);
+  if (!text) { showToast('Nothing to copy yet — generate it first'); return; }
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch {}
+    ta.remove();
+  }
+  if (btn) {
+    const old = btn.textContent;
+    btn.textContent = 'Copied'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = old; btn.classList.remove('copied'); }, 1500);
+  }
+}
+
 function updateNarrativePage() {
-  const narrativeEl = document.getElementById('dash-narrative');
-  const nFull       = document.getElementById('narrative-full');
-  const meth        = document.getElementById('methodology');
-
-  // ── Populate narrative meta bar ─────────────────────────────
+  const nFull = document.getElementById('narrative-full');
+  const meth  = document.getElementById('methodology');
+  const dash  = document.getElementById('dash-narrative');
   const r = report;
+
+  // ── Facts bar, summary tiles, header line (all from real data) ─────
   if (r) {
-    const payload     = buildNarrativePayload();
-    const metaBar     = document.getElementById('narrative-meta');
-    const nmScore     = document.getElementById('nm-score');
-    const nmCompany   = document.getElementById('nm-company');
-    const nmPeriod    = document.getElementById('nm-period');
-    const nmTxcount   = document.getElementById('nm-txcount');
-    const nmConf      = document.getElementById('nm-confidence');
-    if (metaBar) metaBar.style.display = 'flex';
-    if (nmScore)   nmScore.textContent   = payload.score + '/100';
-    if (nmCompany) nmCompany.textContent = payload.companyName;
-    if (nmPeriod)  nmPeriod.textContent  = payload.period;
-    if (nmTxcount) nmTxcount.textContent = payload.totalTransactions;
-    // Confidence: scale from score (simple heuristic)
-    const conf = payload.score >= 80 ? 'High' : payload.score >= 60 ? 'Medium' : 'Low';
-    if (nmConf) nmConf.textContent = conf;
+    const p = buildNarrativePayload();
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
 
-    // Summary scorecard
-    const sc = document.getElementById('sum-scorecard');
-    if (sc) {
-      sc.style.display = 'grid';
-      const sumScore    = document.getElementById('sum-score');
-      const sumTxrev    = document.getElementById('sum-txreviewed');
-      const sumFlags    = document.getElementById('sum-flags');
-      const sumScrTrend = document.getElementById('sum-score-trend');
-      const sumTxTrend  = document.getElementById('sum-txtrend');
-      const sumFlgTrend = document.getElementById('sum-flagtrend');
-      if (sumScore) sumScore.textContent = payload.score;
-      if (sumTxrev) sumTxrev.textContent = payload.reviewedCount;
-      if (sumFlags) sumFlags.textContent = (r.flags || []).length;
-      const delta = payload.score - (payload.originalScore || payload.score);
-      if (sumScrTrend) sumScrTrend.textContent = delta > 0 ? `▲ +${delta} vs original` : delta < 0 ? `▼ ${delta} vs original` : 'No change vs original';
-      if (sumTxTrend)  sumTxTrend.textContent  = `${payload.rejectedCount} rejected · ${payload.approvedCount} approved`;
-      if (sumFlgTrend) sumFlgTrend.textContent  = payload.score >= 80 ? 'Low risk profile' : payload.score >= 60 ? 'Moderate risk' : 'High risk — review';
-    }
+    show('narrative-meta', true);
+    set('nm-score', p.score + '/100');
+    set('nm-txcount', p.totalTransactions);
+    set('nm-confidence', p.avgConfidence != null ? `${p.avgConfidence}% avg · ${p.lowConfidenceCount} to review` : '—');
+    show('nm-company-wrap', !!p.companyName); if (p.companyName) set('nm-company', p.companyName);
+    show('nm-period-wrap',  !!p.period);      if (p.period)      set('nm-period', p.period);
+
+    const bits = [p.companyName, p.period, `${p.filesProcessed} document${p.filesProcessed === 1 ? '' : 's'}`, `${p.totalTransactions} transactions`].filter(Boolean);
+    set('rh-sub', bits.join(' · '));
+
+    set('badge-narrative', generatedNarrative?.words ? `${generatedNarrative.words} words` : '~500 words');
+    set('badge-summary',   generatedSummary?.words   ? `${generatedSummary.words} words`   : '~150 words');
+
+    show('sum-scorecard', true);
+    set('sum-score', p.score);
+    set('sum-txreviewed', p.reviewedCount);
+    set('sum-flags', (r.flags || []).length);
+    const delta = p.score - (p.originalScore || p.score);
+    set('sum-score-trend', delta > 0 ? `Up ${delta} from the original ${p.originalScore}` : delta < 0 ? `Down ${-delta} from the original ${p.originalScore}` : 'Same as the original score');
+    set('sum-txtrend', `${p.rejectedCount} excluded · ${p.approvedCount} approved`);
+    set('sum-flagtrend', p.score >= 70 ? 'Low risk profile' : p.score >= 45 ? 'Moderate risk' : 'High risk');
   }
 
-  // ── NARRATIVE ──────────────────────────────────────────────
+  // ── Narrative ──────────────────────────────────────────────────────
   if (generatedNarrative) {
-    const nHtml = generatedNarrative.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
-    if (narrativeEl) narrativeEl.innerHTML = nHtml;
-    if (nFull)       nFull.innerHTML = nHtml;
-  } else if (!reviewEdited && report?.narrative) {
-    const cachedHtml = report.narrative.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
-    const html = `
-      <div class="narrative-gate" style="margin-bottom:20px;padding:16px 20px;flex-direction:row;justify-content:space-between;align-items:center;">
-        <div style="text-align:left;">
-          <div class="ng-title" style="font-size:12px;margin-bottom:2px;">Initial narrative from analysis</div>
-          <div class="ng-sub" style="font-size:11px;">Make review decisions then click Generate to get a custom AI narrative.</div>
-        </div>
-        <button class="ng-btn" style="margin-top:0;white-space:nowrap" onclick="generateNarrative()">Generate AI Narrative</button>
-      </div>
-      ${cachedHtml}`;
-    if (narrativeEl) narrativeEl.innerHTML = html;
-    if (nFull)       nFull.innerHTML = html;
-  } else {
-    const staleHtml = `<div class="narrative-gate">
-      <div class="ng-icon">📋</div>
-      <div class="ng-title">Review decisions changed</div>
-      <div class="ng-sub">Click Generate to have GPT-4o mini write a fresh ~500-word narrative based on your current approve/reject decisions.</div>
-      <button class="ng-btn" onclick="generateNarrative()">Generate AI Narrative</button>
-    </div>`;
-    if (narrativeEl) narrativeEl.innerHTML = staleHtml;
-    if (nFull)       nFull.innerHTML = staleHtml;
+    if (nFull) nFull.innerHTML = paragraphs(generatedNarrative.text);
+  } else if (!reviewEdited && r?.narrative) {
+    if (nFull) nFull.innerHTML =
+      gateBox('✦', 'Initial analysis text', 'This came from the scoring pass. Generate a fresh ~500-word narrative that reflects your review decisions.', 'Generate AI narrative', 'generateNarrative()') +
+      paragraphs(r.narrative);
+  } else if (nFull) {
+    nFull.innerHTML = gateBox('📋', 'Review decisions changed', 'Generate a fresh ~500-word narrative from your current approve / reject decisions.', 'Generate AI narrative', 'generateNarrative()');
   }
 
-  // ── SUMMARY ────────────────────────────────────────────────
+  // ── Summary (report tab + dashboard panel) ─────────────────────────
   const aiBadge = document.getElementById('sum-ai-badge');
   if (generatedSummary) {
     if (aiBadge) aiBadge.style.display = 'inline-flex';
-    const sHtml = generatedSummary.text.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
-    if (meth) meth.innerHTML = sHtml;
-  } else if (!reviewEdited && report?.methodology) {
-    if (aiBadge) aiBadge.style.display = 'none';
-    const cachedSHtml = report.methodology.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('');
-    const html = `
-      <div class="narrative-gate" style="margin-bottom:20px;padding:16px 20px;flex-direction:row;justify-content:space-between;align-items:center;">
-        <div style="text-align:left;">
-          <div class="ng-title" style="font-size:12px;margin-bottom:2px;">Initial summary from analysis</div>
-          <div class="ng-sub" style="font-size:11px;">Make review decisions then generate a custom AI summary.</div>
-        </div>
-        <button class="ng-btn" style="margin-top:0;white-space:nowrap" onclick="generateSummary()">Generate AI Summary</button>
-      </div>
-      ${cachedSHtml}`;
+    const html = paragraphs(generatedSummary.text);
     if (meth) meth.innerHTML = html;
+    if (dash) dash.innerHTML = html;
   } else {
     if (aiBadge) aiBadge.style.display = 'none';
-    const staleHtml2 = `<div class="narrative-gate">
-      <div class="ng-icon">📊</div>
-      <div class="ng-title">Review decisions changed</div>
-      <div class="ng-sub">Click Generate to have GPT-4o mini write a plain-language ~150-word executive summary based on your current decisions.</div>
-      <button class="ng-btn" onclick="generateSummary()">Generate AI Summary</button>
-    </div>`;
-    if (meth) meth.innerHTML = staleHtml2;
+    const gate = gateBox('✦', 'Plain-English summary', 'Generate a ~150-word summary that anyone on the deal team can read at a glance.', 'Generate AI summary', 'generateSummary()');
+    if (meth) meth.innerHTML = gate;
+    if (dash) dash.innerHTML = (r?.verdict ? paragraphs(r.verdict) : '') + (genInFlight ? '' : gate);
   }
 }
 
@@ -1216,105 +1221,164 @@ function buildNarrativePayload() {
   return {
     score: adjScore,
     originalScore: r.score,
-    companyName: r.companyName || r._meta?.companyName || 'the target company',
-    period: r.period || r._meta?.period || 'the review period',
+    companyName: r.companyName || r._meta?.companyName || null,
+    period: r.period || r._meta?.period || null,
     filesProcessed: r._meta?.filesProcessed || 1,
     totalTransactions: r._meta?.totalTransactions || (r.transactions||[]).length,
     categories: adjCats.map(c => ({ name: c.name, score: c.score, color: c.color })),
     flags: (r.flags || []).slice(0, 10).map(f => ({ title: f.title, detail: f.detail, severity: f.severity })),
     rejectedItems: rejected.slice(0, 10).map(t => ({ item: t.item, type: t.type, amount: t.amount, severity: t.severity, reason: t.reason })),
     approvedItems: approved.slice(0, 10).map(t => ({ item: t.item, type: t.type, amount: t.amount, severity: t.severity })),
+    avgConfidence: (() => {
+      const tx = (r.transactions || []).filter(t => t.confidence > 0);
+      return tx.length ? Math.round(tx.reduce((a, t) => a + t.confidence, 0) / tx.length) : null;
+    })(),
+    lowConfidenceCount: (r.transactions || []).filter(t => t.needsReview).length,
     reviewedCount: rejected.length + approved.length,
     rejectedCount: rejected.length,
     approvedCount: approved.length,
   };
 }
 
-async function generateNarrative() {
-  if (!report) return;
+// ── AI generation: narrative first, then a plain-English summary derived from it ──
+let genInFlight = null;
 
-  // Switch to narrative tab so user sees progress
-  switchReportTab('narrative');
-
-  // Show loading state
-  const narrativeEl = document.getElementById('dash-narrative');
-  const nFull       = document.getElementById('narrative-full');
-  const setLoading  = (msg) => {
-    const html = `<div class="narrative-gate">
-      <div class="ng-icon" style="animation:spin 1s linear infinite;display:inline-block">⟳</div>
-      <div class="ng-title">Generating AI narrative…</div>
-      <div class="ng-sub">${msg}</div>
-    </div>`;
-    if (narrativeEl) narrativeEl.innerHTML = html;
-    if (nFull)       nFull.innerHTML       = html;
-  };
-  setLoading('GPT-4o mini is writing a ~500-word custom analysis based on your review decisions');
-
-  try {
-    const payload = buildNarrativePayload();
-    const data = await callGenerateAPI('/api/generate-narrative', payload, (msg) => setLoading(msg));
-    generatedNarrative = { text: data.narrative, stateKey: reviewStateKey() };
-    updateNarrativePage();
-    updateExportBtn();
-    if (data.creditInfo && currentUser) {
-      currentUser.credits = data.creditInfo.remaining;
-      updateUserUI();
-    }
-    const cost = data.creditInfo ? ` (cost: $${data.creditInfo.cost.toFixed(4)})` : '';
-    showToast(`Narrative generated${cost} — reflects current review decisions`);
-  } catch (err) {
-    console.error('[generateNarrative]', err);
-    showToast('Narrative generation failed: ' + err.message);
-    generatedNarrative = null;
-    updateNarrativePage();
-  }
+function setGenBusy(busy) {
+  document.querySelectorAll('.regen-btn, [data-gen]').forEach(b => { b.disabled = busy; b.classList.toggle('is-busy', busy); });
 }
 
-async function generateSummary() {
-  if (!report) return;
-
-  // Switch to summary tab so user sees progress
-  switchReportTab('summary');
-
-  const meth = document.getElementById('methodology');
-  const setLoading = (msg) => {
-    if (meth) meth.innerHTML = `<div class="narrative-gate">
-      <div class="ng-icon" style="animation:spin 1s linear infinite;display:inline-block">⟳</div>
-      <div class="ng-title">Generating AI executive summary…</div>
-      <div class="ng-sub">${msg}</div>
-    </div>`;
-  };
-  setLoading('GPT-4o mini is writing a plain-language ~150-word summary based on your review decisions');
-
-  try {
-    const payload = buildNarrativePayload();
-    const data = await callGenerateAPI('/api/generate-summary', payload, (msg) => setLoading(msg));
-    generatedSummary = { text: data.summary, stateKey: reviewStateKey(), adjScore: payload.score };
-    updateNarrativePage();
-    updateExportBtn();
-    if (data.creditInfo && currentUser) {
-      currentUser.credits = data.creditInfo.remaining;
-      updateUserUI();
-    }
-    const cost = data.creditInfo ? ` (cost: $${data.creditInfo.cost.toFixed(4)})` : '';
-    showToast(`Executive summary generated by AI${cost}`);
-  } catch (err) {
-    console.error('[generateSummary]', err);
-    showToast('Summary generation failed: ' + err.message);
-    generatedSummary = null;
-    updateNarrativePage();
-  }
+function loadingBox(title, msg) {
+  return `<div class="narrative-gate">
+    <div class="ng-icon" style="animation:spin 1s linear infinite;display:inline-block">⟳</div>
+    <div class="ng-title">${title}</div>
+    <div class="ng-sub">${esc(msg)}</div>
+  </div>`;
 }
 
-function showToast(msg) {
+function errorBox(err, retryCall) {
+  const titles = {
+    openai_rate_limit: 'OpenAI is busy right now',
+    openai_quota:      'OpenAI billing needs attention',
+    openai_auth:       'The server’s API key was rejected',
+    openai_model:      'Model not available for this key',
+    no_key:            'AI is not configured on the server',
+    stale:             'Decisions changed while writing',
+  };
+  const title = titles[err.code] || 'Couldn’t generate this section';
+  return `<div class="gen-error" role="alert">
+    <div class="ge-title">${esc(title)}</div>
+    <div class="ge-msg">${esc(err.message)}</div>
+    <div class="ge-actions">
+      <button class="ng-btn" data-gen onclick="${retryCall}">Try again</button>
+      <button class="regen-btn" onclick="checkAIStatus(true)">Test AI connection</button>
+    </div>
+  </div>`;
+}
+
+function setPane(which, html) {
+  const ids = which === 'narrative' ? ['narrative-full'] : ['methodology', 'dash-narrative'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
+}
+
+function creditsFrom(data) {
+  if (data.creditInfo && currentUser) { currentUser.credits = data.creditInfo.remaining; updateUserUI(); }
+}
+
+async function runNarrative(payload) {
+  const status = m => setPane('narrative', loadingBox('Writing the analyst narrative…', m));
+  status('GPT-4o mini is drafting about 500 words from your transactions, score and review decisions');
+  const key  = reviewStateKey();
+  const data = await callGenerateAPI('/api/generate-narrative', payload, status);
+  if (reviewStateKey() !== key) throw Object.assign(new Error('Review decisions changed while this was being written. Regenerate to include them.'), { code: 'stale' });
+  generatedNarrative = { text: data.narrative, words: data.words, stateKey: reviewStateKey() };
+  creditsFrom(data);
+  updateNarrativePage();
+}
+
+async function runSummary(payload) {
+  const status = m => setPane('summary', loadingBox('Writing the plain-English summary…', m));
+  status('Condensing the narrative into about 150 easy-to-read words');
+  const key  = reviewStateKey();
+  const data = await callGenerateAPI('/api/generate-summary',
+    { ...payload, narrative: generatedNarrative ? generatedNarrative.text : '' }, status);
+  if (reviewStateKey() !== key) throw Object.assign(new Error('Review decisions changed while this was being written. Regenerate to include them.'), { code: 'stale' });
+  generatedSummary = { text: data.summary, words: data.words, stateKey: reviewStateKey(), adjScore: payload.score };
+  creditsFrom(data);
+  updateNarrativePage();
+}
+
+function generateReport({ summaryOnly = false, auto = false } = {}) {
+  if (!report) return Promise.resolve();
+  if (genInFlight) return genInFlight;
+  setGenBusy(true);
+  if (!auto) switchReportTab(summaryOnly ? 'summary' : 'narrative');
+
+  genInFlight = (async () => {
+    const payload = buildNarrativePayload();
+    let stage = 'narrative';
+    try {
+      if (!summaryOnly || !generatedNarrative) await runNarrative(payload);
+      stage = 'summary';
+      await runSummary(payload);
+      showToast('Narrative and summary written by AI');
+    } catch (err) {
+      console.error(`[generate:${stage}]`, err);
+      if (stage === 'narrative') { generatedNarrative = null; generatedSummary = null; }
+      else generatedSummary = null;
+      updateNarrativePage();
+      setPane(stage, errorBox(err, stage === 'narrative' ? 'generateNarrative()' : 'generateSummary()'));
+      if (['openai_rate_limit', 'openai_quota', 'openai_auth'].includes(err.code)) checkAIStatus(true);
+    } finally {
+      genInFlight = null;
+      setGenBusy(false);
+    }
+  })();
+  return genInFlight;
+}
+
+// Button handlers (kept as globals — used by inline onclick attributes)
+function generateNarrative() { return generateReport(); }
+function generateSummary()   { return generateReport({ summaryOnly: true }); }
+
+// ── Live AI connection status (never exposes the key — only a yes/no) ──
+async function checkAIStatus(deep = false) {
+  const dot = document.getElementById('key-dot');
+  const txt = document.getElementById('ai-status-text');
+  const set = (state, msg) => {
+    if (dot) dot.className = 'key-dot ' + state;
+    if (txt) txt.textContent = msg;
+  };
+  if (deep) set('checking', 'Testing connection…');
+  try {
+    const r = await fetch(`${API_BASE}/api/ai-status${deep ? '?deep=1' : ''}`);
+    const j = await r.json();
+    if (!j.configured) { set('bad', 'Not configured on server'); if (deep) showToast('AI key is not set on the server', 'err'); return; }
+    if (!deep)         { set('ok', `${j.model || 'GPT-4o mini'} · ready`); return; }
+    if (j.ok)          { set('ok', `${j.model} · connected`); showToast('OpenAI connection verified'); return; }
+    const map = {
+      openai_rate_limit: ['warn', 'Rate-limited · retrying works'],
+      openai_quota:      ['bad',  'No balance on key’s project'],
+      openai_auth:       ['bad',  'Key rejected by OpenAI'],
+      openai_model:      ['bad',  'Model unavailable to key'],
+    };
+    const [st, label] = map[j.code] || ['warn', 'OpenAI unreachable'];
+    set(st, label);
+    showToast(label, st === 'warn' ? 'ok' : 'err');
+  } catch {
+    set('warn', 'Server unreachable');
+    if (deep) showToast('Could not reach the server', 'err');
+  }
+}
+window.addEventListener('load', () => checkAIStatus(false));
+
+function showToast(msg, kind = 'ok') {
+  const bad = kind === 'err';
   const t = document.createElement('div');
-  t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-    background:#0CCED4;color:#060A14;padding:8px 20px;border-radius:20px;
-    font-family:var(--mono);font-size:11px;font-weight:700;z-index:9999;
-    animation:slideInRight .2s ease;pointer-events:none;white-space:nowrap;`;
-  t.textContent = '✓  ' + msg;
+  t.setAttribute('role', bad ? 'alert' : 'status');
+  t.className = 'liq-toast' + (bad ? ' bad' : '');
+  t.textContent = (bad ? '' : '\u2713  ') + msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2800);
+  setTimeout(() => t.remove(), bad ? 5200 : 2800);
 }
 
 function banner_export() {
@@ -1380,6 +1444,8 @@ function finishReport() {
   reviewEdited = false;
   updateNarrativePage();
   updateExportBtn();
+  // Write the AI narrative + summary straight away (needs no click)
+  if (!r._meta?.isDemo) setTimeout(() => generateReport({ auto: true }), 400);
 
   // Token usage — after panels render
   if (r._meta?.tokenUsage) {
@@ -1397,7 +1463,7 @@ function finishReport() {
 
   document.getElementById('rev-badge').textContent  = pending;
   document.getElementById('rev-badge').className    = 'nb-badge' + (pending > 0 ? ' on' : '');
-  document.getElementById('tb-meta').textContent    = `score ${score}/100 · ${(r.transactions||[]).length} items · ${pending} pending`;
+  recalcMetrics();   // topbar + KPIs use the review-adjusted score
 
   go('dashboard');
 
@@ -2116,7 +2182,7 @@ function showDemoBanner() {
   const bar = document.createElement('div');
   bar.id = 'demo-bar';
   bar.style.cssText = `
-    position:fixed;bottom:0;left:220px;right:0;z-index:100;
+    position:fixed;bottom:0;left:232px;right:0;z-index:100;
     background:var(--ink1);border-top:1px solid var(--teal-mid);
     padding:9px 20px;display:flex;align-items:center;gap:12px;
     font-family:var(--mono);font-size:11px;color:var(--dim);
@@ -2124,7 +2190,7 @@ function showDemoBanner() {
   bar.innerHTML = `
     <span style="color:var(--teal)">◆ DEMO</span>
     <span>Showing sample QoE analysis — Acme Manufacturing Inc. (18 files, FY2022–2024)</span>
-    <button onclick="document.getElementById('demo-bar').remove();resetAll();" style="margin-left:auto;background:var(--teal);color:var(--ink);border:none;border-radius:4px;padding:4px 10px;font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer;">Upload your own files →</button>
+    <button onclick="document.getElementById('demo-bar').remove();resetAll();" style="margin-left:auto;background:var(--teal);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer;">Upload your own files →</button>
   `;
   document.body.appendChild(bar);
 }

@@ -843,10 +843,8 @@ ${truncated}
 Extract all financial line items as a JSON array.`;
 
   try {
-    const { OpenAI } = require('openai');
-    const openai = new OpenAI({ apiKey });
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const { createCompletion } = require('./openai-client');
+    const completion = await createCompletion(apiKey, {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userPrompt   },
@@ -854,7 +852,7 @@ Extract all financial line items as a JSON array.`;
       temperature: 0.1,
       max_tokens: 8000,
       response_format: { type: 'json_object' },
-    });
+    }, { label: 'extract' });
 
     const tokensUsed = completion.usage?.total_tokens || 0;
     let items = [];

@@ -5,7 +5,7 @@
  * Missing document types do NOT penalize the score.
  */
 
-const OpenAI = require('openai');
+const { createCompletion } = require('./openai-client');
 
 // ─── All QoE document categories ─────────────────────────────────────────────
 const ALL_DOC_CATEGORIES = [
@@ -105,7 +105,6 @@ function buildClaudeSummary(parsedFiles) {
 }
 
 async function scoreWithClaude(parsedFiles, apiKey) {
-  const client  = new OpenAI({ apiKey });
   const summary = buildClaudeSummary(parsedFiles);
   const allTxFull = parsedFiles.flatMap(f => f.transactions);
 
@@ -227,15 +226,14 @@ ${allTx.map((t, i) =>
   `${i + 1}. "${t.label}" | sheet:${t.sourceSheet || t.docType || '?'} | type:${t.type} | amount:${t.formattedAmount} | change:${t.pctChange !== null ? t.pctChange.toFixed(1) + '%' : 'n/a'} | heuristic:${t.severity}${t.meta ? ' | meta:' + JSON.stringify(t.meta) : ''}`
 ).join('\n')}`;
 
-  const response = await client.chat.completions.create({
-    model:       'gpt-4o-mini',
+  const response = await createCompletion(apiKey, {
     max_tokens:  16000,
     temperature: 0.2,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: userMessage  }
     ]
-  });
+  }, { label: 'score' });
 
   const raw = response.choices?.[0]?.message?.content || '';
 

@@ -16,6 +16,7 @@ const path     = require('path');
 const fs       = require('fs');
 const { parseFile, computeStats, extractWithAI } = require('./parser');
 const { scoreWithClaude }         = require('./claude');
+const { createCompletion, probe, sendAIError, wordCount, AIError, DEFAULT_MODEL } = require('./openai-client');
 const { router: authRouter, requireAuth } = require('./auth');
 const usersDb  = require('./users');
 
@@ -281,10 +282,7 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
     try {
       scoreResult = await scoreWithClaude(parsedFiles, apiKey);
     } catch (err) {
-      // Surface rate limit errors with a clear, actionable message
-      if (err?.status === 429 || err?.message?.includes('429') || err?.message?.toLowerCase().includes('rate limit') || err?.message?.toLowerCase().includes('quota')) {
-        throw new Error('OpenAI rate limit reached (429). Your API key has hit its usage quota or per-minute limit. Please wait 60 seconds and try again, or check your OpenAI billing at platform.openai.com/account/billing.');
-      }
+      // createCompletion already classified this (quota vs per-minute limit) with a clear message
       throw err;
     }
     const { report, usage } = scoreResult;
@@ -339,159 +337,137 @@ function getAuthedUser(req) {
   } catch { return null; }
 }
 
-// ─── POST /api/generate-narrative ────────────────────────────────────────────
-app.post('/api/generate-narrative', async (req, res) => {
-  if (!DEMO_API_KEY) return res.status(503).json({ error: 'API not configured' });
+// ─── AI status (safe: never returns the key) ─────────────────────────────────
+// GET /api/ai-status         -> { configured }           (free, instant)
+// GET /api/ai-status?deep=1  -> also pings OpenAI (1 token) and reports exactly what it says
+let _probeCache = { at: 0, value: null };
+app.get('/api/ai-status', async (req, res) => {
+  if (req.query.deep !== '1') {
+    return res.json({ configured: !!DEMO_API_KEY, model: DEFAULT_MODEL });
+  }
+  if (Date.now() - _probeCache.at > 30000) {
+    _probeCache = { at: Date.now(), value: await probe(DEMO_API_KEY) };
+  }
+  res.json({ ..._probeCache.value, model: DEFAULT_MODEL });
+});
 
+// ─── Build the fact sheet both generators share ──────────────────────────────
+function factSheet(p) {
+  const cats = (p.categories || []).map(c => `${c.name}: ${c.score}/100`).join('; ');
+  const flags = (p.flags || []).slice(0, 8)
+    .map(f => `- [${String(f.severity || '').toUpperCase()}] ${f.title}: ${f.detail}`).join('\n');
+  const rej = (p.rejectedItems || [])
+    .map(t => `- ${t.item} (${t.type}, ${t.severity}${t.amount ? ', ' + t.amount : ''}): ${t.reason || 'analyst excluded'}`).join('\n');
+  const tier = p.score >= 70 ? 'LOW RISK' : p.score >= 45 ? 'MODERATE RISK' : 'HIGH RISK';
+  const who = [p.companyName && `COMPANY: ${p.companyName}`, p.period && `PERIOD: ${p.period}`].filter(Boolean).join(' | ');
+  return `${who ? who + '\n' : ''}ADJUSTED QoE SCORE: ${p.score}/100 (original AI score ${p.originalScore}/100) — ${tier}
+DOCUMENTS: ${p.filesProcessed} | TRANSACTIONS EXTRACTED: ${p.totalTransactions}
+AI CONFIDENCE: average ${p.avgConfidence ?? 'n/a'}% across transactions; ${p.lowConfidenceCount ?? 0} items below 75% confidence and queued for human review
+ANALYST REVIEW: ${p.reviewedCount || 0} reviewed — ${p.approvedCount || 0} approved, ${p.rejectedCount || 0} excluded
+CATEGORY SCORES: ${cats || 'n/a'}
+KEY FLAGS:
+${flags || 'None'}
+ANALYST EXCLUSIONS:
+${rej || 'None'}`;
+}
+
+/** Ask for text; if the length is way off, give the model one chance to fix it. */
+async function writeToLength({ system, user, target, min, max, maxTokens, label }) {
+  const r1 = await createCompletion(DEMO_API_KEY, {
+    temperature: 0.6, max_tokens: maxTokens,
+    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+  }, { label });
+  let text = (r1.choices?.[0]?.message?.content || '').trim();
+  let tokens = r1.usage?.total_tokens || 0;
+  const n = wordCount(text);
+  if (n < min || n > max) {
+    const r2 = await createCompletion(DEMO_API_KEY, {
+      temperature: 0.3, max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: `${user}\n\nDRAFT (${n} words — wrong length):\n${text}\n\nRewrite the draft to about ${target} words. Keep every fact. Output only the rewritten text.` },
+      ],
+    }, { label: label + '-fix' });
+    const fixed = (r2.choices?.[0]?.message?.content || '').trim();
+    tokens += r2.usage?.total_tokens || 0;
+    if (fixed) text = fixed;
+  }
+  return { text, tokens, words: wordCount(text) };
+}
+
+function chargeUser(authedUser, tokens, label) {
+  if (!authedUser) return null;
+  const dr = usersDb.deductCredits(authedUser.id, tokens);
+  console.log(`[${label}] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(4)}`);
+  return { cost: dr.cost, remaining: dr.remaining };
+}
+
+// One-at-a-time queue so a burst of clicks can't trip the per-minute limit.
+let _genChain = Promise.resolve();
+const inQueue = fn => (_genChain = _genChain.then(fn, fn));
+
+// ─── POST /api/generate-narrative ────────────────────────────────────────────
+// ~500-word analyst narrative covering transactions, score and AI confidence.
+app.post('/api/generate-narrative', async (req, res) => {
+  if (!DEMO_API_KEY) return res.status(503).json({ error: 'AI is not configured on this server.', code: 'no_key', retryable: false });
   const authedUser = getAuthedUser(req);
   if (authedUser !== null && authedUser.credits < -50) {
     return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
   }
-
-  const payload = req.body || {};
-  const {
-    score, originalScore, companyName, period, filesProcessed,
-    categories = [], flags = [], rejectedItems = [], approvedItems = [],
-    reviewedCount, rejectedCount, approvedCount
-  } = payload;
-
-  const catSummary = categories.map(c =>
-    `${c.name}: ${c.score}/100 (${c.color})`
-  ).join('\n');
-
-  const flagSummary = flags.slice(0, 8).map(f =>
-    `- [${f.severity?.toUpperCase()}] ${f.title}: ${f.detail}`
-  ).join('\n');
-
-  const rejSummary = rejectedItems.map(t =>
-    `- ${t.item} (${t.type}, ${t.severity}): ${t.reason || 'analyst excluded'}`
-  ).join('\n');
-
-  const prompt = `You are a senior M&A financial analyst writing a Quality of Earnings (QoE) narrative report.
-
-Write a detailed, professional QoE narrative for ${companyName} covering ${period}.
-
-ANALYSIS DATA:
-- Adjusted QoE Score: ${score}/100 (original AI score: ${originalScore}/100)
-- Files analyzed: ${filesProcessed}
-- Transactions reviewed: ${reviewedCount} total (${approvedCount} approved, ${rejectedCount} excluded by analyst)
-
-CATEGORY SCORES (post-review):
-${catSummary}
-
-KEY FLAGS IDENTIFIED:
-${flagSummary || 'No significant flags.'}
-
-ANALYST EXCLUSIONS (${rejectedCount} items rejected):
-${rejSummary || 'None — all items approved.'}
-
-Write a detailed QoE narrative of approximately 500 words covering all five of these areas:
-1. Overall earnings quality assessment — what the adjusted score of ${score}/100 means in context, how it compares to the original score, and the high-level earnings quality picture
-2. Category-by-category findings — go through every category with specific scores, explaining what drove each result and which pose deal risk
-3. Analysis of flagged items — discuss the most significant flags, what they reveal about the business, and their implications for deal pricing or structuring
-4. Impact of analyst review decisions — explain which transactions were excluded, why that is significant, and how the ${rejectedCount} exclusions changed the picture from the initial AI assessment
-5. Final acquirer considerations — a frank assessment of what the deal team should focus on, potential earnout triggers or price adjustments to consider, and what warrants deeper diligence
-
-Target length: approximately 500 words. Write in a formal senior analyst voice. Be specific to the actual data above — no generic filler. Vary sentence structure. Do not start with "In conclusion". Do not use bullet points or headers.`;
+  const p = req.body || {};
 
   try {
-    const { OpenAI } = require('openai');
-    const openai = new OpenAI({ apiKey: DEMO_API_KEY });
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 750,
+    const out = await inQueue(() => writeToLength({
+      label: 'narrative', target: 500, min: 430, max: 590, maxTokens: 1000,
+      system: 'You are a senior M&A financial analyst writing the narrative section of a Quality of Earnings (QoE) report. ' +
+              'Write in a formal, precise analyst voice, in 4 to 6 paragraphs separated by a blank line, with no bullet points and no headings. ' +
+              'Use only the facts provided; never invent figures.',
+      user: `Write a narrative of about 500 words for the report below. Cover, in this order:
+1. What the adjusted score means and how it moved from the original AI score.
+2. The category results — name the strongest and weakest areas with their scores.
+3. The most significant flagged transactions and what they imply for price or deal structure.
+4. How reviewer decisions (exclusions/approvals) changed the picture.
+5. How much to trust the AI's findings, citing the average confidence and the number of low-confidence items.
+6. A closing view on what the acquirer should do next.
+
+${factSheet(p)}`,
+    }));
+    res.json({
+      narrative: out.text, words: out.words, tokens: out.tokens,
+      creditInfo: chargeUser(authedUser, out.tokens, 'narrative'),
     });
-    const narrative = completion.choices[0].message.content;
-    const tokens    = completion.usage?.total_tokens || 0;
-
-    // Deduct credits and return updated balance
-    let creditInfo = null;
-    if (authedUser) {
-      const dr = usersDb.deductCredits(authedUser.id, tokens);
-      creditInfo = { cost: dr.cost, remaining: dr.remaining };
-      console.log(`[narrative] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(4)}`);
-    }
-
-    res.json({ narrative, tokens, creditInfo });
   } catch (err) {
-    console.error('[generate-narrative] error:', err);
-    res.status(500).json({ error: err.message || 'Generation failed' });
+    sendAIError(res, err, 'generate-narrative');
   }
 });
 
 // ─── POST /api/generate-summary ──────────────────────────────────────────────
+// ~150-word plain-English summary, derived from the narrative when supplied.
 app.post('/api/generate-summary', async (req, res) => {
-  if (!DEMO_API_KEY) return res.status(503).json({ error: 'API not configured' });
-
+  if (!DEMO_API_KEY) return res.status(503).json({ error: 'AI is not configured on this server.', code: 'no_key', retryable: false });
   const authedUser = getAuthedUser(req);
   if (authedUser !== null && authedUser.credits < -50) {
     return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
   }
-
-  const payload = req.body || {};
-  const {
-    score, companyName, period, filesProcessed, totalTransactions,
-    categories = [], flags = [], rejectedItems = [], approvedItems = [],
-    rejectedCount, approvedCount
-  } = payload;
-
-  const catLines = categories.map(c =>
-    `${c.name}: ${c.score}/100`
-  ).join(' | ');
-
-  const topFlags = flags.filter(f => f.severity === 'red').slice(0, 5).map(f => f.title).join('; ');
-
-  const prompt = `You are a senior M&A analyst. Write a concise executive summary for a Quality of Earnings report.
-
-DEAL DATA:
-- Company: ${companyName}
-- Period: ${period}
-- Final QoE Score: ${score}/100
-- Risk Tier: ${score >= 70 ? 'LOW RISK' : score >= 45 ? 'MODERATE RISK' : 'HIGH RISK'}
-- Documents analyzed: ${filesProcessed} | Total transactions: ${totalTransactions}
-- Review: ${approvedCount} items approved, ${rejectedCount} items excluded by analyst
-
-CATEGORY SCORES: ${catLines}
-TOP RED FLAGS: ${topFlags || 'None'}
-
-Write a plain-language executive summary of approximately 150 words that a non-financial executive or board member could easily understand. Cover:
-1. A simple, plain-English verdict on the deal based on the score — avoid jargon
-2. The most important 2–3 things the buyer needs to know, explained in plain terms (not financial jargon)
-3. The single most important action the deal team should take next
-
-Rules:
-- Write at a 10th-grade reading level — no M&A jargon without explanation
-- Be direct and honest about risk; do not soften bad scores
-- Target exactly 150 words — no more, no less
-- Use short paragraphs; no bullet points
-- Write as if briefing a CEO who is not a financial expert`;
+  const p = req.body || {};
+  const narrative = typeof p.narrative === 'string' ? p.narrative.slice(0, 6000) : '';
 
   try {
-    const { OpenAI } = require('openai');
-    const openai = new OpenAI({ apiKey: DEMO_API_KEY });
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 300,
+    const out = await inQueue(() => writeToLength({
+      label: 'summary', target: 150, min: 125, max: 180, maxTokens: 400,
+      system: 'You explain financial due-diligence results to a smart reader with no finance background. ' +
+              'Use short sentences, everyday words, and explain any term you must use. Be honest about risk. No bullet points. Use two short paragraphs separated by a blank line.',
+      user: `Write a summary of about 150 words that a non-expert can understand at a glance. State: how healthy the company's earnings look, the two or three things that matter most, and the single best next step.
+${narrative ? `\nBase it on this analyst narrative (keep it consistent with it):\n"""${narrative}"""\n` : ''}
+FACTS:
+${factSheet(p)}`,
+    }));
+    res.json({
+      summary: out.text, words: out.words, tokens: out.tokens,
+      creditInfo: chargeUser(authedUser, out.tokens, 'generate-summary'),
     });
-    const summary = completion.choices[0].message.content;
-    const tokens  = completion.usage?.total_tokens || 0;
-
-    // Deduct credits and return updated balance
-    let creditInfo = null;
-    if (authedUser) {
-      const dr = usersDb.deductCredits(authedUser.id, tokens);
-      creditInfo = { cost: dr.cost, remaining: dr.remaining };
-      console.log(`[generate-summary] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(4)}`);
-    }
-
-    res.json({ summary, tokens, creditInfo });
   } catch (err) {
-    console.error('[generate-summary] error:', err);
-    res.status(500).json({ error: err.message || 'Generation failed' });
+    sendAIError(res, err, 'generate-summary');
   }
 });
 

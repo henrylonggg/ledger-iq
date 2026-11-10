@@ -83,3 +83,10 @@ For cloud deployment (Railway, Render, Fly.io), point the root to `backend/` and
 | `openai_quota` | The project that owns the key has no usable balance. | Check Billing **and the project's budget limit** at platform.openai.com. New credit can take minutes to activate. |
 | `openai_auth` | Key rejected. | Update `DEMO_API_KEY` on the backend. |
 | `openai_model` | Key can't use the model. | Set `OPENAI_MODEL` to one it can. |
+
+## How AI is used (kept to a minimum)
+
+- Spreadsheets are read locally when the layout is recognised (no AI call).
+- Unfamiliar layouts get one small AI call that returns a layout map only (where headers, labels and periods are); code then reads every row. Maps are cached in `backend/.cache/` by sheet structure, so repeat formats cost nothing. Set `LAYOUT_AI=never` to disable.
+- One batched call classifies unclear line items; one call scores; one call writes the 350–500 word summary.
+- There is no narrative and no export in the app.

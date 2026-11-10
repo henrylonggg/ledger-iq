@@ -16,12 +16,15 @@ const path     = require('path');
 const fs       = require('fs');
 const { parseFile, computeStats, extractWithAI } = require('./parser');
 const { scoreWithClaude }         = require('./claude');
+const { parseSpreadsheet, refineTypes } = require('./layout-map');
 const { createCompletion, probe, sendAIError, wordCount, AIError, DEFAULT_MODEL } = require('./openai-client');
 const { router: authRouter, requireAuth } = require('./auth');
 const usersDb  = require('./users');
 
 // Server-side demo API key — never sent to the client
 const DEMO_API_KEY = process.env.DEMO_API_KEY || '';
+// auto = ask the AI only when the built-in parser is not confident | always | never
+const LAYOUT_AI = ['auto', 'always', 'never'].includes(process.env.LAYOUT_AI) ? process.env.LAYOUT_AI : 'auto';
 
 const app    = express();
 const upload = multer({
@@ -204,63 +207,76 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
       const file = req.files[i];
       emit('progress', { step: 'parsing', pct: 10 + (i / req.files.length) * 25, message: `Parsing ${file.originalname}…` });
 
+      const ext = (file.originalname.split('.').pop() || '').toLowerCase();
+      const log = (type, message) => emit('log', { type, message });
       let result;
-      try {
-        result = await parseFile(file.originalname, file.buffer);
-      } catch (parseEx) {
-        emit('log', { type: 'err', message: `${file.originalname}: PARSE EXCEPTION — ${parseEx.message}` });
-        result = { filename: file.originalname, docType: 'Financial Document', transactions: [], count: 0, parseError: parseEx.message };
-      }
-      // ── AI EXTRACTION: always use GPT-4o mini to scan every file ──
-      if (apiKey) {
-        emit('log', { type: 'info', message: `${file.originalname}: AI scanning document…` });
-        emit('progress', { step: 'parsing', pct: 10 + (i / req.files.length) * 25, message: `AI-extracting ${file.originalname}…` });
 
-        const ext = (file.originalname.split('.').pop() || '').toLowerCase();
-        const aiResult = await extractWithAI(file.originalname, file.buffer, ext, apiKey);
-
-        if (aiResult.aiUsed && aiResult.transactions.length > 0) {
-          // Merge: AI results take priority, but keep structured items AI missed
-          const aiLabels = new Set(aiResult.transactions.map(t => t.label.toLowerCase()));
-          const structuredOnly = result.transactions.filter(t => !aiLabels.has(t.label.toLowerCase()));
-          result.transactions = [...aiResult.transactions, ...structuredOnly];
-          result.count        = result.transactions.length;
-          result.aiExtracted  = true;
-          result.aiTokens     = aiResult.tokensUsed;
-          if (!result.docType || result.docType === 'Financial Document') {
-            result.docType = aiResult.docType || result.docType;
+      if (['xlsx', 'xls', 'csv'].includes(ext)) {
+        // Spreadsheets: the AI only learns the LAYOUT from a small sample (or the cache);
+        // plain code then reads every row. Files we already read confidently cost nothing.
+        try {
+          const sp = await parseSpreadsheet(file.originalname, file.buffer, ext, apiKey, { mode: LAYOUT_AI, log });
+          result = {
+            filename: file.originalname, docType: sp.docType, transactions: sp.transactions,
+            count: sp.transactions.length, sheetSummary: sp.sheetSummary, parseError: null,
+            aiTokens: sp.tokens, aiExtracted: sp.aiCalls > 0,
+          };
+          const used = sp.sheetSummary.filter(x => !x.skipped);
+          const how = [
+            sp.localSheets ? `${sp.localSheets} read locally (no AI)` : '',
+            sp.cacheHits   ? `${sp.cacheHits} from saved layouts` : '',
+            sp.aiCalls     ? `layout learned by AI (${sp.tokens} tokens)` : '',
+          ].filter(Boolean).join(', ');
+          log(result.count > 0 ? 'ok' : 'warn',
+            `${file.originalname}: ${result.count} line items from ${used.length} sheet${used.length === 1 ? '' : 's'}${how ? ' — ' + how : ''}`);
+        } catch (ex) {
+          log('err', `${file.originalname}: could not read — ${ex.message}`);
+          result = { filename: file.originalname, docType: 'Financial Document', transactions: [], count: 0, parseError: ex.message };
+        }
+      } else {
+        // PDFs / text: no grid to map, so the built-in parser goes first and the AI only steps in
+        // when it finds almost nothing.
+        try {
+          result = await parseFile(file.originalname, file.buffer);
+        } catch (parseEx) {
+          log('err', `${file.originalname}: PARSE EXCEPTION — ${parseEx.message}`);
+          result = { filename: file.originalname, docType: 'Financial Document', transactions: [], count: 0, parseError: parseEx.message };
+        }
+        if (result.count < 3 && LAYOUT_AI !== 'never') {
+          log('info', `${file.originalname}: little structure found — asking AI to read it`);
+          const aiResult = await extractWithAI(file.originalname, file.buffer, ext, apiKey);
+          if (aiResult.aiUsed && aiResult.transactions.length > 0) {
+            result.transactions = [...aiResult.transactions, ...result.transactions];
+            result.count = result.transactions.length;
+            result.aiExtracted = true;
+            result.aiTokens = aiResult.tokensUsed;
+            if (!result.docType || result.docType === 'Financial Document') result.docType = aiResult.docType || result.docType;
+            log('ok', `${file.originalname}: AI read ${aiResult.transactions.length} line items (${aiResult.tokensUsed} tokens)`);
+          } else if (aiResult.error) {
+            log('warn', `${file.originalname}: AI reading unavailable — ${aiResult.error}`);
           }
-          emit('log', { type: 'ok', message: `${file.originalname}: AI extracted ${aiResult.transactions.length} items + ${structuredOnly.length} structured items (${aiResult.tokensUsed} tokens)` });
-        } else if (aiResult.error) {
-          emit('log', { type: 'warn', message: `${file.originalname}: AI extraction error — ${aiResult.error} — using structured parse (${result.count} items)` });
         } else {
-          emit('log', { type: 'info', message: `${file.originalname}: structured parse used (${result.count} items)` });
+          log(result.parseError ? 'warn' : 'ok', result.parseError
+            ? `${file.originalname}: parse warning — ${result.parseError}`
+            : `${file.originalname}: ${result.count} line items read locally (no AI)`);
         }
       }
 
       parsedFiles.push(result);
       totalTx += result.count;
-
-      // Log sheet-level breakdown for multi-sheet files
-      if (result.sheetSummary && !result.aiExtracted) {
-        const used   = result.sheetSummary.filter(s => !s.skipped && s.count > 0);
-        const skipped = result.sheetSummary.filter(s => s.skipped);
-        emit('log', { type: result.count > 0 ? 'ok' : 'warn',
-          message: `${file.originalname}: extracted ${result.count} items across ${used.length} sheets` +
-            (skipped.length ? ` (skipped: ${skipped.map(s=>s.name).join(', ')})` : '')
-        });
-      } else if (!result.aiExtracted) {
-        emit('log', {
-          type: result.parseError ? 'warn' : 'ok',
-          message: result.parseError
-            ? `${file.originalname}: parse warning — ${result.parseError}`
-            : `${file.originalname}: extracted ${result.count} line items`
-        });
-      }
     }
 
-    // Track total AI tokens used for extraction fallbacks
-    const aiExtractionTokens = parsedFiles.reduce((s, f) => s + (f.aiTokens || 0), 0);
+    // Line items the keyword rules could not place: one small batched AI call (cached per label)
+    let typeTokens = 0;
+    if (LAYOUT_AI !== 'never') {
+      emit('progress', { step: 'parsing', pct: 36, message: 'Organizing line items…' });
+      const rt = await refineTypes(parsedFiles.flatMap(f => f.transactions), apiKey, { log: (t, m) => emit('log', { type: t, message: m }) });
+      typeTokens = rt.tokens;
+      if (rt.unknown) emit('log', { type: 'info', message: rt.calls ? `AI classified ${rt.changed} unlabelled line items (${rt.tokens} tokens)` : `${rt.unknown} unlabelled items kept as "Other" (below the AI threshold)` });
+    }
+
+    // Track total AI tokens used while reading the files
+    const aiExtractionTokens = typeTokens + parsedFiles.reduce((s, f) => s + (f.aiTokens || 0), 0);
     if (aiExtractionTokens > 0) {
       emit('log', { type: 'info', message: `AI extraction used ${aiExtractionTokens} tokens across messy files` });
     }
@@ -406,43 +422,9 @@ function chargeUser(authedUser, tokens, label) {
 let _genChain = Promise.resolve();
 const inQueue = fn => (_genChain = _genChain.then(fn, fn));
 
-// ─── POST /api/generate-narrative ────────────────────────────────────────────
-// ~500-word analyst narrative covering transactions, score and AI confidence.
-app.post('/api/generate-narrative', async (req, res) => {
-  if (!DEMO_API_KEY) return res.status(503).json({ error: 'AI is not configured on this server.', code: 'no_key', retryable: false });
-  const authedUser = getAuthedUser(req);
-  if (authedUser !== null && authedUser.credits < -50) {
-    return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
-  }
-  const p = req.body || {};
-
-  try {
-    const out = await inQueue(() => writeToLength({
-      label: 'narrative', target: 500, min: 430, max: 590, maxTokens: 1000,
-      system: 'You are a senior M&A financial analyst writing the narrative section of a Quality of Earnings (QoE) report. ' +
-              'Write in a formal, precise analyst voice, in 4 to 6 paragraphs separated by a blank line, with no bullet points and no headings. ' +
-              'Use only the facts provided; never invent figures.',
-      user: `Write a narrative of about 500 words for the report below. Cover, in this order:
-1. What the adjusted score means and how it moved from the original AI score.
-2. The category results — name the strongest and weakest areas with their scores.
-3. The most significant flagged transactions and what they imply for price or deal structure.
-4. How reviewer decisions (exclusions/approvals) changed the picture.
-5. How much to trust the AI's findings, citing the average confidence and the number of low-confidence items.
-6. A closing view on what the acquirer should do next.
-
-${factSheet(p)}`,
-    }));
-    res.json({
-      narrative: out.text, words: out.words, tokens: out.tokens,
-      creditInfo: chargeUser(authedUser, out.tokens, 'narrative'),
-    });
-  } catch (err) {
-    sendAIError(res, err, 'generate-narrative');
-  }
-});
-
 // ─── POST /api/generate-summary ──────────────────────────────────────────────
-// ~150-word plain-English summary, derived from the narrative when supplied.
+// The one AI-written report: a 350–500 word plain-English quality-of-earnings breakdown.
+// (There is no separate narrative any more, and nothing here can be exported.)
 app.post('/api/generate-summary', async (req, res) => {
   if (!DEMO_API_KEY) return res.status(503).json({ error: 'AI is not configured on this server.', code: 'no_key', retryable: false });
   const authedUser = getAuthedUser(req);
@@ -450,15 +432,25 @@ app.post('/api/generate-summary', async (req, res) => {
     return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
   }
   const p = req.body || {};
-  const narrative = typeof p.narrative === 'string' ? p.narrative.slice(0, 6000) : '';
 
   try {
     const out = await inQueue(() => writeToLength({
-      label: 'summary', target: 150, min: 125, max: 180, maxTokens: 400,
-      system: 'You explain financial due-diligence results to a smart reader with no finance background. ' +
-              'Use short sentences, everyday words, and explain any term you must use. Be honest about risk. No bullet points. Use two short paragraphs separated by a blank line.',
-      user: `Write a summary of about 150 words that a non-expert can understand at a glance. State: how healthy the company's earnings look, the two or three things that matter most, and the single best next step.
-${narrative ? `\nBase it on this analyst narrative (keep it consistent with it):\n"""${narrative}"""\n` : ''}
+      label: 'summary', target: 425, min: 350, max: 500, maxTokens: 900,
+      system: 'You explain a company\'s quality of earnings to a smart reader with no finance background, such as a first-time buyer or a board member. ' +
+              'Use everyday words and short sentences; if you must use a finance term, explain it in the same sentence. ' +
+              'Be honest about risk and never soften a weak result. Use only the facts provided and never invent numbers. ' +
+              'Write plain paragraphs separated by a blank line. No headings, no bullet points, no bold.',
+      user: `Write a clear breakdown of this company's quality of earnings in 350 to 500 words (aim for about 425). "Quality of earnings" means how much of the reported profit is real, repeatable and backed by cash.
+
+Cover these in order, one short paragraph each:
+1. The bottom line: what the score says about how trustworthy the profits are.
+2. Revenue: how solid and repeatable it looks, using the revenue-related scores and flags.
+3. Profit and adjustments: which add-backs or one-off items matter, and which the reviewer excluded and why.
+4. Cash and working capital: whether profit turns into cash, using the related scores and flags.
+5. The biggest red flags in plain terms, and what each could cost the buyer.
+6. How much to trust this analysis: the AI's average confidence and how many items still need a human look.
+7. What the buyer should do next.
+
 FACTS:
 ${factSheet(p)}`,
     }));

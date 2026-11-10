@@ -2408,6 +2408,10 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
 .auth-logo, .ld-nav-brand, .ld-foot-brand { font-weight: 700; letter-spacing: -.03em; }
 .ld-enter, .ld-enter-lg { font-family: var(--ui); font-weight: 700; letter-spacing: -.01em; }
 .auth-title { font-weight: 700; letter-spacing: -.03em; }
+.summary-card-body .prose{font-family:var(--serif);font-size:19px;line-height:1.72;max-width:66ch;color:var(--body)}
+.summary-card-body .prose p+p{margin-top:1.05em}
+.report-page .narrative-meta{border:1px solid var(--line);border-radius:12px;margin-bottom:14px}
+.dash-more{margin-top:14px}
 </style>
 </head>
 <body>
@@ -2551,9 +2555,9 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           </div>
           <div class="ld-step-n">04</div>
-          <div class="ld-step-title">Export the full QoE report</div>
-          <div class="ld-step-body">Get a narrative analysis, adjusted EBITDA bridge, compliance review, and deal-grade risk summary — ready to share with advisors or the deal team.</div>
-          <div class="ld-step-tag">Export-ready</div>
+          <div class="ld-step-title">Read the plain-English summary</div>
+          <div class="ld-step-body">Get a 350–500 word breakdown of the company’s quality of earnings that anyone on the deal team can follow, rewritten as you approve or reject items.</div>
+          <div class="ld-step-tag">AI-written</div>
         </div>
       </div>
     </div>
@@ -2604,8 +2608,8 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
           <div class="ld-feat-icon" style="background:var(--emer-dim)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
           </div>
-          <div class="ld-feat-title">AI narrative report</div>
-          <div class="ld-feat-body">GPT-4o mini synthesizes all findings into a plain-language executive summary — customized to your approve/reject decisions.</div>
+          <div class="ld-feat-title">AI summary</div>
+          <div class="ld-feat-body">GPT-4o mini writes a 350–500 word plain-language quality-of-earnings summary — customized to your approve/reject decisions.</div>
         </div>
       </div>
     </div>
@@ -2708,7 +2712,7 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
       <svg class="nb-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 3h10M3 7h10M3 11h6"/>
       </svg>
-      <span>Narrative</span>
+      <span>Summary</span>
     </button>
 
     <div class="nav-divider">Info</div>
@@ -2755,7 +2759,6 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
     </div>
     <div class="tb-right">
       <span class="header-credits" id="header-credits" style="display:none"></span>
-      <button class="btn btn-ghost btn-sm" id="btn-export" style="display:none" onclick="exportReport()">Export</button>
       <button class="btn btn-ghost btn-sm" id="btn-reset"  style="display:none" onclick="resetAll()">New analysis</button>
       <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode">
         <span id="theme-icon">☀</span>
@@ -2843,7 +2846,7 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
 
     <div id="rejected-bar" style="display:none;background:var(--crim-dim);border:1px solid var(--crim-mid);border-radius:var(--r);padding:10px 16px;margin-bottom:12px;font-size:12.5px;color:var(--crimson);align-items:center;gap:8px;">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M5 8h6"/></svg>
-      <strong><span class="rej-count">0</span> item(s) rejected</strong> — excluded from QoE score and Export. Score reflects accepted &amp; pending items only.
+      <strong><span class="rej-count">0</span> item(s) rejected</strong> — excluded from the QoE score. Score reflects accepted &amp; pending items only.
     </div>
 
     <div id="token-strip-wrap" style="display:none">
@@ -2959,7 +2962,7 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
     </div>
   </div>
 
-  <!-- ── REPORT (Narrative + Summary) ── -->
+  <!-- ── REPORT (Summary) ── -->
   <div class="page" id="page-narrative">
     <div class="report-page">
 
@@ -2970,72 +2973,44 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
         </div>
       </header>
 
-      <div class="report-tabs" role="tablist" aria-label="Report sections">
-        <button class="report-tab active" id="tab-narrative" role="tab" aria-selected="true" aria-controls="pane-narrative" onclick="switchReportTab('narrative')">
-          Narrative <span class="report-tab-badge" id="badge-narrative">~500 words</span>
+      <div class="narrative-meta" id="narrative-meta" style="display:none">
+        <span class="nm-item">Score <b class="nm-val" id="nm-score">—</b></span>
+        <span class="nm-item">AI confidence <b class="nm-val" id="nm-confidence">—</b></span>
+        <span class="nm-item">Transactions <b class="nm-val" id="nm-txcount">—</b></span>
+        <span class="nm-item" id="nm-company-wrap" style="display:none">Company <b class="nm-val" id="nm-company">—</b></span>
+        <span class="nm-item" id="nm-period-wrap" style="display:none">Period <b class="nm-val" id="nm-period">—</b></span>
+      </div>
+
+      <div class="sum-scorecard" id="sum-scorecard" style="display:none">
+        <button class="sum-score-tile" onclick="go('dashboard')" title="Open the dashboard">
+          <div class="sum-score-tile-num" id="sum-score">—</div>
+          <div class="sum-score-tile-label">QoE score</div>
+          <div class="sum-score-tile-trend" id="sum-score-trend"></div>
         </button>
-        <button class="report-tab" id="tab-summary" role="tab" aria-selected="false" aria-controls="pane-summary" onclick="switchReportTab('summary')">
-          Summary <span class="report-tab-badge" id="badge-summary">~150 words</span>
+        <button class="sum-score-tile" onclick="go('transactions')" title="Open transactions">
+          <div class="sum-score-tile-num" id="sum-txreviewed">—</div>
+          <div class="sum-score-tile-label">Items reviewed</div>
+          <div class="sum-score-tile-trend" id="sum-txtrend"></div>
+        </button>
+        <button class="sum-score-tile" onclick="go('review')" title="Open the review queue">
+          <div class="sum-score-tile-num" id="sum-flags">—</div>
+          <div class="sum-score-tile-label">Flags raised</div>
+          <div class="sum-score-tile-trend" id="sum-flagtrend"></div>
         </button>
       </div>
 
-      <!-- NARRATIVE -->
-      <section class="report-pane active" id="pane-narrative" role="tabpanel" aria-labelledby="tab-narrative">
-        <article class="narrative-panel">
-          <div class="narrative-panel-header">
-            <div class="narrative-panel-title">Analyst narrative</div>
-            <div class="doc-actions">
-              <button class="regen-btn" onclick="copyReport('narrative')" id="copy-narrative">Copy</button>
-              <button class="regen-btn" data-gen onclick="generateNarrative()">Regenerate</button>
-            </div>
+      <article class="summary-card">
+        <div class="summary-card-header">
+          <div class="summary-card-title">Quality of earnings, in plain English</div>
+          <div class="doc-actions">
+            <button class="regen-btn" data-gen onclick="generateSummary()">Regenerate</button>
           </div>
-          <div class="narrative-meta" id="narrative-meta" style="display:none">
-            <span class="nm-item">Score <b class="nm-val" id="nm-score">—</b></span>
-            <span class="nm-item">AI confidence <b class="nm-val" id="nm-confidence">—</b></span>
-            <span class="nm-item">Transactions <b class="nm-val" id="nm-txcount">—</b></span>
-            <span class="nm-item" id="nm-company-wrap" style="display:none">Company <b class="nm-val" id="nm-company">—</b></span>
-            <span class="nm-item" id="nm-period-wrap" style="display:none">Period <b class="nm-val" id="nm-period">—</b></span>
-          </div>
-          <div class="narrative-panel-body">
-            <div class="prose" id="narrative-full"></div>
-          </div>
-        </article>
-      </section>
-
-      <!-- SUMMARY -->
-      <section class="report-pane" id="pane-summary" role="tabpanel" aria-labelledby="tab-summary">
-        <div class="sum-scorecard" id="sum-scorecard" style="display:none">
-          <button class="sum-score-tile" onclick="go('dashboard')" title="Open the dashboard">
-            <div class="sum-score-tile-num" id="sum-score">—</div>
-            <div class="sum-score-tile-label">QoE score</div>
-            <div class="sum-score-tile-trend" id="sum-score-trend"></div>
-          </button>
-          <button class="sum-score-tile" onclick="go('transactions')" title="Open transactions">
-            <div class="sum-score-tile-num" id="sum-txreviewed">—</div>
-            <div class="sum-score-tile-label">Items reviewed</div>
-            <div class="sum-score-tile-trend" id="sum-txtrend"></div>
-          </button>
-          <button class="sum-score-tile" onclick="go('review')" title="Open the review queue">
-            <div class="sum-score-tile-num" id="sum-flags">—</div>
-            <div class="sum-score-tile-label">Flags raised</div>
-            <div class="sum-score-tile-trend" id="sum-flagtrend"></div>
-          </button>
         </div>
-
-        <article class="summary-card">
-          <div class="summary-card-header">
-            <div class="summary-card-title">In plain English</div>
-            <div class="doc-actions">
-              <button class="regen-btn" onclick="copyReport('summary')" id="copy-summary">Copy</button>
-              <button class="regen-btn" data-gen onclick="generateSummary()">Regenerate</button>
-            </div>
-          </div>
-          <div class="summary-card-body">
-            <div class="ai-badge" id="sum-ai-badge" style="display:none">Written by AI from the narrative</div>
-            <div class="prose" id="methodology"></div>
-          </div>
-        </article>
-      </section>
+        <div class="summary-card-body">
+          <div class="ai-badge" id="sum-ai-badge" style="display:none">Written by AI</div>
+          <div class="prose" id="methodology"></div>
+        </div>
+      </article>
 
     </div>
   </div>
@@ -3142,7 +3117,6 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
   <div id="auth-box" class="auth-box"></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="app.js"></script>
 <script>
 // Landing page modal helpers — shown before entering the app

@@ -899,4 +899,12 @@ Extract all financial line items as a JSON array.`;
   }
 }
 
-module.exports = { parseFile, computeStats, formatAmount, detectDocType, parseXLSXDetailed, extractWithAI };
+const DOC_TYPES = [...new Set(DOC_TYPE_RULES.map(r => r.docType))];
+
+module.exports = {
+  parseFile, computeStats, formatAmount, detectDocType, parseXLSXDetailed, extractWithAI,
+  // helpers used by layout-map.js
+  DOC_TYPES, parseAmount, classifyType, heuristicSeverity, pctChangeFn, shouldSkipSheet, isBlankRow,
+  numericCount, nonEmptyCount, isLongFormat, extractTransactionsFromTable,
+  extractARAgingRows, extractPayrollRows, extractDebtRows, extractEBITDARows, extractTaxRows,
+};

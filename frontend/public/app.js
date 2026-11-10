@@ -25,20 +25,32 @@ function authHeaders() {
   return authToken ? { 'Authorization': 'Bearer ' + authToken } : {};
 }
 
+// Parse a response as JSON. If the server (or the tunnel in front of it) answers with an HTML
+// error page, say so plainly instead of surfacing "Unexpected token '<'".
+async function readJson(res) {
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch {
+    const err = new Error(`Can\u2019t reach the LedgerIQ backend (HTTP ${res.status}). It may be offline, or the tunnel URL in vercel.json is out of date.`);
+    err.code = 'backend_unreachable';
+    throw err;
+  }
+}
+
 async function apiPost(path, body) {
   const res = await fetch(API_BASE + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body)
   });
-  const data = await res.json();
+  const data = await readJson(res);
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
 
 async function apiGet(path) {
   const res = await fetch(API_BASE + path, { headers: authHeaders() });
-  const data = await res.json();
+  const data = await readJson(res);
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
@@ -253,7 +265,7 @@ function refreshUserCredits() {
 // ═══════════════════════════════════
 const titles = {
   upload:'Upload', dashboard:'Dashboard',
-  review:'Review Queue', transactions:'Transactions', narrative:'Narrative',
+  review:'Review Queue', transactions:'Transactions', narrative:'Summary',
   terms:'Terms & Conditions', contact:'Contact',
   profile:'Profile', usage:'Usage'
 };
@@ -265,7 +277,6 @@ function go(page) {
   if (nb) nb.classList.add('active');
   document.getElementById('tb-title').textContent = titles[page] || page;
   const hasR = !!report;
-  document.getElementById('btn-export').style.display = hasR ? '' : 'none';
   document.getElementById('btn-reset').style.display  = hasR ? '' : 'none';
   if (page === 'profile') renderProfilePage();
   if (page === 'usage')   renderUsagePage();
@@ -343,7 +354,6 @@ function recalcMetrics() {
   // Re-render dashboard panels so categories & flags reflect review state
   renderDashboardPanels();
   updateNarrativePage();
-  updateExportBtn();
 }
 
 // ═══════════════════════════════════
@@ -628,8 +638,7 @@ async function startAnalysis() {
 // GENERATED NARRATIVE STATE
 // narrative/summary must be regenerated whenever review state changes
 // ═══════════════════════════════════
-let generatedNarrative  = null;  // { text, adjScore, rejectedIds, approvedIds }
-let generatedSummary    = null;  // { text, adjScore, rejectedIds }
+let generatedSummary    = null;  // { text, words, stateKey, adjScore } — the one AI-written report
 
 function reviewStateKey() {
   // A fingerprint of current review decisions — used to detect staleness
@@ -642,20 +651,10 @@ let reviewEdited = false;
 
 function markNarrativeStale() {
   reviewEdited = true;
-  generatedNarrative = null;
   generatedSummary   = null;
   updateNarrativePage();
-  updateExportBtn();
 }
 
-function updateExportBtn() {
-  const btn = document.getElementById('btn-export');
-  if (!btn) return;
-  const ready = generatedNarrative && generatedSummary;
-  btn.disabled = !ready;
-  btn.title    = ready ? 'Export finalized report' : 'Generate narrative & summary first';
-  btn.style.opacity = ready ? '1' : '0.4';
-}
 
 // ═══════════════════════════════════
 // DYNAMIC CATEGORY SCORE CALCULATION
@@ -1100,22 +1099,13 @@ function renderQoECharts(r) {
   section.style.display = 'block';
 }
 
-/* ── Report tab switcher ───────────────────────────────────── */
-function switchReportTab(tab) {
-  ['narrative','summary'].forEach(t => {
-    document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
-    document.getElementById('tab-' + t)?.setAttribute('aria-selected', t === tab);
-    document.getElementById('pane-' + t)?.classList.toggle('active', t === tab);
-  });
-}
-
 /** Turn model text into <p> blocks. If the model ignored paragraph breaks, split by sentences. */
 function paragraphs(text) {
   const t = String(text || '').trim();
   let parts = t.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
   if (parts.length === 1 && t.length > 650) {
     const sentences = t.match(/[^.!?]+[.!?]+(\s|$)/g) || [t];
-    const groups = Math.min(5, Math.ceil(t.length / 650));
+    const groups = Math.min(7, Math.ceil(t.length / 600));
     const per = Math.ceil(sentences.length / groups);
     parts = [];
     for (let i = 0; i < sentences.length; i += per) parts.push(sentences.slice(i, i + per).join('').trim());
@@ -1132,50 +1122,27 @@ function gateBox(icon, title, sub, btnLabel, call) {
   </div>`;
 }
 
-async function copyReport(which) {
-  const text = which === 'narrative' ? generatedNarrative?.text : generatedSummary?.text;
-  const btn  = document.getElementById('copy-' + which);
-  if (!text) { showToast('Nothing to copy yet — generate it first'); return; }
-  try { await navigator.clipboard.writeText(text); }
-  catch {
-    const ta = document.createElement('textarea');
-    ta.value = text; document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); } catch {}
-    ta.remove();
-  }
-  if (btn) {
-    const old = btn.textContent;
-    btn.textContent = 'Copied'; btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = old; btn.classList.remove('copied'); }, 1500);
-  }
-}
-
-function updateNarrativePage() {
-  const nFull = document.getElementById('narrative-full');
-  const meth  = document.getElementById('methodology');
-  const dash  = document.getElementById('dash-narrative');
+function updateNarrativePage() {          // renders the Summary page + the dashboard summary panel
+  const meth = document.getElementById('methodology');
+  const dash = document.getElementById('dash-narrative');
   const r = report;
 
-  // ── Facts bar, summary tiles, header line (all from real data) ─────
   if (r) {
     const p = buildNarrativePayload();
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+    const set  = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const show = (id, on, d = '') => { const el = document.getElementById(id); if (el) el.style.display = on ? d : 'none'; };
 
-    show('narrative-meta', true);
+    show('narrative-meta', true, 'flex');
     set('nm-score', p.score + '/100');
     set('nm-txcount', p.totalTransactions);
     set('nm-confidence', p.avgConfidence != null ? `${p.avgConfidence}% avg · ${p.lowConfidenceCount} to review` : '—');
-    show('nm-company-wrap', !!p.companyName); if (p.companyName) set('nm-company', p.companyName);
-    show('nm-period-wrap',  !!p.period);      if (p.period)      set('nm-period', p.period);
+    show('nm-company-wrap', !!p.companyName, ''); if (p.companyName) set('nm-company', p.companyName);
+    show('nm-period-wrap',  !!p.period, '');      if (p.period)      set('nm-period', p.period);
 
     const bits = [p.companyName, p.period, `${p.filesProcessed} document${p.filesProcessed === 1 ? '' : 's'}`, `${p.totalTransactions} transactions`].filter(Boolean);
     set('rh-sub', bits.join(' · '));
 
-    set('badge-narrative', generatedNarrative?.words ? `${generatedNarrative.words} words` : '~500 words');
-    set('badge-summary',   generatedSummary?.words   ? `${generatedSummary.words} words`   : '~150 words');
-
-    show('sum-scorecard', true);
+    show('sum-scorecard', true, 'grid');
     set('sum-score', p.score);
     set('sum-txreviewed', p.reviewedCount);
     set('sum-flags', (r.flags || []).length);
@@ -1185,29 +1152,22 @@ function updateNarrativePage() {
     set('sum-flagtrend', p.score >= 70 ? 'Low risk profile' : p.score >= 45 ? 'Moderate risk' : 'High risk');
   }
 
-  // ── Narrative ──────────────────────────────────────────────────────
-  if (generatedNarrative) {
-    if (nFull) nFull.innerHTML = paragraphs(generatedNarrative.text);
-  } else if (!reviewEdited && r?.narrative) {
-    if (nFull) nFull.innerHTML =
-      gateBox('✦', 'Initial analysis text', 'This came from the scoring pass. Generate a fresh ~500-word narrative that reflects your review decisions.', 'Generate AI narrative', 'generateNarrative()') +
-      paragraphs(r.narrative);
-  } else if (nFull) {
-    nFull.innerHTML = gateBox('📋', 'Review decisions changed', 'Generate a fresh ~500-word narrative from your current approve / reject decisions.', 'Generate AI narrative', 'generateNarrative()');
-  }
-
-  // ── Summary (report tab + dashboard panel) ─────────────────────────
-  const aiBadge = document.getElementById('sum-ai-badge');
+  const badge = document.getElementById('sum-ai-badge');
   if (generatedSummary) {
-    if (aiBadge) aiBadge.style.display = 'inline-flex';
+    if (badge) { badge.textContent = `Written by AI · ${generatedSummary.words || ''} words`.replace(' ·  words', ''); badge.style.display = 'inline-flex'; }
     const html = paragraphs(generatedSummary.text);
     if (meth) meth.innerHTML = html;
-    if (dash) dash.innerHTML = html;
+    if (dash) {                                     // dashboard shows the opening, the full text lives on the Summary page
+      const first = html.match(/<p>[\s\S]*?<\/p>/);
+      dash.innerHTML = (first ? first[0] : html) + `<p class="dash-more"><button class="ng-btn" onclick="go('narrative')">Read the full summary</button></p>`;
+    }
   } else {
-    if (aiBadge) aiBadge.style.display = 'none';
-    const gate = gateBox('✦', 'Plain-English summary', 'Generate a ~150-word summary that anyone on the deal team can read at a glance.', 'Generate AI summary', 'generateSummary()');
-    if (meth) meth.innerHTML = gate;
-    if (dash) dash.innerHTML = (r?.verdict ? paragraphs(r.verdict) : '') + (genInFlight ? '' : gate);
+    if (badge) badge.style.display = 'none';
+    const reviewed = reviewEdited
+      ? gateBox('📋', 'Review decisions changed', 'Write a fresh plain-English summary (350–500 words) from your current approve / reject decisions.', 'Write the summary', 'generateSummary()')
+      : gateBox('✦', 'Plain-English summary', 'Get a 350–500 word breakdown of this company’s quality of earnings that anyone on the deal team can follow.', 'Write the summary', 'generateSummary()');
+    if (meth) meth.innerHTML = reviewed;
+    if (dash) dash.innerHTML = (r?.verdict && !genInFlight ? paragraphs(r.verdict) : '') + (genInFlight ? '' : reviewed);
   }
 }
 
@@ -1242,7 +1202,7 @@ function buildNarrativePayload() {
   };
 }
 
-// ── AI generation: narrative first, then a plain-English summary derived from it ──
+// ── AI generation: one summary, written only when needed ──
 let genInFlight = null;
 
 function setGenBusy(busy) {
@@ -1259,15 +1219,15 @@ function loadingBox(title, msg) {
 
 function errorBox(err, retryCall) {
   const titles = {
-    openai_rate_limit: 'OpenAI is busy right now',
-    openai_quota:      'OpenAI billing needs attention',
-    openai_auth:       'The server’s API key was rejected',
-    openai_model:      'Model not available for this key',
-    no_key:            'AI is not configured on the server',
-    backend_unreachable: 'The backend isn\u2019t reachable',
-    stale:             'Decisions changed while writing',
+    openai_rate_limit:   'OpenAI is busy right now',
+    openai_quota:        'OpenAI billing needs attention',
+    openai_auth:         'The server’s API key was rejected',
+    openai_model:        'Model not available for this key',
+    no_key:              'AI is not configured on the server',
+    backend_unreachable: 'The backend isn’t reachable',
+    stale:               'Decisions changed while writing',
   };
-  const title = titles[err.code] || 'Couldn’t generate this section';
+  const title = titles[err.code] || 'Couldn’t write the summary';
   return `<div class="gen-error" role="alert">
     <div class="ge-title">${esc(title)}</div>
     <div class="ge-msg">${esc(err.message)}</div>
@@ -1278,58 +1238,36 @@ function errorBox(err, retryCall) {
   </div>`;
 }
 
-function setPane(which, html) {
-  const ids = which === 'narrative' ? ['narrative-full'] : ['methodology', 'dash-narrative'];
-  ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
+function setSummaryPane(html) {
+  ['methodology', 'dash-narrative'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
 }
 
 function creditsFrom(data) {
   if (data.creditInfo && currentUser) { currentUser.credits = data.creditInfo.remaining; updateUserUI(); }
 }
 
-async function runNarrative(payload) {
-  const status = m => setPane('narrative', loadingBox('Writing the analyst narrative…', m));
-  status('GPT-4o mini is drafting about 500 words from your transactions, score and review decisions');
-  const key  = reviewStateKey();
-  const data = await callGenerateAPI('/api/generate-narrative', payload, status);
-  if (reviewStateKey() !== key) throw Object.assign(new Error('Review decisions changed while this was being written. Regenerate to include them.'), { code: 'stale' });
-  generatedNarrative = { text: data.narrative, words: data.words, stateKey: reviewStateKey() };
-  creditsFrom(data);
-  updateNarrativePage();
-}
-
-async function runSummary(payload) {
-  const status = m => setPane('summary', loadingBox('Writing the plain-English summary…', m));
-  status('Condensing the narrative into about 150 easy-to-read words');
-  const key  = reviewStateKey();
-  const data = await callGenerateAPI('/api/generate-summary',
-    { ...payload, narrative: generatedNarrative ? generatedNarrative.text : '' }, status);
-  if (reviewStateKey() !== key) throw Object.assign(new Error('Review decisions changed while this was being written. Regenerate to include them.'), { code: 'stale' });
-  generatedSummary = { text: data.summary, words: data.words, stateKey: reviewStateKey(), adjScore: payload.score };
-  creditsFrom(data);
-  updateNarrativePage();
-}
-
-function generateReport({ summaryOnly = false, auto = false } = {}) {
+function generateSummary({ auto = false } = {}) {
   if (!report) return Promise.resolve();
   if (genInFlight) return genInFlight;
   setGenBusy(true);
-  if (!auto) switchReportTab(summaryOnly ? 'summary' : 'narrative');
 
   genInFlight = (async () => {
     const payload = buildNarrativePayload();
-    let stage = 'narrative';
+    const key = reviewStateKey();
+    const status = m => setSummaryPane(loadingBox('Writing the summary…', m));
+    status('GPT-4o mini is writing a 350–500 word plain-English breakdown from your score, flags and review decisions');
     try {
-      if (!summaryOnly || !generatedNarrative) await runNarrative(payload);
-      stage = 'summary';
-      await runSummary(payload);
-      showToast('Narrative and summary written by AI');
-    } catch (err) {
-      console.error(`[generate:${stage}]`, err);
-      if (stage === 'narrative') { generatedNarrative = null; generatedSummary = null; }
-      else generatedSummary = null;
+      const data = await callGenerateAPI('/api/generate-summary', payload, status);
+      if (reviewStateKey() !== key) throw Object.assign(new Error('Review decisions changed while this was being written. Write it again to include them.'), { code: 'stale' });
+      generatedSummary = { text: data.summary, words: data.words, stateKey: key, adjScore: payload.score };
+      creditsFrom(data);
       updateNarrativePage();
-      setPane(stage, errorBox(err, stage === 'narrative' ? 'generateNarrative()' : 'generateSummary()'));
+      showToast('Summary written by AI');
+    } catch (err) {
+      console.error('[generate-summary]', err);
+      generatedSummary = null;
+      updateNarrativePage();
+      setSummaryPane(errorBox(err, 'generateSummary()'));
       if (['openai_rate_limit', 'openai_quota', 'openai_auth'].includes(err.code)) checkAIStatus(true);
     } finally {
       genInFlight = null;
@@ -1338,10 +1276,6 @@ function generateReport({ summaryOnly = false, auto = false } = {}) {
   })();
   return genInFlight;
 }
-
-// Button handlers (kept as globals — used by inline onclick attributes)
-function generateNarrative() { return generateReport(); }
-function generateSummary()   { return generateReport({ summaryOnly: true }); }
 
 // ── Live AI connection status (never exposes the key — only a yes/no) ──
 async function checkAIStatus(deep = false) {
@@ -1384,10 +1318,6 @@ function showToast(msg, kind = 'ok') {
   setTimeout(() => t.remove(), bad ? 5200 : 2800);
 }
 
-function banner_export() {
-  document.getElementById('export-ready-banner')?.remove();
-  exportReport();
-}
 
 // ═══════════════════════════════════
 // RENDER
@@ -1442,13 +1372,11 @@ function finishReport() {
   renderDashboardPanels(r);
 
   // Narrative starts with cached text; becomes AI after first review change
-  generatedNarrative = null;
   generatedSummary   = null;
   reviewEdited = false;
   updateNarrativePage();
-  updateExportBtn();
-  // Write the AI narrative + summary straight away (needs no click)
-  if (!r._meta?.isDemo) setTimeout(() => generateReport({ auto: true }), 400);
+  // Write the AI summary straight away (needs no click)
+  if (!r._meta?.isDemo) setTimeout(() => generateSummary({ auto: true }), 400);
 
   // Token usage — after panels render
   if (r._meta?.tokenUsage) {
@@ -1593,468 +1521,11 @@ function renderTxTable() {
 }
 
 // ═══════════════════════════════════
-// EXPORT — fixed chart crash
-// ═══════════════════════════════════
-async function exportReport() {
-  if (!report) return;
-  if (!generatedNarrative || !generatedSummary) {
-    showToast('Generate narrative & summary before exporting');
-    return;
-  }
-  const r = report;
-
-  const btn = document.getElementById('btn-export');
-  const origTxt = btn.textContent;
-  btn.textContent = 'Building…'; btn.disabled = true;
-
-  try {
-    const wb = new ExcelJS.Workbook();
-    wb.creator  = 'LedgerIQ';
-    wb.created  = new Date();
-    wb.modified = new Date();
-
-    // ── Palette ──────────────────────────────────────────────────────────────
-    const C = {
-      navy:    '060A14', navy2:   '0D1626', navy3:   '182236',
-      teal:    '0CCED4', tealDim: '0A9EA3',
-      bright:  'E8F0FF', muted:   '6B7FA3', dim:     '3D4F6E',
-      emerald: '10B981', amber:   'F59E0B', crimson: 'EF4444',
-      white:   'FFFFFF', black:   '000000',
-    };
-
-    // Use only *active* (non-rejected) transactions for the export
-    const activeTxns  = getActiveTransactions();
-    const exportScore = generatedSummary?.adjScore ?? r.score;
-    const scoreColor  = exportScore >= 70 ? C.emerald : exportScore >= 45 ? C.amber : C.crimson;
-
-    function styleHeader(row, bgHex, fgHex, bold, sz) {
-      row.eachCell({ includeEmpty: true }, cell => {
-        cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + bgHex } };
-        cell.font   = { name: 'Calibri', bold: bold !== false, size: sz || 11, color: { argb: 'FF' + (fgHex || C.bright) } };
-        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
-      });
-    }
-
-    function sevColor(sev) {
-      return sev === 'red' ? C.crimson : sev === 'yellow' ? C.amber : C.emerald;
-    }
-
-    // ── SHEET 1: Executive Summary ───────────────────────────────────────────
-    const ws1 = wb.addWorksheet('Executive Summary', { properties: { tabColor: { argb: 'FF' + C.teal } } });
-    ws1.views = [{ state: 'frozen', ySplit: 1 }];
-
-    ws1.mergeCells('A1:H1');
-    Object.assign(ws1.getCell('A1'), {
-      value: '  LEDGER IQ  —  QUALITY OF EARNINGS REPORT',
-      font:  { name: 'Calibri', bold: true, size: 16, color: { argb: 'FF' + C.teal } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } },
-      alignment: { vertical: 'middle', horizontal: 'left' }
-    });
-    ws1.getRow(1).height = 36;
-
-    ws1.mergeCells('A2:H2');
-    Object.assign(ws1.getCell('A2'), {
-      value: `  Generated: ${new Date().toLocaleString()}   |   Files: ${r._meta?.filesProcessed ?? '—'}   |   Active items: ${activeTxns.length} of ${r.transactions?.length ?? '—'}`,
-      font:  { name: 'Calibri', size: 10, color: { argb: 'FF' + C.muted } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy2 } },
-      alignment: { vertical: 'middle', horizontal: 'left' }
-    });
-    ws1.getRow(2).height = 20;
-    ws1.addRow([]);
-
-    // Score block
-    const scoreRow = ws1.addRow([]);
-    scoreRow.height = 36;
-    ws1.getCell(`B${scoreRow.number}`).value = 'QoE SCORE';
-    ws1.getCell(`B${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.muted } };
-    ws1.getCell(`C${scoreRow.number}`).value = exportScore + ' / 100';
-    ws1.getCell(`C${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 20, color: { argb: 'FF' + scoreColor } };
-    ws1.getCell(`E${scoreRow.number}`).value = 'RISK TIER';
-    ws1.getCell(`E${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.muted } };
-    ws1.getCell(`F${scoreRow.number}`).value = r.score >= 70 ? 'LOW RISK' : r.score >= 45 ? 'MODERATE RISK' : 'HIGH RISK';
-    ws1.getCell(`F${scoreRow.number}`).font  = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + scoreColor } };
-    ws1.addRow([]);
-
-    // Verdict
-    const vn = ws1.rowCount + 1;
-    ws1.mergeCells(`B${vn}:H${vn}`);
-    ws1.getCell(`B${vn}`).value = 'VERDICT';
-    ws1.getCell(`B${vn}`).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + C.teal } };
-    ws1.getRow(vn).height = 18;
-
-    const vn2 = ws1.rowCount + 1;
-    ws1.mergeCells(`B${vn2}:H${vn2 + 3}`);
-    ws1.getCell(`B${vn2}`).value = r.verdict || '';
-    ws1.getCell(`B${vn2}`).font  = { name: 'Calibri', size: 11, color: { argb: 'FF' + C.bright } };
-    ws1.getCell(`B${vn2}`).alignment = { wrapText: true, vertical: 'top' };
-    ws1.getCell(`B${vn2}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy3 } };
-    ws1.getRow(vn2).height = 72;
-    ws1.addRow([]);
-
-    // Category table
-    const catHdr = ws1.addRow(['', 'CATEGORY', 'SCORE', 'RATING', '', '', '', '']);
-    catHdr.height = 22;
-    styleHeader(catHdr, C.navy3, C.teal, true, 10);
-
-    const exportCats = getAdjustedCategories();
-    for (const cat of exportCats) {
-      const col  = cat.color === 'green' ? C.emerald : cat.color === 'red' ? C.crimson : C.amber;
-      const sc   = cat.score || 0;
-      const stars = sc >= 80 ? '●●●●●' : sc >= 60 ? '●●●●○' : sc >= 40 ? '●●●○○' : sc >= 20 ? '●●○○○' : '●○○○○';
-      const row  = ws1.addRow(['', cat.name, sc, stars]);
-      row.height = 20;
-      row.getCell('B').font = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
-      row.getCell('C').font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FF' + col } };
-      row.getCell('D').font = { name: 'Calibri', size: 10, color: { argb: 'FF' + col } };
-      const bg = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (row.number % 2 === 0 ? C.navy2 : C.navy3) } };
-      row.getCell('B').fill = row.getCell('C').fill = row.getCell('D').fill = bg;
-    }
-
-    ws1.getColumn('A').width = 3; ws1.getColumn('B').width = 32;
-    ws1.getColumn('C').width = 12; ws1.getColumn('D').width = 14;
-    ['E','F','G','H'].forEach((c,i) => ws1.getColumn(c).width = i === 3 ? 40 : 8);
-    ws1.properties.defaultRowHeight = 18;
-
-    // ── SHEET 2: Flags & Findings ────────────────────────────────────────────
-    const ws2 = wb.addWorksheet('Flags & Findings', { properties: { tabColor: { argb: 'FF' + C.crimson } } });
-    ws2.views = [{ state: 'frozen', ySplit: 2 }];
-
-    ws2.mergeCells('A1:G1');
-    Object.assign(ws2.getCell('A1'), {
-      value: '  FLAGS & KEY FINDINGS',
-      font:  { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } },
-      alignment: { vertical: 'middle' }
-    });
-    ws2.getRow(1).height = 32;
-
-    const flagHdrRow = ws2.addRow(['SEV', 'TITLE', 'DETAIL', 'CATEGORY', 'IMPACT']);
-    flagHdrRow.height = 22;
-    styleHeader(flagHdrRow, C.navy3, C.teal, true, 10);
-
-    for (const flag of (r.flags || [])) {
-      const sev = (flag.severity || 'yellow').toLowerCase();
-      const col = sevColor(sev);
-      const row = ws2.addRow([sev.toUpperCase(), flag.title || '', flag.detail || '', flag.category || '', flag.impact || '']);
-      row.height = 48;
-      row.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + col } };
-      row.getCell(1).font  = { name: 'Calibri', bold: true, size: 9, color: { argb: 'FF' + C.black } };
-      row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-      row.getCell(2).font  = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF' + col } };
-      row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
-      row.getCell(3).font  = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
-      row.getCell(3).alignment = { wrapText: true, vertical: 'top' };
-      row.getCell(4).font  = { name: 'Calibri', size: 9, color: { argb: 'FF' + C.muted } };
-      row.getCell(5).font  = { name: 'Calibri', size: 9, color: { argb: 'FF' + C.muted } };
-      const bg = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (row.number % 2 === 0 ? C.navy2 : C.navy3) } };
-      for (let ci = 2; ci <= 5; ci++) row.getCell(ci).fill = bg;
-    }
-
-    ws2.getColumn(1).width = 8; ws2.getColumn(2).width = 36;
-    ws2.getColumn(3).width = 60; ws2.getColumn(4).width = 24; ws2.getColumn(5).width = 24;
-
-    // ── SHEET 3: Transaction Detail (active items only) ──────────────────────
-    const ws3 = wb.addWorksheet('Transaction Detail', { properties: { tabColor: { argb: 'FF' + C.amber } } });
-    ws3.views = [{ state: 'frozen', ySplit: 2 }];
-
-    ws3.mergeCells('A1:J1');
-    Object.assign(ws3.getCell('A1'), {
-      value: `  TRANSACTION DETAIL  (${activeTxns.length} active · rejected items excluded)`,
-      font:  { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } },
-      alignment: { vertical: 'middle' }
-    });
-    ws3.getRow(1).height = 32;
-
-    const txHdr = ws3.addRow(['SEV', 'LINE ITEM', 'TYPE', 'AMOUNT', '% CHG', 'CONF %', 'REVIEW', 'FINDING', 'RECOMMENDATION', 'REASONING']);
-    txHdr.height = 22;
-    styleHeader(txHdr, C.navy3, C.teal, true, 9);
-
-    for (const tx of activeTxns) {
-      const sev   = (tx.severity || 'green').toLowerCase();
-      const col   = sevColor(sev);
-      const revSt = tx.needsReview ? (reviewSt[tx.id] || 'pending').toUpperCase() : 'AUTO';
-      const pct   = tx.pctChange != null ? (tx.pctChange > 0 ? '+' : '') + tx.pctChange.toFixed(1) + '%' : '—';
-      const row   = ws3.addRow([
-        sev.toUpperCase(), tx.item || '', tx.type || '',
-        tx.formattedAmount || tx.amount || '', pct,
-        (tx.confidence || 0) + '%', revSt,
-        tx.finding || '', tx.recommendation || '', tx.confidenceReasoning || ''
-      ]);
-      row.height = 52;
-
-      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + col } };
-      row.getCell(1).font = { name: 'Calibri', bold: true, size: 8, color: { argb: 'FF' + C.black } };
-      row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-
-      const bgHex = row.number % 2 === 0 ? C.navy2 : C.navy3;
-      for (let ci = 2; ci <= 10; ci++) {
-        row.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + bgHex } };
-        row.getCell(ci).alignment = { wrapText: true, vertical: 'top' };
-        row.getCell(ci).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + C.bright } };
-      }
-      row.getCell(2).font = { name: 'Calibri', bold: true, size: 9, color: { argb: 'FF' + col } };
-      row.getCell(4).font = { name: 'Calibri', bold: true, size: 9, color: { argb: 'FF' + C.bright } };
-      const pctVal = tx.pctChange || 0;
-      row.getCell(5).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + (Math.abs(pctVal) > 50 ? C.crimson : Math.abs(pctVal) > 15 ? C.amber : C.bright) } };
-      const confVal = tx.confidence || 0;
-      row.getCell(6).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + (confVal >= 80 ? C.emerald : confVal >= 50 ? C.amber : C.crimson) } };
-    }
-
-    ws3.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2 + activeTxns.length, column: 10 } };
-    ws3.getColumn(1).width  = 7;  ws3.getColumn(2).width  = 32;
-    ws3.getColumn(3).width  = 18; ws3.getColumn(4).width  = 14;
-    ws3.getColumn(5).width  = 9;  ws3.getColumn(6).width  = 9;
-    ws3.getColumn(7).width  = 10; ws3.getColumn(8).width  = 44;
-    ws3.getColumn(9).width  = 44; ws3.getColumn(10).width = 44;
-
-    // ── SHEET 4: Narrative & Methodology ────────────────────────────────────
-    const ws4 = wb.addWorksheet('Narrative & Method', { properties: { tabColor: { argb: 'FF' + C.tealDim } } });
-
-    ws4.mergeCells('A1:D1');
-    Object.assign(ws4.getCell('A1'), {
-      value: '  ANALYST NARRATIVE & METHODOLOGY',
-      font:  { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } },
-      alignment: { vertical: 'middle' }
-    });
-    ws4.getRow(1).height = 32;
-    ws4.addRow([]);
-
-    function addNarrSection(ws, title, body) {
-      const hRow = ws.addRow([title]);
-      hRow.getCell(1).font  = { name: 'Calibri', bold: true, size: 12, color: { argb: 'FF' + C.teal } };
-      hRow.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy3 } };
-      hRow.height = 24;
-      for (const para of (body || '').trim().split(/\n\n+/)) {
-        const rn = ws.rowCount + 1;
-        ws.mergeCells(`A${rn}:D${rn}`);
-        const bRow = ws.addRow([para.trim()]);
-        bRow.getCell(1).font      = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
-        bRow.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-        bRow.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy2 } };
-        bRow.height = Math.max(60, Math.ceil(para.length / 100) * 15);
-      }
-      ws.addRow([]);
-    }
-
-    addNarrSection(ws4, 'ANALYST NARRATIVE', generatedNarrative?.text || r.narrative);
-    addNarrSection(ws4, 'EXECUTIVE SUMMARY', generatedSummary?.text || r.methodology);
-    addNarrSection(ws4, 'METHODOLOGY', r.methodology);
-    if (r._meta?.tokenUsage) {
-      addNarrSection(ws4, 'MODEL USAGE',
-        `Total tokens: ${r._meta.tokenUsage.totalTokens}\nInput: ${r._meta.tokenUsage.inputTokens}\nOutput: ${r._meta.tokenUsage.outputTokens}\nFiles analyzed: ${r._meta.filesProcessed}`
-      );
-    }
-    ws4.getColumn('A').width = 50;
-    ['B','C','D'].forEach(c => ws4.getColumn(c).width = 20);
-
-    // ── SHEET 5: Score Data (no chart API — ExcelJS browser doesn't support it) ─
-    const ws5 = wb.addWorksheet('Score Data', { properties: { tabColor: { argb: 'FF' + C.emerald } } });
-
-    ws5.mergeCells('A1:C1');
-    Object.assign(ws5.getCell('A1'), {
-      value: '  CATEGORY SCORE BREAKDOWN',
-      font:  { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } }
-    });
-    ws5.getRow(1).height = 32;
-
-    ws5.mergeCells('A2:C2');
-    Object.assign(ws5.getCell('A2'), {
-      value: 'Select columns A–B rows 3 onward and insert a bar chart in Excel to visualize scores.',
-      font:  { name: 'Calibri', italic: true, size: 9, color: { argb: 'FF' + C.muted } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy2 } }
-    });
-    ws5.getRow(2).height = 16;
-
-    const catDataHdr = ws5.addRow(['Category', 'Score', 'Rating']);
-    styleHeader(catDataHdr, C.navy3, C.teal, true, 10);
-    catDataHdr.height = 22;
-
-    for (const cat of exportCats) {
-      const sc  = cat.score || 0;
-      const col = cat.color === 'green' ? C.emerald : cat.color === 'red' ? C.crimson : C.amber;
-      const row = ws5.addRow([cat.name, sc, sc >= 70 ? 'Strong' : sc >= 45 ? 'Moderate' : 'Weak']);
-      row.height = 20;
-      row.getCell(1).font = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
-      row.getCell(2).font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FF' + col } };
-      row.getCell(3).font = { name: 'Calibri', size: 10, color: { argb: 'FF' + col } };
-      const bg = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (row.number % 2 === 0 ? C.navy2 : C.navy3) } };
-      [1,2,3].forEach(ci => row.getCell(ci).fill = bg);
-    }
-
-    ws5.addRow([]);
-    const totRow = ws5.addRow(['OVERALL QoE SCORE', r.score, r.score >= 70 ? 'LOW RISK' : r.score >= 45 ? 'MODERATE RISK' : 'HIGH RISK']);
-    totRow.height = 24;
-    totRow.getCell(1).font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FF' + C.teal } };
-    totRow.getCell(2).font = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + scoreColor } };
-    totRow.getCell(3).font = { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + scoreColor } };
-    [1,2,3].forEach(ci => totRow.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy3 } });
-
-    ws5.getColumn(1).width = 36; ws5.getColumn(2).width = 10; ws5.getColumn(3).width = 12;
-
-    // ── SHEET 6: Review Decisions ────────────────────────────────────────────
-    const ws6 = wb.addWorksheet('Review Decisions', { properties: { tabColor: { argb: 'FF' + C.muted } } });
-    ws6.views = [{ state: 'frozen', ySplit: 2 }];
-
-    ws6.mergeCells('A1:G1');
-    Object.assign(ws6.getCell('A1'), {
-      value: '  REVIEW DECISIONS — APPROVED & REJECTED ITEMS',
-      font:  { name: 'Calibri', bold: true, size: 14, color: { argb: 'FF' + C.teal } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } },
-      alignment: { vertical: 'middle' }
-    });
-    ws6.getRow(1).height = 32;
-
-    const revHdr = ws6.addRow(['DECISION', 'LINE ITEM', 'SEVERITY', 'AMOUNT', 'FINDING', 'RECOMMENDATION', 'AI CONFIDENCE']);
-    revHdr.height = 22;
-    styleHeader(revHdr, C.navy3, C.teal, true, 10);
-
-    const reviewableItems = (r.transactions || []).filter(t => t.needsReview);
-    for (const tx of reviewableItems) {
-      const st  = reviewSt[tx.id] || 'pending';
-      const col = st === 'approved' ? C.emerald : st === 'rejected' ? C.crimson : C.amber;
-      const sev = (tx.severity || 'green').toLowerCase();
-      const row = ws6.addRow([
-        st.toUpperCase(), tx.item || '', sev.toUpperCase(),
-        tx.formattedAmount || tx.amount || '',
-        tx.finding || '', tx.recommendation || '',
-        (tx.confidence || 0) + '%'
-      ]);
-      row.height = 48;
-      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + col } };
-      row.getCell(1).font = { name: 'Calibri', bold: true, size: 9, color: { argb: 'FF' + C.black } };
-      row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-      const bgHex = row.number % 2 === 0 ? C.navy2 : C.navy3;
-      for (let ci = 2; ci <= 7; ci++) {
-        row.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + bgHex } };
-        row.getCell(ci).alignment = { wrapText: true, vertical: 'top' };
-        row.getCell(ci).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + C.bright } };
-      }
-      row.getCell(2).font = { name: 'Calibri', bold: true, size: 9, color: { argb: 'FF' + col } };
-      const sevCol = sevColor(sev);
-      row.getCell(3).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + sevCol } };
-      const confVal = tx.confidence || 0;
-      row.getCell(7).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + (confVal >= 80 ? C.emerald : confVal >= 50 ? C.amber : C.crimson) } };
-    }
-
-    ws6.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2 + reviewableItems.length, column: 7 } };
-    ws6.getColumn(1).width = 12; ws6.getColumn(2).width = 36; ws6.getColumn(3).width = 10;
-    ws6.getColumn(4).width = 14; ws6.getColumn(5).width = 44; ws6.getColumn(6).width = 44;
-    ws6.getColumn(7).width = 12;
-
-    // ── SHEET 7: Risk Summary Dashboard ─────────────────────────────────────
-    const ws7 = wb.addWorksheet('Risk Dashboard', { properties: { tabColor: { argb: 'FF' + C.crimson } } });
-
-    ws7.mergeCells('A1:F1');
-    Object.assign(ws7.getCell('A1'), {
-      value: '  LEDGER IQ — RISK SUMMARY DASHBOARD',
-      font:  { name: 'Calibri', bold: true, size: 16, color: { argb: 'FF' + C.teal } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy } },
-      alignment: { vertical: 'middle' }
-    });
-    ws7.getRow(1).height = 40;
-
-    ws7.mergeCells('A2:F2');
-    const scoreColorHex = r.score >= 70 ? C.emerald : r.score >= 45 ? C.amber : C.crimson;
-    const riskTierTxt   = r.score >= 70 ? 'LOW RISK' : r.score >= 45 ? 'MODERATE RISK' : 'HIGH RISK';
-    Object.assign(ws7.getCell('A2'), {
-      value: `QoE Score: ${r.score}/100  |  ${riskTierTxt}  |  Reviewed: ${new Date().toLocaleDateString()}  |  Files: ${r._meta?.filesProcessed ?? '—'}`,
-      font:  { name: 'Calibri', bold: true, size: 12, color: { argb: 'FF' + scoreColorHex } },
-      fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + C.navy2 } },
-      alignment: { vertical: 'middle', horizontal: 'left' }
-    });
-    ws7.getRow(2).height = 28;
-    ws7.addRow([]);
-
-    // KPI tiles row
-    const kpiLabelRow = ws7.addRow(['METRIC', '', 'VALUE', '', 'STATUS', '']);
-    kpiLabelRow.height = 18;
-    styleHeader(kpiLabelRow, C.navy3, C.teal, true, 9);
-
-    const approved = reviewableItems.filter(t => reviewSt[t.id] === 'approved').length;
-    const rejected2 = reviewableItems.filter(t => reviewSt[t.id] === 'rejected').length;
-    const pendingCt = reviewableItems.filter(t => (reviewSt[t.id] || 'pending') === 'pending').length;
-    const redFlags  = (r.flags || []).filter(f => f.severity === 'red').length;
-    const ylwFlags  = (r.flags || []).filter(f => f.severity === 'yellow').length;
-
-    const kpiData = [
-      ['QoE Score', r.score + ' / 100', riskTierTxt, scoreColorHex],
-      ['Active Transactions', activeTxns.length + ' items', 'Approved / active', C.emerald],
-      ['Red Flags', redFlags, redFlags > 5 ? 'CRITICAL' : redFlags > 2 ? 'HIGH' : 'MODERATE', C.crimson],
-      ['Yellow Flags', ylwFlags, 'Monitor', C.amber],
-      ['Items Approved', approved, 'Confirmed findings', C.emerald],
-      ['Items Rejected', rejected2, 'Excluded from score', C.crimson],
-      ['Items Pending', pendingCt, pendingCt > 0 ? 'ACTION NEEDED' : 'Complete', pendingCt > 0 ? C.amber : C.emerald],
-      ['Files Analyzed', r._meta?.filesProcessed ?? '—', 'Documents reviewed', C.teal],
-    ];
-
-    for (const [metric, value, status, col] of kpiData) {
-      const row = ws7.addRow([metric, '', value, '', status, '']);
-      row.height = 28;
-      row.getCell(1).font = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
-      row.getCell(3).font = { name: 'Calibri', bold: true, size: 13, color: { argb: 'FF' + col } };
-      row.getCell(5).font = { name: 'Calibri', size: 9,  color: { argb: 'FF' + col } };
-      const bg = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (row.number % 2 === 0 ? C.navy2 : C.navy3) } };
-      [1,2,3,4,5,6].forEach(ci => row.getCell(ci).fill = bg);
-    }
-
-    ws7.addRow([]);
-
-    // Category breakdown section
-    const catSectHdr = ws7.addRow(['CATEGORY BREAKDOWN', '', 'SCORE', '', 'RATING', '']);
-    catSectHdr.height = 22;
-    styleHeader(catSectHdr, C.navy3, C.teal, true, 10);
-
-    for (const cat of (r.categories || [])) {
-      const sc  = cat.score || 0;
-      const col = cat.color === 'green' ? C.emerald : cat.color === 'red' ? C.crimson : C.amber;
-      const bar = '█'.repeat(Math.round(sc / 10)) + '░'.repeat(10 - Math.round(sc / 10));
-      const row = ws7.addRow([cat.name, '', sc, '', bar, '']);
-      row.height = 24;
-      row.getCell(1).font = { name: 'Calibri', size: 10, color: { argb: 'FF' + C.bright } };
-      row.getCell(3).font = { name: 'Calibri', bold: true, size: 12, color: { argb: 'FF' + col } };
-      row.getCell(5).font = { name: 'Courier New', size: 10, color: { argb: 'FF' + col } };
-      const bg = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (row.number % 2 === 0 ? C.navy2 : C.navy3) } };
-      [1,2,3,4,5,6].forEach(ci => row.getCell(ci).fill = bg);
-      if (cat.basis) {
-        const bRow = ws7.addRow(['  Source: ' + cat.basis, '', '', '', '', '']);
-        bRow.mergeCells ? null : ws7.mergeCells(`A${bRow.number}:F${bRow.number}`);
-        bRow.getCell(1).font = { name: 'Calibri', italic: true, size: 8, color: { argb: 'FF' + C.muted } };
-        bRow.getCell(1).fill = bg;
-        bRow.height = 16;
-      }
-    }
-
-    ws7.getColumn(1).width = 36; ws7.getColumn(2).width = 4; ws7.getColumn(3).width = 14;
-    ws7.getColumn(4).width = 4;  ws7.getColumn(5).width = 20; ws7.getColumn(6).width = 4;
-
-    // ── Write & download ─────────────────────────────────────────────────────
-    const buffer = await wb.xlsx.writeBuffer();
-    const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url    = URL.createObjectURL(blob);
-    const a      = document.createElement('a');
-    a.href = url; a.download = `LedgerIQ-QoE-${new Date().toISOString().slice(0,10)}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-  } catch (err) {
-    console.error('Export error:', err);
-    alert('Export failed: ' + err.message);
-  } finally {
-    btn.textContent = origTxt;
-    btn.disabled    = false;
-  }
-}
-
-// ═══════════════════════════════════
 // RESET
 // ═══════════════════════════════════
 function resetAll() {
-  files = []; report = null; reviewSt = {}; filterMode = 'all'; _exportTriggered = false;
-  generatedNarrative = null; generatedSummary = null;
-  document.getElementById('export-ready-banner')?.remove();
+  files = []; report = null; reviewSt = {}; filterMode = 'all';
+  generatedSummary = null;
   document.getElementById('file-list').innerHTML = '';
   document.getElementById('log-box').innerHTML   = '';
   document.getElementById('prog-fill').style.width = '0%';
@@ -2107,7 +1578,6 @@ const DEMO_REPORT = {
     { severity:"green",  title:"Revenue Growth 35% Over 3 Years", detail:"Total revenue grew from $4.75M to $6.41M (+35%). Active customer count grew from 42 to 74. Service & Maintenance revenue (highest-quality segment at 76% gross margin) grew 68% to $520K." },
     { severity:"green",  title:"Recurring Subscription Revenue Base — $1.36M", detail:"Monthly subscription revenue from contracted customers is stable and growing. Major contracts with Acme Retail Group (through June 2026) and Great Lakes Industrial (through March 2027) are on multi-year MSAs with auto-renewal." }
   ],
-  narrative: "Acme Manufacturing Inc. presents a materially more concerning earnings quality picture when analyzed across all 18 available financial documents compared to a standard 7-document review. The expanded package reveals a business with systemic governance, cash flow, and operational risks that require extensive normalization and independent verification before any transaction can be reliably priced.\n\nThe most critical new finding from the expanded package is a $250K undisclosed related-party receivable identified in the general ledger sample — three advances to Anderson Family LLC made during FY2024, bearing no interest, with no formal loan agreement, and not reflected on the balance sheet provided to buyers. Management's statement that this will be 'settled at closing' is insufficient without documentation. Combined with the existing $500K shareholder loan (0% interest) and $250K Anderson Family LLC note (2%), the total owner-family receivable and payable ecosystem represents over $1M in non-arm's-length financial arrangements.\n\nThe cash flow statement fundamentally changes the financial picture. While the income statement shows $430K in net income, free cash flow has collapsed to $169K (2.6% FCF margin), down from $342K in FY2022. The business ended FY2024 with negative underlying cash before a December revolver draw — meaning the company was cash-flow-insolvent on an operational basis while simultaneously paying the owner $280K in distributions. The cash conversion cycle of 108 days is well above benchmarks and trending materially worse each year.\n\nGross margin compression of 440 basis points over three years is driven by a deliberate mix shift into low-margin Custom/Project work (17% gross margin vs. 48% for the core Premium Series). This is a structural quality-of-earnings issue: the reported top-line growth flatters the underlying recurring earnings base. Combined with input cost inflation outpacing pricing power for three consecutive years, the business is effectively losing margin ground on every dollar of revenue.\n\nOn the customer side, the loss of Harrison Distribution and the deteriorating Pacific Trading relationship represent a combined $340K–$535K in forward revenue at risk. Neither relationship was protected by a long-term contract. Meanwhile, new customer acquisition is producing $18K average annual revenue per customer vs. $92K for legacy customers — a cohort quality issue that inflates customer count metrics without proportional economics.\n\nSeveral yellow flags from the expanded package — single-source raw material dependency, an overdue ERP implementation, rising AP days, workers' comp mod factor, and Michigan tax nexus exposure — do not by themselves disqualify the transaction but each requires dedicated workstreams in diligence and appropriate representations, warranties, and indemnities in the purchase agreement.\n\nAcme's genuine positives — 35% revenue growth, stable recurring subscription base, and high-margin service revenue growth — remain intact. The business has real commercial momentum. However, the adjusted earnings base after full normalization is likely 40–55% below management's represented Adjusted EBITDA, and the multiple paid should reflect the residual risk profile, not the presented figures.",
   methodology: "This analysis was performed on 18 financial documents covering FY2022–FY2024: income statement, EBITDA adjustments, balance sheet, debt schedule, AR aging, AP aging, revenue recognition schedule, employee census, cash flow statement, inventory schedule, CapEx schedule, customer concentration analysis, gross margin by product line, vendor concentration analysis, federal tax return summary, insurance & benefits schedule, general ledger sample (selected accounts), and R&D & intangibles schedule. The backend parsed and classified 312 line items; 28 were submitted for detailed AI confidence scoring based on materiality and risk priority.\n\nAll findings should be validated against primary source documents. Key additional items recommended for further diligence: bank statements and proof of cash reconciliation; complete general ledger for FY2022–2024; all related-party agreements (Anderson Consulting Group, Anderson Family LLC, shareholder loan, facility lease); employment agreements for CEO, COO, and VP Sales; Michigan nexus legal analysis; full insurance loss runs (5 years); ERP implementation project file and remaining budget; Midwest Steel supply agreement and backup supplier qualification timeline.",
   transactions: [
     // ── RED: Related Party & Governance ─────────────────────────────────────
@@ -2174,8 +1644,7 @@ const DEMO_REPORT = {
 
 function loadDemo() {
   // Always use hardcoded demo — zero API calls, instant, permanent
-  _exportTriggered = false;
-  document.getElementById('export-ready-banner')?.remove();
+ 
   report = DEMO_REPORT;
   finishReport();
   showDemoBanner();

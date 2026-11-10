@@ -143,7 +143,7 @@ YOUR JOBS:
 1. Assign a CONFIDENCE SCORE (0–100) to each pre-classified transaction
 2. Compute a QoE SCORE (0–100) and LETTER GRADE based ONLY on the data provided
 3. Score each of the 6 QoE categories (only those for which data exists)
-4. Write KEY FLAGS and an ANALYST NARRATIVE
+4. Write KEY FLAGS
 
 ═══ CRITICAL SCORING RULE ═══
 Score ONLY based on what was uploaded. If documents are missing, that is NOT a negative — it simply means those dimensions cannot be evaluated. Adjust your confidence in categories accordingly, but do NOT lower the score for missing data. The score reflects the quality of what IS available.
@@ -189,8 +189,6 @@ Respond ONLY with valid JSON — no markdown fences, no commentary:
   "flags": [
     { "severity": "<red|yellow|green>", "title": "<short title>", "detail": "<1–2 sentences>" }
   ],
-  "narrative": "<4–6 paragraph analyst narrative>",
-  "methodology": "<2 paragraphs: document types reviewed, what could and could not be evaluated, confidence in findings>",
   "transactions": [
     {
       "id": "<slug>",

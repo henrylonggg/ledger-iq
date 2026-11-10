@@ -171,11 +171,11 @@ async function deleteUserByEmail(email) {
     }
     return res.rowCount > 0;
   } else {
-    const data = loadUsers();
-    const idx = data.users.findIndex(u => u.email === email);
+    const users = loadUsers();
+    const idx = users.findIndex(u => u.email === email);
     if (idx === -1) return false;
-    data.users.splice(idx, 1);
-    fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2));
+    users.splice(idx, 1);
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
     return true;
   }
 }

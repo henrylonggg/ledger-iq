@@ -497,6 +497,7 @@ async function startAnalysis() {
   showProgressPage();
 
   try {
+    // Wake the backend first (polls /api/health until it responds)
     await wakeBackend();
 
     addLog('Uploading files…', 'info');
@@ -505,35 +506,41 @@ async function startAnalysis() {
     const fd = new FormData();
     for (const f of files) fd.append('files', f);
 
-    // Retry the analyze POST on 502/503/504 (Render cold-start race condition).
-    // On each 502 we re-wait for health to confirm the server is truly up before retrying.
-    const MAX_UPLOAD_ATTEMPTS = 5;
+    // Keep retrying the upload until it goes through.
+    // Render sometimes returns 502 on the first real POST even after health passes —
+    // we just sleep and retry until it sticks.
     let resp = null;
-
-    for (let attempt = 1; attempt <= MAX_UPLOAD_ATTEMPTS; attempt++) {
+    let attempt = 0;
+    while (true) {
+      attempt++;
       const ctrl = new AbortController();
       const tid  = setTimeout(() => ctrl.abort(), 300000);
-      resp = await fetch(`${API_BASE}/api/analyze`, {
-        method: 'POST',
-        headers: authToken ? { 'Authorization': 'Bearer ' + authToken } : {},
-        body: fd,
-        signal: ctrl.signal
-      });
+      try {
+        resp = await fetch(`${API_BASE}/api/analyze`, {
+          method: 'POST',
+          headers: authToken ? { 'Authorization': 'Bearer ' + authToken } : {},
+          body: fd,
+          signal: ctrl.signal
+        });
+      } catch (fetchErr) {
+        clearTimeout(tid);
+        if (attempt >= 8) throw fetchErr;
+        addLog(`Connection error — retrying (${attempt})…`, 'info');
+        await new Promise(r => setTimeout(r, 10000));
+        continue;
+      }
       clearTimeout(tid);
 
       if (resp.status === 502 || resp.status === 503 || resp.status === 504) {
-        if (attempt < MAX_UPLOAD_ATTEMPTS) {
-          addLog(`Server not ready yet (attempt ${attempt}/${MAX_UPLOAD_ATTEMPTS}) — waiting for backend…`, 'info');
-          setProg(30, `Waiting for server…`, `Attempt ${attempt} of ${MAX_UPLOAD_ATTEMPTS}`);
-          // Re-poll health until server is actually ready, then retry upload
-          await wakeBackend({ silent: true });
-          addLog(`Backend confirmed ready — retrying upload…`, 'info');
-          continue;
-        }
-        throw new Error('Server unavailable after multiple attempts — please try again in 30 seconds');
+        if (attempt >= 8) throw new Error('Server unavailable — please wait 30 seconds and try again');
+        const wait = Math.min(10000 * attempt, 30000);
+        addLog(`Server not ready (attempt ${attempt}) — retrying in ${wait/1000}s…`, 'info');
+        setProg(30, `Connecting to server…`, `Attempt ${attempt} — retrying`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
       }
 
-      break; // success or non-502 error — handle below
+      break; // got a real response
     }
 
     if (!resp.ok) {

@@ -517,10 +517,12 @@ async function callGenerateAPI(endpoint, payload, onStatus) {
     const retryable = body ? body.retryable === true : [429, 502, 503, 504].includes(res.status);
 
     if (!retryable || attempt === MAX_ATTEMPTS) {
+      const noBackend = !body && [502, 503, 504].includes(res.status);
       const err = new Error(body?.error ||
-        (res.status === 429 ? 'The service is receiving too many requests right now. Please wait a minute and try again.'
-                            : `Server error (${res.status}). Please try again.`));
-      err.code = body?.code;
+        (noBackend ? `Can\u2019t reach the LedgerIQ backend (HTTP ${res.status}). It may be offline, or the tunnel URL in vercel.json is out of date. This is not an OpenAI problem.`
+        : res.status === 429 ? 'The service is receiving too many requests right now. Please wait a minute and try again.'
+        : `Server error (${res.status}). Please try again.`));
+      err.code = noBackend ? 'backend_unreachable' : body?.code;
       err.retryable = retryable;
       throw err;
     }
@@ -1262,6 +1264,7 @@ function errorBox(err, retryCall) {
     openai_auth:       'The server’s API key was rejected',
     openai_model:      'Model not available for this key',
     no_key:            'AI is not configured on the server',
+    backend_unreachable: 'The backend isn\u2019t reachable',
     stale:             'Decisions changed while writing',
   };
   const title = titles[err.code] || 'Couldn’t generate this section';

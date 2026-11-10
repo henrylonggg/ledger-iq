@@ -64,14 +64,25 @@ app.use('/api/user', authRouter);
 app.use(express.static(path.join(__dirname, '../frontend/public')));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
   let xlsxOk = false;
   try { require('xlsx'); xlsxOk = true; } catch {}
+  let dbOk = false, dbError = null, userCount = 0;
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const r = await pool.query('SELECT COUNT(*) FROM users');
+    userCount = parseInt(r.rows[0].count);
+    dbOk = true;
+    await pool.end();
+  } catch (err) { dbError = err.message; }
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     deps: { xlsx: xlsxOk },
-    model: 'gpt-4o-mini'
+    model: 'gpt-4o-mini',
+    db: { ok: dbOk, userCount, error: dbError },
+    env: { hasDatabaseUrl: !!process.env.DATABASE_URL }
   });
 });
 

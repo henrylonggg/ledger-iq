@@ -179,7 +179,7 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
       authedUser = usersDb.findById(decoded.id);
     } catch { /* invalid token — treat as unauthenticated */ }
   }
-  if (authedUser !== null && authedUser.credits < -50) {
+  if (authedUser !== null && authedUser?.credits < -50) {
     return res.status(402).json({
       error: 'Insufficient credits. Please add credits to your account to run analyses.',
       credits: authedUser.credits
@@ -428,7 +428,7 @@ const inQueue = fn => (_genChain = _genChain.then(fn, fn));
 app.post('/api/generate-summary', async (req, res) => {
   if (!DEMO_API_KEY) return res.status(503).json({ error: 'AI is not configured on this server.', code: 'no_key', retryable: false });
   const authedUser = getAuthedUser(req);
-  if (authedUser !== null && authedUser.credits < -50) {
+  if (authedUser !== null && authedUser?.credits < -50) {
     return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
   }
   const p = req.body || {};

@@ -31,7 +31,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB per file
   fileFilter: (req, file, cb) => {
-    const allowed = ['.pdf', '.csv', '.xlsx', '.xls', '.txt'];
+    const allowed = ['.pdf', '.csv', '.xlsx', '.xls', '.txt', '.qbo', '.iif', '.ofx'];
     const ext = path.extname(file.originalname).toLowerCase();
     cb(null, allowed.includes(ext));
   }

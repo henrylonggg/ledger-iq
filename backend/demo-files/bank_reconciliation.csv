@@ -1,0 +1,25 @@
+Bank Reconciliation - Acme Manufacturing Inc.
+QuickBooks Export - Checking Account #4821
+Reconciliation Date: December 31 2024
+
+BANK STATEMENT BALANCE,,$284500
+OUTSTANDING CHECKS,,
+Check #4482 - 12/28/2024 - Midwest Supply Co.,,$18400
+Check #4483 - 12/29/2024 - Acme Properties LLC (related party),,$12500
+Check #4484 - 12/30/2024 - Office Depot,,$2140
+Check #4485 - 12/31/2024 - Johnson Staffing,,$8700
+Total Outstanding Checks,,($41740)
+DEPOSITS IN TRANSIT,,
+Deposit 12/30/2024 - Northfield Distributors,,$42000
+Deposit 12/31/2024 - Acme Retail Group,,$31500
+Total Deposits in Transit,,$73500
+ADJUSTED BANK BALANCE,,$316260
+QUICKBOOKS BOOK BALANCE,,$284500
+ADJUSTMENTS,,
+Bank Service Charge not recorded,,(420)
+Interest Income not recorded,,840
+NSF Check - Midwest Components - 12/15/2024,,(3800)
+ADJUSTED BOOK BALANCE,,$281120
+DIFFERENCE (should be zero),,($35140)
+NOTE: Reconciling difference under investigation - possible timing item or unrecorded transaction
+

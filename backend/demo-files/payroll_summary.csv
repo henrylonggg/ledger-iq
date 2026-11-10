@@ -1,0 +1,32 @@
+Payroll Summary Report - Acme Manufacturing Inc.
+QuickBooks Payroll Export
+Period: January 1 2024 - December 31 2024
+
+Employee Name,Title,Department,Annual Salary,Bonus,Total Comp,Payroll Taxes,Benefits,Total Cost,Notes
+OFFICERS & OWNERS,,,,,,,,,
+Robert Acme,CEO / Owner,Executive,$480000,$120000,$600000,$45900,$18400,$664300,Owner - 60% shareholder
+Susan Acme,CFO / Spouse,Executive,$310000,$60000,$370000,$28305,$18400,$416705,Related party - owner spouse
+MANAGEMENT,,,,,,,,,
+David Chen,VP Sales,Sales,$185000,$42000,$227000,$17366,$18400,$262766,
+Jennifer Walsh,VP Operations,Operations,$162000,$18000,$180000,$13770,$18400,$212170,
+Marcus Thompson,Controller,Finance,$148000,$12000,$160000,$12240,$18400,$190640,
+SALES TEAM,,,,,,,,,
+Alex Rivera,Sales Manager,Sales,$92000,$38000,$130000,$9945,$18400,$158345,Commission-heavy
+Kim Park,Senior Sales Rep,Sales,$72000,$29000,$101000,$7727,$9200,$117927,
+James Liu,Sales Rep,Sales,$64000,$18000,$82000,$6273,$9200,$97473,
+Sarah Johnson,Sales Rep,Sales,$58000,$12000,$70000,$5355,$9200,$84555,
+OPERATIONS,,,,,,,,,
+Mike Torres,Production Manager,Manufacturing,$88000,$8000,$96000,$7344,$18400,$121744,
+Linda Foster,QC Manager,Manufacturing,$74000,$6000,$80000,$6120,$18400,$104520,
+Tom Baker,Senior Technician,Manufacturing,$62000,$4000,$66000,$5049,$9200,$80249,
+Anna Kim,Technician,Manufacturing,$54000,$3000,$57000,$4361,$9200,$70561,
+ADMIN,,,,,,,,,
+Rachel Green,Executive Assistant,Admin,$58000,$5000,$63000,$4820,$9200,$77020,Assists CEO/CFO
+Brian White,HR Manager,Admin,$72000,$6000,$78000,$5967,$18400,$102367,
+PART-TIME / SEASONAL,,,,,,,,,
+Various Part-Time (8 employees),Mixed,Mixed,$0,$0,$124000,$9486,$0,$133486,Avg $15500/ea
+TOTALS,,,,,,,,,
+Total Headcount: 17 FT + 8 PT,,,$1983000,$381000,$2364000,$180827,$218400,$2763227,
+Prior Year Total (FY2023),,,$1724000,$312000,$2036000,$155754,$196400,$2388154,
+YoY Change,,,$259000,$69000,$328000,$25073,$22000,$375073,
+YoY % Change,,,15.0%,22.1%,16.1%,16.1%,11.2%,15.7%,

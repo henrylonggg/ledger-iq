@@ -68,8 +68,20 @@ const DOC_TYPE_RULES = [
   { pattern: /debt.schedule|loan.schedule|financing.schedule|amortiz.*schedule|note.*payable.*schedule/i, docType: 'Debt Schedule' },
   // CapEx / fixed assets
   { pattern: /capex|fixed.asset|capital.expenditure|asset.schedule|depreciation.schedule/i, docType: 'CapEx & Fixed Assets' },
-  // Monthly financials (generic)
-  { pattern: /monthly.financial|month.*statement|monthly.p&l|monthly.income/i, docType: 'Monthly Financials' },
+  // Monthly financials / trailing 12 months
+  { pattern: /monthly.financial|month.*statement|monthly.p&l|monthly.income|trailing.12|ttm\b|t12\b/i, docType: 'Monthly Financials' },
+  // Owner / officer compensation
+  { pattern: /owner.*comp|officer.*comp|exec.*comp|compensation.*schedule|owner.*salary|officer.*salary|shareholder.*comp/i, docType: 'Owner Compensation' },
+  // Related party transactions
+  { pattern: /related.party|intercompany|related.entity|affiliate.trans|related.*transaction/i, docType: 'Related Party Transactions' },
+  // Sales by customer / customer revenue detail
+  { pattern: /sales.by.customer|customer.*revenue.*detail|revenue.by.customer|customer.sales.detail|customer.*summary/i, docType: 'Revenue Recognition' },
+  // Bank reconciliation
+  { pattern: /bank.reconcil|proof.of.cash|outstanding.check|deposit.*transit|bank.statement/i, docType: 'Bank Statement' },
+  // Trial balance (must come after more specific patterns)
+  { pattern: /trial.balance|trial\.bal\b/i, docType: 'Trial Balance' },
+  // QuickBooks-specific export headers
+  { pattern: /quickbooks|intuit.*export|qb.*export|cash basis|accrual basis.*qb/i, docType: 'Financial Document' },
 ];
 
 function detectDocType(filename, text) {
@@ -763,6 +775,45 @@ async function parseFile(filename, buffer) {
         parseError: null,
         count: transactions.length
       };
+    } else if (['qbo', 'ofx'].includes(ext)) {
+      // QuickBooks Online / OFX bank feed — treat as CSV-like text
+      const text = buffer.toString('utf8');
+      // Extract transactions from OFX/QBO XML-like format
+      const qboLines = [];
+      const stmtMatches = text.matchAll(/<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi);
+      for (const m of stmtMatches) {
+        const block = m[1];
+        const amt  = (block.match(/<TRNAMT>([-\d.]+)/i) || [])[1];
+        const name = (block.match(/<NAME>([^\n<]+)/i)   || [])[1];
+        const memo = (block.match(/<MEMO>([^\n<]+)/i)   || [])[1];
+        const dtd  = (block.match(/<DTPOSTED>(\d+)/i)   || [])[1];
+        if (amt && name) qboLines.push([name + (memo ? ' ' + memo : ''), amt, dtd || '']);
+      }
+      if (qboLines.length) {
+        docType = 'Bank Statement';
+        transactions = qboLines.map(([label, amtStr, date]) => {
+          const val = parseFloat(amtStr) || 0;
+          return { label: label.trim().slice(0, 80), type: 'Cash & Bank', latestValue: val,
+            formattedAmount: formatAmount(val), severity: val < -10000 ? 'yellow' : 'green',
+            meta: { date } };
+        });
+      } else {
+        // Fall back to CSV parsing if no OFX transactions found
+        transactions = parseCSV(buffer, filename);
+        docType = detectDocType(filename, text.slice(0, 2000));
+      }
+    } else if (ext === 'iif') {
+      // QuickBooks IIF export — tab-delimited transactions
+      const text = buffer.toString('utf8');
+      docType = detectDocType(filename, text.slice(0, 2000));
+      const lines = text.split('\n').filter(l => l.startsWith('TRNS\t') || l.startsWith('SPL\t'));
+      transactions = lines.slice(0, 200).map(line => {
+        const cols = line.split('\t');
+        const label = cols[5] || cols[4] || 'Transaction';
+        const val   = parseFloat(cols[6] || cols[5] || '0') || 0;
+        return { label: label.trim().slice(0, 80), type: classifyType(label), latestValue: val,
+          formattedAmount: formatAmount(val), severity: heuristicSeverity({ label, type: classifyType(label), pctChange: null, absMax: Math.abs(val) }) };
+      }).filter(t => t.label && t.latestValue !== 0);
     } else {
       transactions = parseTXT(buffer, filename);
       docType      = detectDocType(filename, buffer.toString('utf8').slice(0, 2000));

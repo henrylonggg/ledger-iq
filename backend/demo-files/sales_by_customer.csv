@@ -1,0 +1,24 @@
+Sales by Customer Summary - Acme Manufacturing Inc.
+QuickBooks Export - Accrual Basis
+Period: January 1 2024 - December 31 2024
+
+Customer,Industry,Contract Type,FY2022 Revenue,FY2023 Revenue,FY2024 Revenue,YoY Change,% of FY2024 Revenue,Payment Terms,Avg DSO,Notes
+Great Lakes Distribution,Distribution,Annual,,$820000,$940000,$1240000,31.9%,19.6%,Net 60,72 days,"RELATED PARTY - 20% owned by CEO; largest customer; contract up for renewal Jan 2025"
+Acme Retail Group,Retail Chain,Annual,$490000,$562000,$680000,21.0%,10.8%,Net 45,48 days,"Healthy; growing; solid payer"
+Northfield Distributors,Distribution,Annual,$380000,$440000,$490000,11.4%,7.8%,Net 60,65 days,"Stable; some DSO creep in H2 2024"
+Sunrise Manufacturing LLC,Manufacturing,Project,$290000,$310000,$420000,35.5%,6.6%,Net 30,38 days,"New product line driving growth in 2024"
+Midwest Industrial Supply,Industrial,Annual,$260000,$298000,$380000,27.5%,6.0%,Net 45,52 days,"Solid relationship 8+ years"
+Lakefront Enterprises,Retail,$240000,$275000,$310000,12.7%,4.9%,Net 30,41 days,"Stable"
+Pioneer Agricultural,Agriculture,Seasonal,$180000,$210000,$290000,38.1%,4.6%,Net 60,78 days,"Seasonal concentration Q2-Q3; high DSO"
+Atlas Construction,Construction,Project,$0,$0,$240000,NEW,3.8%,Net 90,94 days,"New customer FY2024; large project; slow pay; $80k currently 90+ days"
+Summit Healthcare Systems,Healthcare,Annual,$0,$180000,$220000,22.2%,3.5%,Net 30,35 days,"New in FY2023; growing nicely"
+Redwood Manufacturing,Manufacturing,Project,$120000,$140000,$180000,28.6%,2.8%,Net 45,55 days,"Stable project-based"
+All Other Customers (47 customers),,,$810000,$920000,$876000,(4.8%),13.9%,Various,Various,"Long tail; some customer attrition in 2024"
+REVENUE SUBTOTAL,,,,$3570000,$4275000,$5326000,24.6%,,,
+Less: Returns & Allowances,,,,(68000),(84000),(106000),,,,"Increasing returns rate - review product quality"
+NET REVENUE,,,,$3502000,$4191000,$5220000,24.6%,100%,,
+CONCENTRATION ANALYSIS,,,,,,,,,,
+Top 1 customer (Great Lakes),,,,23.0%,22.0%,23.7%,,,,"RISK: Related party + concentration >20%"
+Top 3 customers,,,,49.4%,49.5%,50.2%,,,,"Top 3 = half of revenue"
+Top 5 customers,,,,63.0%,64.5%,65.4%,,,,"Meaningful concentration; buyer should model churn scenarios"
+Customers lost FY2024 (3),,,,,$240000,$0,,,,,"3 customers from FY2023 did not reorder in FY2024"

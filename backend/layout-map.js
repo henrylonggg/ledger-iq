@@ -46,11 +46,14 @@ const SPECIALIZED = {
   'EBITDA Adjustments': P.extractEBITDARows,
   'Tax Return': P.extractTaxRows,
   'Book-to-Tax Reconciliation': P.extractTaxRows,
+  'Owner Compensation': P.extractPayrollRows,
+  'Related Party Transactions': P.extractEBITDARows,
 };
 const DOCTYPE_TYPE_HINT = { 'Accounts Receivable': 'Accounts Receivable', 'Accounts Payable': 'Accounts Payable',
   'Debt Schedule': 'Debt & Leverage', 'CapEx & Fixed Assets': 'CapEx & Fixed Assets', 'Payroll Tax': 'Payroll',
   'Employee Census': 'Payroll', 'Contractor Roster': 'Contractors', 'Related Party Transactions': 'Related Party',
-  'Non-Recurring Items': 'Non-Recurring', 'Tax Return': 'Tax' };
+  'Non-Recurring Items': 'Non-Recurring', 'Tax Return': 'Tax', 'Owner Compensation': 'Owner Compensation',
+  'Trial Balance': 'Working Capital', 'Bank Statement': 'Cash & Bank', 'Monthly Financials': 'Revenue' };
 
 /* ─── cache ─────────────────────────────────────────────────────────────── */
 let cache = null;

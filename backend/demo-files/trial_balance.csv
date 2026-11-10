@@ -1,0 +1,71 @@
+Trial Balance - Acme Manufacturing Inc.,,,
+QuickBooks Export - Accrual Basis,,,
+Period: January 1 2024 - December 31 2024,,,
+,,,
+Account,Account Number,Debit,Credit
+ASSETS,,,
+Cash - Checking,1010,284500,
+Cash - Savings,1020,142000,
+Accounts Receivable,1200,615000,
+Allowance for Doubtful Accounts,1210,,18000
+Inventory - Raw Materials,1310,287000,
+Inventory - WIP,1320,94000,
+Inventory - Finished Goods,1330,163000,
+Prepaid Expenses,1410,47200,
+Prepaid Insurance,1420,22800,
+Fixed Assets - Equipment,1510,1840000,
+Accumulated Depreciation - Equipment,1520,,724000
+Fixed Assets - Vehicles,1530,310000,
+Accumulated Depreciation - Vehicles,1540,,186000
+Leasehold Improvements,1550,420000,
+Accumulated Amortization - Leasehold,1560,,168000
+LIABILITIES,,,
+Accounts Payable,2100,,342000
+Accrued Liabilities,2200,,128400
+Accrued Payroll,2210,,94600
+Sales Tax Payable,2300,,31200
+Line of Credit,2400,,750000
+Current Portion - Long Term Debt,2410,,180000
+Long Term Debt - SBA Loan,2500,,820000
+Long Term Debt - Equipment Loan,2510,,340000
+EQUITY,,,
+Common Stock,3010,,50000
+Retained Earnings,3020,,1248900
+Owner Distributions - 2024,3030,620000,
+REVENUE,,,
+Product Sales,4010,,5620000
+Service Revenue,4020,,580000
+License Fees,4030,,210000
+Returns & Allowances,4090,84000,
+COST OF GOODS SOLD,,,
+Raw Materials Used,5010,1842000,
+Direct Labor,5020,724000,
+Manufacturing Overhead,5030,312000,
+Freight In,5040,48000,
+EXPENSES,,,
+Officer Salary - CEO,6010,480000,
+Officer Salary - CFO,6020,310000,
+Salaries - Sales,6030,842000,
+Salaries - Admin,6040,384000,
+Payroll Taxes,6050,196000,
+Health Insurance,6060,218000,
+Rent Expense,6070,384000,
+Utilities,6080,96000,
+Telephone & Internet,6090,42000,
+Advertising & Marketing,6100,284000,
+Travel & Entertainment,6110,118000,
+Meals & Entertainment,6120,42000,
+Legal & Professional Fees,6130,164000,
+Accounting Fees,6140,84000,
+Depreciation Expense,6150,218000,
+Amortization Expense,6160,42000,
+Insurance Expense,6170,124000,
+Office Supplies,6180,28000,
+Repairs & Maintenance,6190,64000,
+Vehicle Expense,6200,48000,
+Interest Expense,6210,98000,
+Bank Charges,6220,12000,
+Miscellaneous,6230,34000,
+TOTALS,,,
+Total Debits,,10484500,
+Total Credits,,,10484500

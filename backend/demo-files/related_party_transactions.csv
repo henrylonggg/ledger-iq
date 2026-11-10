@@ -1,0 +1,15 @@
+Related Party Transactions Schedule - Acme Manufacturing Inc.
+Period: FY2022 - FY2024
+
+ENTITY,RELATIONSHIP,TRANSACTION TYPE,FY2022 AMOUNT,FY2023 AMOUNT,FY2024 AMOUNT,TERMS,MARKET RATE,FLAGS
+Acme Properties LLC,100% owned by Robert Acme (CEO),"Rent - 42,000 sq ft HQ",$384000,$384000,$384000,"Month-to-month, 10yr term",$312000/yr,"Above-market rent - $72k/yr excess; no independent appraisal; lease auto-renewed without board approval"
+Acme Properties LLC,100% owned by Robert Acme (CEO),Building Maintenance Pass-Through,$48000,$62000,$84000,Cost plus 15%,$0,"Maintenance costs passed through to operating company at markup; $84k in FY2024 included $22k in personal home repairs"
+Acme Consulting Group LLC,Owned by Susan Acme (CFO/Spouse),Management Consulting Fees,$120000,$180000,$240000,"Annual retainer, verbal agreement",$0,"No documentation; services overlap with CFO duties; amount growing 33% YoY"
+Great Lakes Distribution,20% owned by Robert Acme,Customer Revenue,$820000,$940000,$1240000,Standard pricing,Varies,"Largest customer is a related party; revenue dependency risk; pricing not independently verified"
+Sunrise Logistics LLC,Owned by David Acme (CEO Son),Shipping & Freight Services,$182000,$224000,$312000,"Net 30, verbal contract",$148000-$190000,"Above-market rates; $80-120k annual excess; no competitive bids; contract never put out to tender"
+Robert Acme Personal Loan,Owner Loan to Company,Shareholder Loan Balance,$500000,$350000,$200000,"5% interest, demand loan",$0,"Being paid down; $14k annual interest expense; original purpose undocumented"
+ACME 401K Plan,Company Plan,Employer Contributions,$84000,$96000,$112000,4% match,Market,"Normal plan; Robert Acme contribution $19200/yr (max); Susan Acme $16000/yr"
+SUMMARY,,,,,,,,
+Total Related Party Revenue,,,,$820000,$940000,$1240000,,"19.6% of FY2024 total revenue - concentration risk"
+Total Related Party Expenses (above market),,,,$354000,$466000,$636000,,"Estimated EBITDA addback if normalized; not reflected in EBITDA adjustments schedule"
+Total Related Party Liabilities,,,,$500000,$350000,$200000,,"Shareholder loan being repaid"

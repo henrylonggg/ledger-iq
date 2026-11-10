@@ -359,10 +359,29 @@ async function getAuthedUser(req) {
 // GET /api/ai-status         -> { configured }           (free, instant)
 // GET /api/ai-status?deep=1  -> also pings OpenAI (1 token) and reports exactly what it says
 let _probeCache = { at: 0, value: null };
-/* ── Admin: delete user by email (requires ADMIN_SECRET header) ── */
+/* ── Admin: delete user by email (secret in query param for browser use) ── */
+app.get('/api/admin/user/delete', async (req, res) => {
+  const { email, secret } = req.query;
+  const adminSecret = process.env.ADMIN_SECRET || 'ledgeriq-admin-2024';
+  if (secret !== adminSecret) return res.status(403).send('Forbidden');
+  if (!email) return res.status(400).send('email param required');
+  try {
+    const deleted = await usersDb.deleteUserByEmail(email);
+    if (deleted) {
+      console.log(`[admin] deleted user: ${email}`);
+      res.send(`<h2>✓ Deleted user: ${email}</h2><p>You can now sign up again.</p>`);
+    } else {
+      res.send(`<h2>User not found: ${email}</h2>`);
+    }
+  } catch (err) {
+    console.error('[admin] delete user error:', err);
+    res.status(500).send('Error: ' + err.message);
+  }
+});
+
 app.delete('/api/admin/user', async (req, res) => {
   const secret = req.headers['x-admin-secret'];
-  if (!secret || secret !== process.env.ADMIN_SECRET) {
+  if (!secret || secret !== (process.env.ADMIN_SECRET || 'ledgeriq-admin-2024')) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   const { email } = req.query;

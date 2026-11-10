@@ -2079,3 +2079,34 @@ async function renderUsagePage() {
     page.innerHTML = `<div class="profile-empty"><p>Could not load usage: ${esc(err.message)}</p></div>`;
   }
 }
+
+// ═══════════════════════════════════
+// QoE LANDING PAGE INTERACTIONS
+// ═══════════════════════════════════
+function qoeToggleAcc(el) {
+  el.classList.toggle('qoe-acc-open');
+}
+
+function qoeFilter(tag, btn) {
+  document.querySelectorAll('.qoe-tbl-btn').forEach(b => b.classList.remove('qoe-tbl-btn-active'));
+  btn.classList.add('qoe-tbl-btn-active');
+  document.querySelectorAll('#qoe-detail-table tbody tr').forEach(tr => {
+    if (tag === 'all') {
+      tr.style.display = '';
+    } else {
+      const tags = (tr.dataset.qtag || '');
+      tr.style.display = tags.includes(tag) ? '' : 'none';
+    }
+  });
+}
+
+// Smooth scroll for QoE landing nav links
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('a[href^="#qoe-"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+});

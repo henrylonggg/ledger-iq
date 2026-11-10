@@ -46,11 +46,11 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email address' });
     if (password.length < 8)
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
-    if (users.findByEmail(email))
+    if (await users.findByEmail(email))
       return res.status(409).json({ error: 'An account with that email already exists' });
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = users.createUser({ email, name, passwordHash });
+    const user = await users.createUser({ email, name, passwordHash });
 
     // Sync new user to Google Sheets (non-blocking)
     sheets.appendUserSignup({ name, email }).catch(err =>
@@ -72,7 +72,7 @@ router.post('/login', async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ error: 'email and password are required' });
 
-    const user = users.findByEmail(email);
+    const user = await users.findByEmail(email);
     if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
     const match = await bcrypt.compare(password, user.passwordHash);
@@ -95,14 +95,14 @@ router.post('/reset-password', requireAuth, async (req, res) => {
     if (newPassword.length < 8)
       return res.status(400).json({ error: 'New password must be at least 8 characters' });
 
-    const user = users.findById(req.user.id);
+    const user = await users.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const match = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!match) return res.status(401).json({ error: 'Current password is incorrect' });
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    users.updateUser(user.id, { passwordHash });
+    await users.updateUser(user.id, { passwordHash });
     res.json({ ok: true });
   } catch (err) {
     console.error('[auth] reset-password error:', err);
@@ -111,8 +111,8 @@ router.post('/reset-password', requireAuth, async (req, res) => {
 });
 
 /* ─── GET /api/user/profile ───────────────────────────────── */
-router.get('/profile', requireAuth, (req, res) => {
-  const user = users.findById(req.user.id);
+router.get('/profile', requireAuth, async (req, res) => {
+  const user = await users.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({ user: users.safeUser(user) });
 });
@@ -125,7 +125,7 @@ router.post('/credits', requireAuth, async (req, res) => {
     if (!val || val <= 0 || val > 10000)
       return res.status(400).json({ error: 'Amount must be between $0.01 and $10,000' });
 
-    const user = users.addCredits(req.user.id, val);
+    const user = await users.addCredits(req.user.id, val);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     // Sync purchase to Google Sheets (non-blocking)
@@ -141,8 +141,8 @@ router.post('/credits', requireAuth, async (req, res) => {
 });
 
 /* ─── GET /api/user/usage ─────────────────────────────────── */
-router.get('/usage', requireAuth, (req, res) => {
-  const user = users.findById(req.user.id);
+router.get('/usage', requireAuth, async (req, res) => {
+  const user = await users.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   const usage = (user.usage || []).slice().reverse(); // newest first
   const totalTokens = usage.reduce((s, u) => s + (u.tokens || 0), 0);

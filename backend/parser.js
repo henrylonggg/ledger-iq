@@ -791,11 +791,11 @@ async function extractWithAI(filename, buffer, ext, apiKey) {
     } else if (['xlsx', 'xls'].includes(ext)) {
       const wb = XLSX.read(buffer, { type: 'buffer' });
       const parts = [];
-      for (const name of wb.SheetNames.slice(0, 6)) {
+      for (const name of wb.SheetNames.slice(0, 10)) {
         const ws   = wb.Sheets[name];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
         parts.push(`=== Sheet: ${name} ===`);
-        parts.push(rows.slice(0, 80).map(r => r.join('\t')).join('\n'));
+        parts.push(rows.slice(0, 300).map(r => r.join('\t')).join('\n'));
       }
       rawText = parts.join('\n\n');
     } else if (ext === 'csv') {
@@ -852,7 +852,7 @@ Extract all financial line items as a JSON array.`;
         { role: 'user',   content: userPrompt   },
       ],
       temperature: 0.1,
-      max_tokens: 4000,
+      max_tokens: 8000,
       response_format: { type: 'json_object' },
     });
 
@@ -873,7 +873,7 @@ Extract all financial line items as a JSON array.`;
 
     // Map to standard transaction format
     const transactions = items
-      .filter(it => it && it.label && (it.latestValue !== null && it.latestValue !== undefined))
+      .filter(it => it && it.label && it.label.trim().length > 0)  // keep everything with a label, including zeros and null values
       .map(it => {
         const latestValue  = typeof it.latestValue === 'number' ? it.latestValue : parseAmount(it.latestValue);
         const priorValue   = typeof it.priorValue  === 'number' ? it.priorValue  : parseAmount(it.priorValue);

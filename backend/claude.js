@@ -246,14 +246,80 @@ ${allTx.map((t, i) =>
   `${i + 1}. "${t.label}" | sheet:${t.sourceSheet || t.docType || '?'} | type:${t.type} | amount:${t.formattedAmount} | change:${t.pctChange !== null ? t.pctChange.toFixed(1) + '%' : 'n/a'} | heuristic:${t.severity}${t.meta ? ' | meta:' + JSON.stringify(t.meta) : ''}`
 ).join('\n')}`;
 
+  // Split into batches of 100 to avoid timeouts, run up to 3 in parallel
+  const BATCH_SIZE = 100;
+  const batches = [];
+  for (let i = 0; i < allTx.length; i += BATCH_SIZE) {
+    batches.push(allTx.slice(i, i + BATCH_SIZE));
+  }
+
+  // Minimal system prompt for scoring-only batches (no score/grade needed per batch)
+  const batchSystemPrompt = systemPrompt.replace(
+    'YOUR JOBS:\n1. Assign a CONFIDENCE SCORE (0–100) to each pre-classified transaction\n2. Compute a QoE SCORE (0–100) and LETTER GRADE based ONLY on the data provided\n3. Score each of the 6 QoE categories (only those for which data exists)\n4. Write KEY FLAGS',
+    'YOUR JOB:\n1. Assign a CONFIDENCE SCORE (0–100) to each pre-classified transaction\n   (omit score/grade/categories/flags — those will be computed separately)'
+  );
+
+  const runBatch = async (txBatch, batchIdx) => {
+    const batchMsg = `Documents uploaded: ${summary.uploadedDocTypes.join(', ')}
+Files: ${parsedFiles.map(f => `${f.filename}(${f.count} items)`).join(', ')}
+Scoring batch ${batchIdx + 1} of ${batches.length} (${txBatch.length} items):
+
+TRANSACTION LIST TO SCORE (${txBatch.length} items):
+${txBatch.map((t, i) =>
+  `${i + 1}. "${t.label}" | sheet:${t.sourceSheet || t.docType || '?'} | type:${t.type} | amount:${t.formattedAmount} | change:${t.pctChange !== null ? t.pctChange.toFixed(1) + '%' : 'n/a'} | heuristic:${t.severity}${t.meta ? ' | meta:' + JSON.stringify(t.meta) : ''}`
+).join('\n')}
+
+Return ONLY the transactions array (no score/grade/categories/flags):
+{ "transactions": [ ... ] }`;
+
+    const resp = await createCompletion(apiKey, {
+      max_tokens:  8000,
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: batchSystemPrompt },
+        { role: 'user',   content: batchMsg }
+      ]
+    }, { label: `score-batch-${batchIdx}` });
+
+    return resp.choices?.[0]?.message?.content || '';
+  };
+
+  // Run scoring batches (up to 3 concurrent)
+  const CONCURRENCY = 3;
+  const allScoredTx = [];
+  for (let i = 0; i < batches.length; i += CONCURRENCY) {
+    const chunk = batches.slice(i, i + CONCURRENCY);
+    const raws = await Promise.all(chunk.map((b, j) => runBatch(b, i + j)));
+    for (const raw of raws) {
+      try {
+        const m = raw.replace(/```json|```/g, '').trim();
+        const p = JSON.parse(m.match(/\{[\s\S]+\}/)?.[0] || m);
+        if (p.transactions) allScoredTx.push(...p.transactions);
+      } catch { /* skip malformed batch */ }
+    }
+  }
+
+  // Now run the full analysis (score/grade/categories/flags) with the summary only
+  const fullAnalysisMsg = `${userMessage.split('\nTRANSACTION LIST')[0]}
+
+The ${allTx.length} transactions have been pre-scored. Here are the aggregate stats:
+- Red (high risk): ${red.length} items
+- Yellow (moderate): ${yellow.length} items
+- Green (normal): ${green.length} items
+
+Top red flags: ${red.slice(0, 20).map(t => `"${t.label}" (${t.formattedAmount})`).join(', ')}
+Top yellow flags: ${yellow.slice(0, 10).map(t => `"${t.label}" (${t.formattedAmount})`).join(', ')}
+
+Based on this data, return the full analysis JSON (omit the transactions array — return empty []):`;
+
   const response = await createCompletion(apiKey, {
-    max_tokens:  16000,
+    max_tokens:  8000,
     temperature: 0.2,
     messages: [
       { role: 'system', content: systemPrompt },
-      { role: 'user',   content: userMessage  }
+      { role: 'user',   content: fullAnalysisMsg }
     ]
-  }, { label: 'score' });
+  }, { label: 'score-full' });
 
   const raw = response.choices?.[0]?.message?.content || '';
 
@@ -297,6 +363,21 @@ ${allTx.map((t, i) =>
     } else {
       throw new Error('OpenAI returned no JSON. Raw response: ' + raw.slice(0, 300));
     }
+  }
+
+  // Merge batch-scored transactions into the report
+  if (allScoredTx.length > 0) {
+    parsed.transactions = allScoredTx;
+  } else if (!parsed.transactions || parsed.transactions.length === 0) {
+    // Fallback: build transactions from heuristic data if scoring failed
+    parsed.transactions = allTx.map(t => ({
+      id: t.label.toLowerCase().replace(/\s+/g, '-').slice(0, 30),
+      item: t.label, type: t.type, amount: t.formattedAmount,
+      finding: t.meta?.note || `${t.severity === 'red' ? 'High' : t.severity === 'yellow' ? 'Moderate' : 'Low'} risk item`,
+      severity: t.severity, confidence: t.severity === 'red' ? 80 : t.severity === 'yellow' ? 65 : 90,
+      confidenceReasoning: 'Heuristic classification', needsReview: t.severity !== 'green',
+      recommendation: t.severity === 'red' ? 'Review and investigate' : 'Monitor'
+    }));
   }
 
   const usage = {

@@ -432,6 +432,50 @@ async function wakeBackend({ silent = false } = {}) {
   throw new Error('Backend did not respond within 90 seconds. Please wait a moment and try again.');
 }
 
+// Calls a generate endpoint with automatic 502 retry (Render cold-start)
+async function callGenerateAPI(endpoint, payload, onStatus) {
+  const MAX_ATTEMPTS = 4;
+  const RETRY_DELAY  = 8000; // ms between retries on 502
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 90000);
+      const res  = await fetch(`${API_BASE}${endpoint}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body:    JSON.stringify(payload),
+        signal:  ctrl.signal,
+      });
+      clearTimeout(tid);
+
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        if (attempt < MAX_ATTEMPTS) {
+          onStatus && onStatus(`Server waking up… (attempt ${attempt}/${MAX_ATTEMPTS})`);
+          await new Promise(r => setTimeout(r, RETRY_DELAY));
+          continue;
+        }
+        throw new Error('Server unavailable — please try again in 30 seconds');
+      }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      return await res.json();
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('Request timed out — server may still be starting');
+      if (attempt < MAX_ATTEMPTS && (err.message.includes('fetch') || err.message.includes('network'))) {
+        onStatus && onStatus(`Retrying… (attempt ${attempt}/${MAX_ATTEMPTS})`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 async function startAnalysis() {
   if (!files.length) return;
 
@@ -717,40 +761,26 @@ function buildNarrativePayload() {
 async function generateNarrative() {
   if (!report) return;
 
-  // Wake backend if cold (Render free tier)
-  try { await wakeBackend({ silent: true }); } catch (e) {
-    showToast('Server is starting up — please wait 30 seconds and try again.');
-    return;
-  }
-
-  // Show loading state in the narrative gate
+  // Show loading state
   const narrativeEl = document.getElementById('dash-narrative');
   const nFull       = document.getElementById('narrative-full');
-  const loadingHtml = `<div class="narrative-gate">
-    <div class="ng-icon" style="animation:spin 1s linear infinite;display:inline-block">⟳</div>
-    <div class="ng-title">Generating AI narrative…</div>
-    <div class="ng-sub">GPT-4o mini is writing a custom analysis based on your review decisions</div>
-  </div>`;
-  if (narrativeEl) narrativeEl.innerHTML = loadingHtml;
-  if (nFull)       nFull.innerHTML       = loadingHtml;
+  const setLoading  = (msg) => {
+    const html = `<div class="narrative-gate">
+      <div class="ng-icon" style="animation:spin 1s linear infinite;display:inline-block">⟳</div>
+      <div class="ng-title">Generating AI narrative…</div>
+      <div class="ng-sub">${msg}</div>
+    </div>`;
+    if (narrativeEl) narrativeEl.innerHTML = html;
+    if (nFull)       nFull.innerHTML       = html;
+  };
+  setLoading('GPT-4o mini is writing a custom analysis based on your review decisions');
 
   try {
     const payload = buildNarrativePayload();
-    const res = await fetch(`${API_BASE}/api/generate-narrative`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(60000)
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await callGenerateAPI('/api/generate-narrative', payload, (msg) => setLoading(msg));
     generatedNarrative = { text: data.narrative, stateKey: reviewStateKey() };
     updateNarrativePage();
     updateExportBtn();
-    // Update credits display if server returned updated balance
     if (data.creditInfo && currentUser) {
       currentUser.credits = data.creditInfo.remaining;
       updateUserUI();
@@ -768,32 +798,19 @@ async function generateNarrative() {
 async function generateSummary() {
   if (!report) return;
 
-  try { await wakeBackend({ silent: true }); } catch (e) {
-    showToast('Server is starting up — please wait 30 seconds and try again.');
-    return;
-  }
-
   const meth = document.getElementById('methodology');
-  const loadingHtml = `<div class="narrative-gate">
-    <div class="ng-icon" style="animation:spin 1s linear infinite;display:inline-block">⟳</div>
-    <div class="ng-title">Generating AI executive summary…</div>
-    <div class="ng-sub">GPT-4o mini is writing a custom summary based on your review decisions</div>
-  </div>`;
-  if (meth) meth.innerHTML = loadingHtml;
+  const setLoading = (msg) => {
+    if (meth) meth.innerHTML = `<div class="narrative-gate">
+      <div class="ng-icon" style="animation:spin 1s linear infinite;display:inline-block">⟳</div>
+      <div class="ng-title">Generating AI executive summary…</div>
+      <div class="ng-sub">${msg}</div>
+    </div>`;
+  };
+  setLoading('GPT-4o mini is writing a custom summary based on your review decisions');
 
   try {
     const payload = buildNarrativePayload();
-    const res = await fetch(`${API_BASE}/api/generate-summary`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(60000)
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await callGenerateAPI('/api/generate-summary', payload, (msg) => setLoading(msg));
     generatedSummary = { text: data.summary, stateKey: reviewStateKey(), adjScore: payload.score };
     updateNarrativePage();
     updateExportBtn();

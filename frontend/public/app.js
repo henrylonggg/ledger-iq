@@ -419,6 +419,8 @@ async function wakeBackend({ silent = false } = {}) {
       clearTimeout(tid);
       if (r.ok) {
         if (!silent) addLog('Backend ready.', 'ok');
+        // Brief pause: Render sometimes accepts health before fully binding for real requests
+        await new Promise(r2 => setTimeout(r2, 2000));
         return true;
       }
     } catch { /* still waking */ }
@@ -503,9 +505,9 @@ async function startAnalysis() {
     const fd = new FormData();
     for (const f of files) fd.append('files', f);
 
-    // Retry the analyze POST on 502/503/504 (Render cold-start race condition)
-    const MAX_UPLOAD_ATTEMPTS = 4;
-    const UPLOAD_RETRY_DELAY  = 8000;
+    // Retry the analyze POST on 502/503/504 (Render cold-start race condition).
+    // On each 502 we re-wait for health to confirm the server is truly up before retrying.
+    const MAX_UPLOAD_ATTEMPTS = 5;
     let resp = null;
 
     for (let attempt = 1; attempt <= MAX_UPLOAD_ATTEMPTS; attempt++) {
@@ -521,9 +523,11 @@ async function startAnalysis() {
 
       if (resp.status === 502 || resp.status === 503 || resp.status === 504) {
         if (attempt < MAX_UPLOAD_ATTEMPTS) {
-          addLog(`Server waking up… (attempt ${attempt}/${MAX_UPLOAD_ATTEMPTS})`, 'info');
-          setProg(30, `Server waking up…`, `Attempt ${attempt} of ${MAX_UPLOAD_ATTEMPTS} — retrying in 8s`);
-          await new Promise(r => setTimeout(r, UPLOAD_RETRY_DELAY));
+          addLog(`Server not ready yet (attempt ${attempt}/${MAX_UPLOAD_ATTEMPTS}) — waiting for backend…`, 'info');
+          setProg(30, `Waiting for server…`, `Attempt ${attempt} of ${MAX_UPLOAD_ATTEMPTS}`);
+          // Re-poll health until server is actually ready, then retry upload
+          await wakeBackend({ silent: true });
+          addLog(`Backend confirmed ready — retrying upload…`, 'info');
           continue;
         }
         throw new Error('Server unavailable after multiple attempts — please try again in 30 seconds');

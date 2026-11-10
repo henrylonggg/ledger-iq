@@ -176,7 +176,7 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
       const jwt = require('jsonwebtoken');
       const JWT_SECRET = process.env.JWT_SECRET || 'ledgeriq-dev-secret-change-me';
       const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
-      authedUser = usersDb.findById(decoded.id);
+      authedUser = await usersDb.findById(decoded.id);
     } catch { /* invalid token — treat as unauthenticated */ }
   }
   if (authedUser !== null && authedUser?.credits < -50) {
@@ -309,7 +309,7 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
     // Deduct credits for authenticated users (scoring tokens + AI extraction tokens)
     if (authedUser) {
       const totalBillableTokens = usage.totalTokens + aiExtractionTokens;
-      const deductResult = usersDb.deductCredits(authedUser.id, totalBillableTokens);
+      const deductResult = await usersDb.deductCredits(authedUser.id, totalBillableTokens);
       if (deductResult.ok) {
         emit('log', { type: 'info', message: `Credits used: $${deductResult.cost.toFixed(4)} (${totalBillableTokens} tokens) — balance: $${deductResult.remaining.toFixed(4)}` });
       }
@@ -342,14 +342,14 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
 });
 
 // ─── Shared helper: get authed user from request ──────────────────────────────
-function getAuthedUser(req) {
+async function getAuthedUser(req) {
   const header = req.headers.authorization || '';
   if (!header.startsWith('Bearer ')) return null;
   try {
     const jwt = require('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET || 'ledgeriq-dev-secret-change-me';
     const decoded = jwt.verify(header.slice(7), JWT_SECRET);
-    return usersDb.findById(decoded.id);
+    return await usersDb.findById(decoded.id);
   } catch { return null; }
 }
 
@@ -411,9 +411,9 @@ async function writeToLength({ system, user, target, min, max, maxTokens, label 
   return { text, tokens, words: wordCount(text) };
 }
 
-function chargeUser(authedUser, tokens, label) {
+async function chargeUser(authedUser, tokens, label) {
   if (!authedUser) return null;
-  const dr = usersDb.deductCredits(authedUser.id, tokens);
+  const dr = await usersDb.deductCredits(authedUser.id, tokens);
   console.log(`[${label}] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(4)}`);
   return { cost: dr.cost, remaining: dr.remaining };
 }
@@ -427,7 +427,7 @@ const inQueue = fn => (_genChain = _genChain.then(fn, fn));
 // (There is no separate narrative any more, and nothing here can be exported.)
 app.post('/api/generate-summary', async (req, res) => {
   if (!DEMO_API_KEY) return res.status(503).json({ error: 'AI is not configured on this server.', code: 'no_key', retryable: false });
-  const authedUser = getAuthedUser(req);
+  const authedUser = await getAuthedUser(req);
   if (authedUser !== null && authedUser?.credits < -50) {
     return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
   }
@@ -456,7 +456,7 @@ ${factSheet(p)}`,
     }));
     res.json({
       summary: out.text, words: out.words, tokens: out.tokens,
-      creditInfo: chargeUser(authedUser, out.tokens, 'generate-summary'),
+      creditInfo: await chargeUser(authedUser, out.tokens, 'generate-summary'),
     });
   } catch (err) {
     sendAIError(res, err, 'generate-summary');

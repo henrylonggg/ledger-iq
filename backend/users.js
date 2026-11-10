@@ -43,7 +43,7 @@ function createUser({ email, name, passwordHash }) {
   const user = {
     id, email: email.toLowerCase(), name,
     passwordHash,
-    credits: 5.00,       // starts with $5.00 free credits
+    credits: 20.00,      // starts with $20.00 free credits
     createdAt: new Date().toISOString(),
     usage: []
   };

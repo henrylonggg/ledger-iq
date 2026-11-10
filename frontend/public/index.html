@@ -472,11 +472,12 @@ button { cursor: pointer; font-family: var(--ui); }
 .kpi {
   background: var(--ink1);
   border: 1px solid var(--line);
+  border-left: 3px solid var(--line2);
   border-radius: var(--r);
   padding: 16px 18px;
   position: relative;
   overflow: hidden;
-  transition: border-color .15s;
+  transition: border-color .15s, border-left-color .3s;
 }
 .kpi::before {
   content: '';
@@ -486,6 +487,10 @@ button { cursor: pointer; font-family: var(--ui); }
   pointer-events: none;
 }
 .kpi:hover { border-color: var(--line2); }
+.kpi.score-green  { border-left-color: var(--emerald); background: linear-gradient(135deg, var(--emer-dim) 0%, var(--ink1) 60%); }
+.kpi.score-amber  { border-left-color: var(--amber);   background: linear-gradient(135deg, var(--amber-dim) 0%, var(--ink1) 60%); }
+.kpi.score-red    { border-left-color: var(--crimson);  background: linear-gradient(135deg, var(--crim-dim) 0%, var(--ink1) 60%); }
+.kpi.score-teal   { border-left-color: var(--teal);     background: linear-gradient(135deg, var(--teal-dim) 0%, var(--ink1) 60%); }
 .kpi-label {
   font-family: var(--mono);
   font-size: 9.5px;
@@ -551,24 +556,28 @@ button { cursor: pointer; font-family: var(--ui); }
 .cat-stack { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .cat-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 9px 11px;
+  padding: 10px 12px;
   background: var(--ink2);
   border: 1px solid var(--line);
+  border-left: 3px solid var(--line2);
   border-radius: var(--r);
-  transition: border-color .15s;
+  transition: border-color .15s, background .15s;
 }
-.cat-row:hover { border-color: var(--line2); }
+.cat-row:hover { border-color: var(--line2); background: var(--ink1); }
+.cat-row.cat-green { border-left-color: var(--emerald); }
+.cat-row.cat-amber { border-left-color: var(--amber); }
+.cat-row.cat-red   { border-left-color: var(--crimson); }
 .cat-info { display: flex; flex-direction: column; gap: 2px; width: 140px; flex-shrink: 0; }
-.cat-name { font-size: 12px; color: var(--muted); line-height: 1.3; font-weight: 500; }
+.cat-name { font-size: 12px; color: var(--body); line-height: 1.3; font-weight: 600; }
 .cat-basis { font-size: 10px; color: var(--dim); font-style: italic; line-height: 1.3; }
-.cat-track { flex: 1; height: 4px; background: var(--ink3); border-radius: 2px; overflow: hidden; }
-.cat-fill { height: 100%; border-radius: 2px; transition: width .9s ease; }
+.cat-track { flex: 1; height: 6px; background: var(--ink3); border-radius: 3px; overflow: hidden; }
+.cat-fill { height: 100%; border-radius: 3px; transition: width .9s ease; }
 .cat-num {
-  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
   width: 32px; text-align: right; flex-shrink: 0;
 }
 .cat-badge {
-  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
 }
 
 /* ─── FLAGS ───────────────────────────────────────────────── */
@@ -579,15 +588,17 @@ button { cursor: pointer; font-family: var(--ui); }
   margin-bottom: 7px;
   font-size: 12.5px;
   line-height: 1.55;
-  border-left: 3px solid transparent;
+  border: 1px solid transparent;
+  border-left: 4px solid transparent;
 }
-.flag.red    { background: var(--crim-dim); border-color: var(--crimson); color: var(--body); }
-.flag.yellow { background: var(--amber-dim); border-color: var(--amber);  color: var(--body); }
-.flag.green  { background: var(--emer-dim); border-color: var(--emerald); color: var(--body); }
+.flag.red    { background: var(--crim-dim);  border-color: var(--crim-mid);  border-left-color: var(--crimson); color: var(--body); }
+.flag.yellow { background: var(--amber-dim); border-color: var(--amber-mid); border-left-color: var(--amber);   color: var(--body); }
+.flag.green  { background: var(--emer-dim);  border-color: var(--emer-mid);  border-left-color: var(--emerald); color: var(--body); }
 .flag.red .flag-title    { color: var(--crimson); }
 .flag.yellow .flag-title { color: var(--amber);   }
 .flag.green .flag-title  { color: var(--emerald); }
-.flag-title  { font-weight: 700; display: block; margin-bottom: 2px; letter-spacing: -.01em; }
+.flag-title  { font-weight: 700; display: block; margin-bottom: 3px; letter-spacing: -.01em; }
+.flag-sev    { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .7; display: block; margin-bottom: 1px; }
 .flag-detail { color: var(--body); opacity: .85; }
 
 /* ─── NARRATIVE ───────────────────────────────────────────── */
@@ -2156,17 +2167,24 @@ a { color: var(--teal); }
 /* Page padding */
 .page { padding: 28px; }
 
-/* Score ring glow */
+/* Score ring glow — color synced via JS on arc stroke change */
 .ring-wrap svg circle:last-of-type {
-  filter: drop-shadow(0 0 5px rgba(8,145,178,.35));
+  filter: drop-shadow(0 0 6px rgba(8,145,178,.4));
+  transition: stroke .4s ease, filter .4s ease;
 }
 [data-theme="dark"] .ring-wrap svg circle:last-of-type {
-  filter: drop-shadow(0 0 6px rgba(18,216,223,.4));
+  filter: drop-shadow(0 0 8px rgba(18,216,223,.45));
+}
+/* Risk badge below score number */
+.ring-risk-badge {
+  font-family: var(--mono); font-size: 8.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; padding: 2px 7px; border-radius: 20px;
+  border: 1.5px solid currentColor; margin-top: 4px; opacity: .9;
 }
 
-/* Category rows */
-.cat-row { border-radius: 7px; transition: border-color .15s, background .15s; }
-.cat-row:hover { background: var(--ink2); }
+/* Category rows — desktop overrides */
+.cat-row { border-radius: 7px; }
+.cat-row:hover { background: var(--ink1); }
 
 /* Table headers */
 th {
@@ -2877,6 +2895,7 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
               <span class="ring-num" id="ring-num">—</span>
               <span class="ring-den">/100</span>
               <span class="ring-grade" id="ring-grade"></span>
+              <span class="ring-risk-badge" id="ring-risk" style="display:none"></span>
             </div>
           </div>
           <div class="cat-stack" id="cat-stack"></div>

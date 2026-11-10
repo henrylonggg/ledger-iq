@@ -713,12 +713,13 @@ function renderDashboardPanels(r) {
   // Categories with live-adjusted scores and basis info
   document.getElementById('cat-stack').innerHTML = adjCats.map(c => {
     const col = c.color === 'green' ? 'var(--emerald)' : c.color === 'red' ? 'var(--crimson)' : 'var(--amber)';
+    const catCls = c.color === 'green' ? 'cat-green' : c.color === 'red' ? 'cat-red' : 'cat-amber';
     const sc = c.score || 0;
     const basisHtml = c.basis
       ? `<div class="cat-basis" title="${esc(c.basis)}">${esc(c.basis)}</div>`
       : '';
-    return `<div class="cat-row">
-      <div class="cat-badge" style="background:${col};box-shadow:0 0 6px ${col}44"></div>
+    return `<div class="cat-row ${catCls}">
+      <div class="cat-badge" style="background:${col};box-shadow:0 0 5px ${col}66"></div>
       <div class="cat-info">
         <span class="cat-name">${esc(c.name)}</span>
         ${basisHtml}
@@ -743,10 +744,17 @@ function renderDashboardPanels(r) {
     return !matchedTx;
   });
 
-  document.getElementById('flags-box').innerHTML = activeFlags.map(f => `
-    <div class="flag ${f.severity || 'yellow'}">
-      <div><span class="flag-title">${esc(f.title || '')}</span><span class="flag-detail">${esc(f.detail || '')}</span></div>
-    </div>`).join('');
+  document.getElementById('flags-box').innerHTML = activeFlags.map(f => {
+    const sev = f.severity || 'yellow';
+    const sevLabel = sev === 'red' ? 'HIGH' : sev === 'green' ? 'LOW' : 'MED';
+    return `<div class="flag ${sev}">
+      <div>
+        <span class="flag-sev">${sevLabel}</span>
+        <span class="flag-title">${esc(f.title || '')}</span>
+        <span class="flag-detail">${esc(f.detail || '')}</span>
+      </div>
+    </div>`;
+  }).join('');
 
   // ── QoE CHARTS SECTION ──────────────────────────────────
   renderQoECharts(r);
@@ -1349,25 +1357,51 @@ function finishReport() {
 
   // KPIs
   const scoreColor2 = score >= 70 ? 'var(--emerald)' : score >= 45 ? 'var(--amber)' : 'var(--crimson)';
-  const riskLabel   = score >= 70 ? 'LOW RISK' : score >= 45 ? 'MODERATE RISK' : 'HIGH RISK';
+  const scoreClass  = score >= 70 ? 'score-green'    : score >= 45 ? 'score-amber'  : 'score-red';
+  const riskLabel   = score >= 70 ? 'LOW RISK'       : score >= 45 ? 'MODERATE RISK': 'HIGH RISK';
+
+  // Color KPI tiles
+  const scoreKpi = document.getElementById('k-score').closest('.kpi');
+  if (scoreKpi) { scoreKpi.className = `kpi ${scoreClass}`; }
   document.getElementById('k-score').textContent  = score;
   document.getElementById('k-score').style.color  = scoreColor2;
   document.getElementById('k-grade').textContent  = riskLabel;
   document.getElementById('k-grade').style.color  = scoreColor2;
+
+  const confKpiClass = avgConf >= 75 ? 'score-green' : avgConf >= 50 ? 'score-amber' : 'score-red';
   const confEl = document.getElementById('k-conf');
   confEl.textContent = avgConf + '%';
   confEl.style.color = avgConf >= 75 ? 'var(--emerald)' : avgConf >= 50 ? 'var(--amber)' : 'var(--crimson)';
+  const confKpi = confEl.closest('.kpi');
+  if (confKpi) confKpi.className = `kpi ${confKpiClass}`;
+
+  const queueKpi = document.getElementById('k-queue').closest('.kpi');
+  if (queueKpi) queueKpi.className = `kpi ${pending > 0 ? 'score-amber' : 'score-green'}`;
   document.getElementById('k-queue').textContent = pending;
+
+  const flagsKpi = document.getElementById('k-flags').closest('.kpi');
+  if (flagsKpi) flagsKpi.className = `kpi ${redCt > 0 ? 'score-red' : 'score-green'}`;
   document.getElementById('k-flags').textContent = redCt;
 
   // Ring arc (r=50, circumference=314)
   document.getElementById('ring-num').textContent = score;
+  document.getElementById('ring-num').style.color = scoreColor2;
   const arc = document.getElementById('score-arc');
   const arcColor = scoreColor2;
   arc.style.stroke = arcColor;
+  // Update ring glow to match score color
+  const glowColor = score >= 70 ? 'rgba(5,150,105,.45)' : score >= 45 ? 'rgba(180,83,9,.4)' : 'rgba(220,38,38,.4)';
+  arc.style.filter = `drop-shadow(0 0 7px ${glowColor})`;
   setTimeout(() => { arc.style.strokeDashoffset = 314 - (score / 100) * 314; }, 200);
   const gradeEl = document.getElementById('ring-grade');
   if (gradeEl) { gradeEl.textContent = ''; gradeEl.style.display = 'none'; }
+  // Risk badge inside ring
+  const riskBadge = document.getElementById('ring-risk');
+  if (riskBadge) {
+    riskBadge.textContent = score >= 70 ? 'LOW' : score >= 45 ? 'MED' : 'HIGH';
+    riskBadge.style.color = scoreColor2;
+    riskBadge.style.display = 'block';
+  }
 
   renderDashboardPanels(r);
 

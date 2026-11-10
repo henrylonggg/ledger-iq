@@ -903,9 +903,16 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   width: 30px; height: 30px; border-radius: 50%;
   background: transparent; border: 1px solid var(--line2);
   color: var(--muted); font-size: 13px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  /* Hidden by default on landing page; JS shows it once inside the app */
+  display: none;
+  align-items: center; justify-content: center;
   transition: background .15s, color .15s, border-color .15s;
   flex-shrink: 0;
+}
+/* JS sets display:'' (empty) which overrides to 'flex' via flex parent context.
+   We use a helper class instead for reliability: */
+.theme-toggle-btn.visible {
+  display: flex;
 }
 .theme-toggle-btn:hover { background: var(--ink2); color: var(--body); border-color: var(--line); }
 [data-theme="light"] .theme-toggle-btn { color: var(--muted); }
@@ -1885,6 +1892,157 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 }
 .qoe-foot-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .qoe-foot-copy { font-size: 12px; color: var(--dim); }
+
+/* ─── PROFESSIONAL POLISH ─────────────────────────────────── */
+
+/* Topbar: subtle gradient + depth */
+.topbar {
+  background: linear-gradient(to bottom, var(--ink1), color-mix(in srgb, var(--ink1) 94%, var(--teal)));
+  box-shadow: 0 1px 0 var(--line), 0 2px 8px rgba(0,0,0,.12);
+}
+
+/* Sidebar: frosted glass-like depth */
+.sidebar {
+  background: linear-gradient(to bottom, var(--ink1) 0%, color-mix(in srgb, var(--ink1) 97%, var(--teal)) 100%);
+  box-shadow: 1px 0 0 var(--line), 2px 0 20px rgba(0,0,0,.08);
+}
+[data-theme="light"] .sidebar {
+  box-shadow: 1px 0 0 var(--line), 2px 0 12px rgba(14,22,38,.06);
+}
+
+/* KPI tiles: more visual depth */
+.kpi {
+  box-shadow: var(--shadow);
+  background: linear-gradient(135deg, var(--ink1) 0%, color-mix(in srgb, var(--ink1) 96%, var(--ink)) 100%);
+}
+.kpi:hover {
+  border-color: var(--teal);
+  box-shadow: 0 4px 20px rgba(18,216,223,.12), var(--shadow);
+  transform: translateY(-1px);
+}
+.kpi { transition: border-color .2s, box-shadow .2s, transform .2s; }
+
+/* Panel label: more polished */
+.panel-label {
+  font-size: 10px;
+  letter-spacing: .11em;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+
+/* Panel hover: add gentle glow */
+.panel:hover {
+  border-color: var(--line);
+  box-shadow: 0 4px 20px rgba(0,0,0,.14);
+}
+[data-theme="light"] .panel:hover {
+  box-shadow: 0 4px 16px rgba(14,22,38,.1);
+}
+
+/* Nav button: refined active state with gradient */
+.nb.active {
+  background: linear-gradient(to right, var(--teal-dim), transparent);
+}
+
+/* Brand: more authoritative */
+.brand-mark { letter-spacing: -.05em; }
+
+/* Topbar title: sharper */
+.tb-title { font-size: 13px; font-weight: 600; letter-spacing: -.01em; }
+
+/* Topbar right: tighter alignment */
+.tb-right { gap: 8px; align-items: center; }
+
+/* Page padding: slightly more breathing room */
+.page { padding: 28px 28px; }
+
+/* Score ring: add glow effect */
+.ring-wrap svg circle:last-of-type {
+  filter: drop-shadow(0 0 6px rgba(18,216,223,.4));
+}
+
+/* Category rows: refined */
+.cat-row {
+  border-radius: 7px;
+  transition: border-color .15s, background .15s;
+}
+.cat-row:hover { background: var(--ink3); }
+
+/* Table: more refined header */
+th {
+  font-size: 10px;
+  letter-spacing: .1em;
+  background: linear-gradient(to bottom, var(--ink2), color-mix(in srgb, var(--ink2) 90%, var(--ink)));
+}
+
+/* Review cards: cleaner */
+.rv { border-radius: 9px; }
+
+/* Auth box: more polished */
+.auth-box {
+  box-shadow: 0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(18,216,223,.06),
+              0 0 60px rgba(18,216,223,.04);
+}
+[data-theme="light"] .auth-box {
+  box-shadow: 0 20px 60px rgba(14,22,38,.18), 0 0 0 1px rgba(10,153,160,.08);
+}
+
+/* Upload page: improved drop zone */
+.terminal-drop {
+  box-shadow: var(--shadow);
+}
+
+/* Analyze button: glow on hover */
+.analyze-btn { letter-spacing: -.015em; }
+
+/* Profile card: more polished */
+.profile-card {
+  box-shadow: var(--shadow);
+  transition: box-shadow .2s;
+}
+.profile-card:hover { box-shadow: var(--shadow-lg); }
+
+/* Light mode: improved topbar contrast */
+[data-theme="light"] .topbar {
+  background: linear-gradient(to bottom, #FFFFFF, #F8FAFE);
+  box-shadow: 0 1px 0 var(--line), 0 2px 8px rgba(14,22,38,.06);
+}
+[data-theme="light"] .tb-title { color: #0E1626; }
+
+/* Light mode: KPI tiles */
+[data-theme="light"] .kpi {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFE 100%);
+}
+[data-theme="light"] .kpi:hover {
+  border-color: var(--teal);
+  box-shadow: 0 4px 20px rgba(10,153,160,.1);
+}
+
+/* Smooth page transitions */
+.page { animation: pageFadeIn .18s ease; }
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Credits badge: refined */
+.header-credits { letter-spacing: .02em; font-size: 10px; }
+
+/* Nav divider: sharper */
+.nav-divider { font-size: 9px; color: var(--dim); opacity: .7; }
+
+/* Scrollbar polish */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 4px; }
+
+/* Compliance accordion polish */
+.qoe-acc { border-radius: 9px; transition: border-color .15s; }
+.qoe-acc:hover { border-color: var(--line2); }
+
+/* Flag cards: more rounded */
+.flag { border-radius: 7px; }
+
 </style>
 </head>
 <body>

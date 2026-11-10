@@ -111,6 +111,9 @@ function loadThemePrefs() {
 // Call on startup
 loadThemePrefs();
 
+// The theme toggle has display:none by default via CSS (.theme-toggle-btn).
+// It's shown with the .visible class inside enterApp() once the landing exits.
+
 // ═══════════════════════════════════
 // AUTH SCREENS
 // ═══════════════════════════════════
@@ -2102,6 +2105,9 @@ function enterApp() {
   landing.classList.add('exit');
   landing.addEventListener('animationend', () => {
     landing.style.display = 'none';
+    // Show the theme toggle now that we're in the app
+    const toggle = document.getElementById('theme-toggle-btn');
+    if (toggle) toggle.classList.add('visible');
   }, { once: true });
 }
 

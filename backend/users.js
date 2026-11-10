@@ -43,7 +43,7 @@ function createUser({ email, name, passwordHash }) {
   const user = {
     id, email: email.toLowerCase(), name,
     passwordHash,
-    credits: 0,          // starts at $0 — user must add credits
+    credits: 5.00,       // starts with $5.00 free credits
     createdAt: new Date().toISOString(),
     usage: []
   };
@@ -70,20 +70,17 @@ function addCredits(id, amount) {
   return users[idx];
 }
 
-/** Deduct credits for a report run. Returns { ok, remaining } */
+/** Deduct credits for a report run. Returns { ok, cost, remaining } */
 function deductCredits(id, tokens) {
   const COST_PER_10K = 0.05;
-  const cost = Math.ceil(tokens / 10000) * COST_PER_10K;
+  const cost = (Math.ceil(tokens / 10000) * COST_PER_10K);
 
   const users = loadUsers();
   const idx   = users.findIndex(u => u.id === id);
-  if (idx === -1) return { ok: false, reason: 'User not found' };
+  if (idx === -1) return { ok: false, reason: 'User not found', cost: 0, remaining: 0 };
 
-  if (users[idx].credits < cost) {
-    return { ok: false, reason: 'Insufficient credits', cost, balance: users[idx].credits };
-  }
-
-  users[idx].credits = Math.round((users[idx].credits - cost) * 100) / 100;
+  users[idx].credits = Math.round((users[idx].credits - cost) * 10000) / 10000;
+  users[idx].usage = users[idx].usage || [];
   users[idx].usage.push({
     date: new Date().toISOString(),
     tokens,

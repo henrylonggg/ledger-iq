@@ -175,7 +175,7 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
       authedUser = usersDb.findById(decoded.id);
     } catch { /* invalid token — treat as unauthenticated */ }
   }
-  if (authedUser !== null && authedUser.credits <= 0) {
+  if (authedUser !== null && authedUser.credits < -1) {
     return res.status(402).json({
       error: 'Insufficient credits. Please add credits to your account to run analyses.',
       credits: authedUser.credits
@@ -300,7 +300,7 @@ app.post('/api/generate-narrative', async (req, res) => {
   if (!DEMO_API_KEY) return res.status(503).json({ error: 'API not configured' });
 
   const authedUser = getAuthedUser(req);
-  if (authedUser !== null && authedUser.credits <= 0) {
+  if (authedUser !== null && authedUser.credits < -1) {
     return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
   }
 
@@ -362,13 +362,15 @@ Write in a formal analyst voice. Be specific to the actual data above — do not
     const narrative = completion.choices[0].message.content;
     const tokens    = completion.usage?.total_tokens || 0;
 
-    // Deduct credits
+    // Deduct credits and return updated balance
+    let creditInfo = null;
     if (authedUser) {
       const dr = usersDb.deductCredits(authedUser.id, tokens);
-      console.log(`[narrative] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(2)}`);
+      creditInfo = { cost: dr.cost, remaining: dr.remaining };
+      console.log(`[narrative] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(4)}`);
     }
 
-    res.json({ narrative, tokens });
+    res.json({ narrative, tokens, creditInfo });
   } catch (err) {
     console.error('[generate-narrative] error:', err);
     res.status(500).json({ error: err.message || 'Generation failed' });
@@ -380,7 +382,7 @@ app.post('/api/generate-summary', async (req, res) => {
   if (!DEMO_API_KEY) return res.status(503).json({ error: 'API not configured' });
 
   const authedUser = getAuthedUser(req);
-  if (authedUser !== null && authedUser.credits <= 0) {
+  if (authedUser !== null && authedUser.credits < -1) {
     return res.status(402).json({ error: 'Insufficient credits', credits: authedUser.credits });
   }
 
@@ -429,13 +431,15 @@ Be direct, specific, and vary the language based on the actual scores. Do not us
     const summary = completion.choices[0].message.content;
     const tokens  = completion.usage?.total_tokens || 0;
 
-    // Deduct credits
+    // Deduct credits and return updated balance
+    let creditInfo = null;
     if (authedUser) {
       const dr = usersDb.deductCredits(authedUser.id, tokens);
-      console.log(`[generate-summary] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(2)}`);
+      creditInfo = { cost: dr.cost, remaining: dr.remaining };
+      console.log(`[generate-summary] user ${authedUser.id} used ${tokens} tokens, cost $${dr.cost?.toFixed(4)}, balance $${dr.remaining?.toFixed(4)}`);
     }
 
-    res.json({ summary, tokens });
+    res.json({ summary, tokens, creditInfo });
   } catch (err) {
     console.error('[generate-summary] error:', err);
     res.status(500).json({ error: err.message || 'Generation failed' });

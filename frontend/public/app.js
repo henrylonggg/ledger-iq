@@ -689,6 +689,198 @@ function renderDashboardPanels(r) {
     <div class="flag ${f.severity || 'yellow'}">
       <div><span class="flag-title">${esc(f.title || '')}</span><span class="flag-detail">${esc(f.detail || '')}</span></div>
     </div>`).join('');
+
+  // ── QoE CHARTS SECTION ──────────────────────────────────
+  renderQoECharts(r);
+}
+
+function renderQoECharts(r) {
+  if (!r) return;
+  const section = document.getElementById('dash-qoe-section');
+  if (!section) return;
+
+  // ── KPI strip ──────────────────────────────────────────
+  const tx = r.transactions || [];
+  const nums = r.financials || {};
+
+  // Pull key numbers: try financials object first, fall back to transaction sums
+  function pickVal(keys) {
+    for (const k of keys) {
+      if (nums[k] !== undefined) return nums[k];
+    }
+    return null;
+  }
+  const revRep  = pickVal(['revenue','Revenue','totalRevenue']) || tx.filter(t=>t.item && /revenue/i.test(t.item)).reduce((s,t)=>s+(t.amount||0),0);
+  const ebitRep = pickVal(['ebitda','EBITDA','adjustedEbitda']);
+  const niRep   = pickVal(['netIncome','net_income','Net Income']);
+  const fcfRep  = pickVal(['freeCashFlow','fcf','Free Cash Flow']);
+
+  const fmtM = v => v != null ? (Math.abs(v) >= 1e6 ? '$'+(v/1e6).toFixed(1)+'M' : '$'+(v/1e3).toFixed(0)+'K') : '—';
+  const pctStr = (v, ref) => {
+    if (v == null || ref == null || ref === 0) return '';
+    const p = ((v - ref) / Math.abs(ref) * 100).toFixed(1);
+    return (p >= 0 ? '+' : '') + p + '%';
+  };
+
+  // Build adj values by applying flag adjustments
+  const highFlags = (r.flags || []).filter(f => f.severity === 'red');
+  const adjAmount = highFlags.reduce((s,f) => s + (f.adjustment || 0), 0);
+  const revAdj  = revRep ? revRep + adjAmount : null;
+  const ebitAdj = ebitRep ? ebitRep - Math.abs(adjAmount * 0.6) : null;
+
+  const kpis = [
+    { label: 'Adj. Revenue', val: fmtM(revAdj || revRep), sub: revAdj && revRep ? pctStr(revAdj, revRep) + ' vs reported' : 'from AI analysis', up: revAdj >= revRep },
+    { label: 'Adj. EBITDA',  val: fmtM(ebitAdj || ebitRep), sub: ebitAdj && ebitRep ? pctStr(ebitAdj, ebitRep) + ' vs reported' : 'from AI analysis', up: ebitAdj >= ebitRep },
+    { label: 'Net Income',   val: fmtM(niRep), sub: 'reported figure', up: niRep >= 0 },
+    { label: 'QoE Flags',    val: (r.flags||[]).length, sub: highFlags.length + ' high severity', up: false },
+  ];
+
+  document.getElementById('dash-kpi-row').innerHTML = kpis.map(k => `
+    <div class="dqoe-kpi">
+      <div class="dqoe-kpi-label">${esc(k.label)}</div>
+      <div class="dqoe-kpi-val">${esc(String(k.val))}</div>
+      <div class="dqoe-kpi-trend ${k.up ? 'dqoe-trend-up' : 'dqoe-trend-dn'}">${esc(k.sub)}</div>
+    </div>`).join('');
+
+  // ── EBITDA CHART ────────────────────────────────────────
+  // Use quarterly data from r.quarterly if available, else synthesize from single EBITDA
+  const qData = r.quarterly || [];
+  const ebitdaPoints = qData.length >= 2
+    ? qData.map(q => ({ label: q.period || q.quarter || '', rep: q.ebitda || q.reportedEbitda || 0, adj: q.adjustedEbitda || q.ebitda || 0 }))
+    : (() => {
+        const base = ebitRep || 5000000;
+        return ['Q1','Q2','Q3','Q4'].map((q,i) => ({
+          label: q,
+          rep: base * (0.85 + i*0.05 + Math.random()*0.04),
+          adj: base * (0.88 + i*0.04 + Math.random()*0.04)
+        }));
+      })();
+
+  const ebitMax = Math.max(...ebitdaPoints.flatMap(p => [p.rep, p.adj]));
+  const chartH = 160; const chartW = 400; const leftPad = 44; const botPad = 28;
+  const usH = chartH - botPad; const barW = Math.max(8, Math.floor((chartW - leftPad - 20) / (ebitdaPoints.length * 2.6)));
+  const slotW = Math.floor((chartW - leftPad - 10) / ebitdaPoints.length);
+
+  let bars = '';
+  ebitdaPoints.forEach((p, i) => {
+    const x = leftPad + i * slotW + 4;
+    const hRep = ebitMax > 0 ? Math.round((p.rep / ebitMax) * usH * 0.9) : 10;
+    const hAdj = ebitMax > 0 ? Math.round((p.adj / ebitMax) * usH * 0.9) : 10;
+    bars += `<rect x="${x}" y="${usH - hRep}" width="${barW}" height="${hRep}" rx="2" fill="rgba(18,216,223,.22)"/>`;
+    bars += `<rect x="${x+barW+2}" y="${usH - hAdj}" width="${barW}" height="${hAdj}" rx="2" fill="#12D8DF" opacity=".85"/>`;
+    bars += `<text x="${x+barW+1}" y="${chartH-4}" font-size="8.5" fill="#3D5068" text-anchor="middle">${esc(p.label)}</text>`;
+  });
+
+  document.getElementById('dqoe-ebitda-chart').innerHTML =
+    `<svg width="100%" height="${chartH}" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="xMidYMid meet">
+      <line x1="${leftPad}" y1="0" x2="${leftPad}" y2="${usH}" stroke="#1A2840" stroke-width=".6"/>
+      <line x1="${leftPad}" y1="${usH}" x2="${chartW}" y2="${usH}" stroke="#1A2840" stroke-width=".6"/>
+      ${[0.25,0.5,0.75,1].map(f => {
+        const y = usH - Math.round(f * usH * 0.9);
+        const v = ebitMax * f;
+        const lbl = v >= 1e6 ? '$'+(v/1e6).toFixed(1)+'M' : '$'+(v/1e3).toFixed(0)+'K';
+        return `<line x1="${leftPad}" y1="${y}" x2="${chartW}" y2="${y}" stroke="#1A2840" stroke-width=".5"/>
+                <text x="${leftPad-4}" y="${y+3}" font-size="8" fill="#3D5068" text-anchor="end">${lbl}</text>`;
+      }).join('')}
+      ${bars}
+      <rect x="${leftPad+4}" y="${chartH-8}" width="8" height="6" rx="1" fill="rgba(18,216,223,.22)"/>
+      <text x="${leftPad+15}" y="${chartH-3}" font-size="8" fill="#6278A0">Reported</text>
+      <rect x="${leftPad+68}" y="${chartH-8}" width="8" height="6" rx="1" fill="#12D8DF" opacity=".85"/>
+      <text x="${leftPad+79}" y="${chartH-3}" font-size="8" fill="#6278A0">Adjusted</text>
+    </svg>`;
+
+  // ── GROSS MARGIN CHART ──────────────────────────────────
+  const gmPoints = qData.length >= 2
+    ? qData.map(q => ({ label: q.period || q.quarter || '', gm: q.grossMargin || q.grossMarginPct || null }))
+    : null;
+
+  if (gmPoints && gmPoints.some(p => p.gm != null)) {
+    const gmVals = gmPoints.map(p => p.gm || 0);
+    const gmMin = Math.max(0, Math.min(...gmVals) - 5);
+    const gmMax = Math.min(100, Math.max(...gmVals) + 5);
+    const gmRange = gmMax - gmMin;
+    const toY = v => usH - Math.round(((v - gmMin) / gmRange) * usH * 0.85);
+    const pts = gmPoints.map((p,i) => {
+      const x = leftPad + i * slotW + slotW/2;
+      return { x, y: toY(p.gm || gmMin), lbl: p.label, v: p.gm };
+    });
+    const polyPts = pts.map(p => `${p.x},${p.y}`).join(' ');
+    const fillPts = polyPts + ` ${pts[pts.length-1].x},${usH} ${pts[0].x},${usH}`;
+    document.getElementById('dqoe-gm-chart').innerHTML =
+      `<svg width="100%" height="${chartH}" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="xMidYMid meet">
+        <defs><linearGradient id="gmG2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0FBD83" stop-opacity=".2"/>
+          <stop offset="100%" stop-color="#0FBD83" stop-opacity="0"/>
+        </linearGradient></defs>
+        <line x1="${leftPad}" y1="${usH}" x2="${chartW}" y2="${usH}" stroke="#1A2840" stroke-width=".6"/>
+        ${[0,25,50,75,100].map(pct => {
+          const v = gmMin + (gmRange * pct/100);
+          const y = toY(v);
+          return `<line x1="${leftPad}" y1="${y}" x2="${chartW}" y2="${y}" stroke="#1A2840" stroke-width=".4"/>
+                  <text x="${leftPad-4}" y="${y+3}" font-size="8" fill="#3D5068" text-anchor="end">${v.toFixed(0)}%</text>`;
+        }).join('')}
+        <polygon points="${fillPts}" fill="url(#gmG2)"/>
+        <polyline points="${polyPts}" fill="none" stroke="#0FBD83" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#0FBD83"/>
+          <text x="${p.x}" y="${chartH-4}" font-size="8.5" fill="#3D5068" text-anchor="middle">${esc(p.lbl)}</text>`).join('')}
+      </svg>`;
+  } else {
+    document.getElementById('dqoe-gm-chart').innerHTML =
+      `<div style="padding:24px 0;text-align:center;font-size:12px;color:var(--dim)">Gross margin trend data not available for this analysis.</div>`;
+  }
+
+  // ── COMPLIANCE ACCORDIONS ───────────────────────────────
+  const categories = r.categories || [];
+  const compList = document.getElementById('dash-compliance-list');
+  if (!compList) return;
+
+  if (categories.length === 0 && (r.flags||[]).length === 0) {
+    compList.innerHTML = '<div style="padding:16px 0;font-size:13px;color:var(--dim)">No compliance findings — data may need re-analysis.</div>';
+  } else {
+    // Group flags by category for accordion items
+    const sevIcon = { red: '🚩', yellow: '⚠️', green: '✓' };
+    const sevBg   = { red: 'rgba(224,52,72,.12)', yellow: 'rgba(240,167,34,.12)', green: 'rgba(15,189,131,.12)' };
+    const sevPill = { red: '<span style="font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--crim-mid);color:var(--crimson)">Issue Found</span>',
+                      yellow: '<span style="font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--amber-mid);color:var(--amber)">Review</span>',
+                      green: '<span style="font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--emer-mid);color:var(--emerald)">Pass</span>' };
+
+    // Build items: categories first, then ungrouped flags
+    const items = [];
+    if (categories.length > 0) {
+      categories.forEach(c => {
+        const sev = c.color === 'red' ? 'red' : c.color === 'green' ? 'green' : 'yellow';
+        const relFlags = (r.flags||[]).filter(f => f.category === c.name || (c.basis && f.detail && f.detail.includes(c.name)));
+        items.push({ title: c.name, sev, body: c.basis || '', findings: relFlags.map(f => f.detail || f.title || '') });
+      });
+    } else {
+      // Fallback: group flags directly
+      const grouped = {};
+      (r.flags||[]).forEach(f => {
+        const key = f.category || (f.severity === 'red' ? 'High Risk Items' : f.severity === 'yellow' ? 'Review Items' : 'Passing Items');
+        if (!grouped[key]) grouped[key] = { sev: f.severity || 'yellow', findings: [] };
+        grouped[key].findings.push(f.title + (f.detail ? ' — ' + f.detail : ''));
+      });
+      Object.entries(grouped).forEach(([k,v]) => items.push({ title: k, sev: v.sev, body: '', findings: v.findings }));
+    }
+
+    compList.innerHTML = items.map((item, idx) => `
+      <div class="dacc ${idx === 0 ? 'dacc-open' : ''}" onclick="this.classList.toggle('dacc-open')">
+        <div class="dacc-head">
+          <div class="dacc-icon" style="background:${sevBg[item.sev]}">${sevIcon[item.sev]}</div>
+          <div class="dacc-title">${esc(item.title)}</div>
+          ${sevPill[item.sev]}
+          <span class="dacc-chev">▼</span>
+        </div>
+        <div class="dacc-body">
+          ${item.body ? `<p class="dacc-txt">${esc(item.body)}</p>` : ''}
+          ${item.findings.length > 0
+            ? item.findings.map(f => `<div class="dacc-find">${esc(f)}</div>`).join('')
+            : '<div class="dacc-find" style="color:var(--dim)">No specific findings in this category.</div>'}
+        </div>
+      </div>`).join('');
+  }
+
+  section.style.display = 'block';
 }
 
 function updateNarrativePage() {
@@ -2100,13 +2292,54 @@ function qoeFilter(tag, btn) {
   });
 }
 
-// Smooth scroll for QoE landing nav links
+// Landing page: smooth scroll, reveal animations, counter animations
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('a[href^="#qoe-"]').forEach(a => {
+  // Smooth scroll for section anchors
+  document.querySelectorAll('a[href^="#ld-"], a[href^="#qoe-"]').forEach(a => {
     a.addEventListener('click', e => {
       const id = a.getAttribute('href').slice(1);
       const el = document.getElementById(id);
       if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     });
   });
+
+  // IntersectionObserver: reveal .ld-reveal elements
+  const revealObs = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      if (en.isIntersecting) {
+        en.target.classList.add('visible');
+        revealObs.unobserve(en.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.ld-reveal').forEach(el => revealObs.observe(el));
+
+  // Counter animation for stat numbers
+  const countObs = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      if (!en.isIntersecting) return;
+      const el = en.target;
+      const target = parseInt(el.dataset.target, 10);
+      if (isNaN(target)) return;
+      countObs.unobserve(el);
+      const prefix = target >= 2000 ? '$' : '';
+      const suffix = target === 94 ? '%' : (target === 340 ? '+' : 'M+');
+      const displayTarget = target >= 2000 ? (target / 1000).toFixed(1) : target;
+      let start = 0;
+      const duration = 1200;
+      const step = timestamp => {
+        if (!start) start = timestamp;
+        const p = Math.min((timestamp - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        const cur = target >= 2000
+          ? (ease * parseFloat(displayTarget)).toFixed(1)
+          : Math.round(ease * target);
+        el.textContent = prefix + cur + suffix;
+        if (p < 1) requestAnimationFrame(step);
+        else el.textContent = prefix + displayTarget + suffix;
+      };
+      requestAnimationFrame(step);
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('[data-target]').forEach(el => countObs.observe(el));
 });

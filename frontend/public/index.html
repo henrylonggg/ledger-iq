@@ -1355,17 +1355,247 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   .ld-foot-tags { display: none; }
 }
 
-/* ── QOE LANDING: NEW SECTIONS ──────────────────────────── */
+/* ── NEW LANDING PAGE ───────────────────────────────────── */
 
-/* Sticky nav override */
-.qoe-nav {
-  position: sticky; top: 0; z-index: 10;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 32px; height: 58px;
-  background: rgba(4,8,15,.88);
-  backdrop-filter: blur(16px);
+/* Nav */
+.ld-nav {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; gap: 24px;
+  padding: 0 36px; height: 58px;
+  background: rgba(4,8,15,.92);
+  backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--line);
 }
+.ld-nav-brand {
+  font-size: 17px; font-weight: 700; color: var(--bright);
+  letter-spacing: -.03em; margin-right: auto;
+}
+.ld-nav-brand em { font-style: normal; color: var(--teal); }
+.ld-nav-links { display: flex; gap: 24px; }
+.ld-nav-link { font-size: 13px; color: var(--muted); text-decoration: none; transition: color .15s; }
+.ld-nav-link:hover { color: var(--bright); }
+@media (max-width: 680px) { .ld-nav-links { display: none; } }
+
+/* Hero */
+.ld-hero {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 40px; padding: 80px 36px 70px;
+  max-width: 1160px; margin: 0 auto;
+}
+@media (max-width: 900px) {
+  .ld-hero { flex-direction: column; padding: 56px 24px 48px; }
+  .ld-preview-wrap { width: 100%; max-width: 440px; }
+}
+.ld-hero-inner { flex: 1; max-width: 540px; }
+.ld-hero-badge {
+  display: inline-block;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em;
+  color: var(--teal); background: var(--teal-dim); border: 1px solid var(--teal-mid);
+  padding: 5px 12px; border-radius: 20px; margin-bottom: 24px;
+}
+.ld-hero-h1 {
+  font-size: clamp(36px, 5vw, 54px);
+  font-weight: 800; color: var(--bright);
+  letter-spacing: -.04em; line-height: 1.08;
+  margin-bottom: 20px;
+}
+.ld-teal-word { color: var(--teal); }
+.ld-hero-sub {
+  font-size: 16px; color: var(--muted); line-height: 1.65;
+  max-width: 480px; margin-bottom: 32px;
+}
+.ld-hero-cta { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 44px; }
+.ld-enter-lg { font-size: 14px; padding: 12px 26px; }
+.ld-ghost-cta {
+  font-size: 14px; color: var(--muted); text-decoration: none;
+  display: flex; align-items: center; gap: 6px; transition: color .15s;
+}
+.ld-ghost-cta:hover { color: var(--bright); }
+.ld-hero-stats { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.ld-hstat-num {
+  font-size: 24px; font-weight: 800; color: var(--bright);
+  letter-spacing: -.04em; font-variant-numeric: tabular-nums;
+  margin-bottom: 2px;
+}
+.ld-hstat-lbl { font-size: 11.5px; color: var(--dim); line-height: 1.4; }
+.ld-hstat-sep { width: 1px; height: 32px; background: var(--line); }
+
+/* Preview card */
+.ld-preview-wrap { flex: 0 0 360px; }
+.ld-preview-card {
+  background: var(--ink1); border: 1px solid var(--line); border-radius: 12px;
+  overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.ld-pv-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--line);
+  background: var(--ink2);
+}
+.ld-pv-dots { display: flex; gap: 5px; }
+.ld-pv-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.ld-pv-title { font-size: 11.5px; color: var(--dim); font-family: var(--mono); }
+.ld-pv-body { padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+.ld-pv-score-row { display: flex; align-items: center; gap: 14px; }
+.ld-pv-score-label { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+.ld-pv-score-grade { font-size: 14px; font-weight: 700; }
+.ld-pv-flags { display: flex; flex-direction: column; gap: 6px; }
+.ld-pv-flag { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 11.5px; }
+.ld-pv-sev { font-family: var(--mono); font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+.ld-pv-red { background: var(--crim-dim); color: var(--body); }
+.ld-pv-red .ld-pv-sev { background: var(--crim-mid); color: var(--crimson); }
+.ld-pv-amber { background: var(--amber-dim); color: var(--body); }
+.ld-pv-amber .ld-pv-sev { background: var(--amber-mid); color: var(--amber); }
+.ld-pv-green { background: var(--emer-dim); color: var(--body); }
+.ld-pv-green .ld-pv-sev { background: var(--emer-mid); color: var(--emerald); }
+.ld-pv-metrics { display: flex; gap: 0; border-top: 1px solid var(--line); padding-top: 12px; }
+.ld-pv-metric { flex: 1; text-align: center; padding: 0 8px; border-right: 1px solid var(--line); }
+.ld-pv-metric:last-child { border-right: none; }
+.ld-pv-m-val { font-size: 15px; font-weight: 700; color: var(--bright); letter-spacing: -.02em; margin-bottom: 2px; }
+.ld-pv-m-lbl { font-family: var(--mono); font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+
+/* Sections */
+.ld-section { padding: 80px 36px; }
+.ld-feat-section { background: rgba(14,20,32,.5); }
+.ld-section-inner { max-width: 1100px; margin: 0 auto; }
+.ld-section-label {
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .08em;
+  color: var(--teal); text-transform: uppercase; margin-bottom: 16px;
+}
+.ld-section-h2 {
+  font-size: clamp(24px, 3.5vw, 34px); font-weight: 800;
+  color: var(--bright); letter-spacing: -.03em; line-height: 1.18;
+  margin-bottom: 48px; max-width: 560px;
+}
+
+/* Steps grid */
+.ld-steps-grid {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 2px;
+}
+@media (max-width: 860px) { .ld-steps-grid { grid-template-columns: repeat(2,1fr); gap: 2px; } }
+@media (max-width: 480px) { .ld-steps-grid { grid-template-columns: 1fr; } }
+.ld-step-card {
+  background: var(--ink1); border: 1px solid var(--line);
+  padding: 28px 24px; position: relative;
+  transition: border-color .2s, background .2s;
+}
+.ld-step-card:first-child { border-radius: 10px 0 0 10px; }
+.ld-step-card:last-child { border-radius: 0 10px 10px 0; }
+@media (max-width: 860px) {
+  .ld-step-card:nth-child(1) { border-radius: 10px 0 0 0; }
+  .ld-step-card:nth-child(2) { border-radius: 0 10px 0 0; }
+  .ld-step-card:nth-child(3) { border-radius: 0 0 0 10px; }
+  .ld-step-card:nth-child(4) { border-radius: 0 0 10px 0; }
+}
+.ld-step-card:hover { border-color: var(--line2); background: var(--ink2); }
+.ld-step-icon { margin-bottom: 16px; }
+.ld-step-n {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  color: var(--dim); margin-bottom: 10px;
+}
+.ld-step-title { font-size: 15px; font-weight: 700; color: var(--bright); margin-bottom: 10px; line-height: 1.3; }
+.ld-step-body { font-size: 13px; color: var(--muted); line-height: 1.65; margin-bottom: 16px; }
+.ld-step-tag {
+  display: inline-block; font-family: var(--mono); font-size: 9.5px; font-weight: 600;
+  color: var(--dim); background: var(--ink3); border: 1px solid var(--line2);
+  padding: 3px 10px; border-radius: 20px; letter-spacing: .05em;
+}
+
+/* Features grid */
+.ld-feat-grid {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 2px;
+}
+@media (max-width: 800px) { .ld-feat-grid { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 480px) { .ld-feat-grid { grid-template-columns: 1fr; } }
+.ld-feat {
+  background: var(--ink1); border: 1px solid var(--line);
+  padding: 28px 24px; transition: border-color .2s;
+}
+.ld-feat:first-child { border-radius: 10px 0 0 0; }
+.ld-feat:nth-child(3) { border-radius: 0 10px 0 0; }
+.ld-feat:nth-child(4) { border-radius: 0 0 0 10px; }
+.ld-feat:last-child { border-radius: 0 0 10px 0; }
+.ld-feat:hover { border-color: var(--line2); }
+.ld-feat-icon {
+  width: 40px; height: 40px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+}
+.ld-feat-title { font-size: 15px; font-weight: 700; color: var(--bright); margin-bottom: 10px; }
+.ld-feat-body { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+/* Bottom CTA */
+.ld-bottom-cta {
+  padding: 96px 36px; text-align: center;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(18,216,223,.04) 0%, transparent 70%);
+}
+
+/* Footer */
+.ld-footer {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 24px 36px; border-top: 1px solid var(--line);
+  max-width: 1160px; margin: 0 auto;
+}
+.ld-foot-brand { font-size: 15px; font-weight: 700; color: var(--bright); letter-spacing: -.02em; margin-right: auto; }
+.ld-foot-brand em { font-style: normal; color: var(--teal); }
+.ld-foot-copy { font-size: 12px; color: var(--dim); }
+.ld-foot-links { display: flex; gap: 16px; }
+.ld-foot-links a { font-size: 12px; color: var(--dim); text-decoration: none; }
+.ld-foot-links a:hover { color: var(--muted); }
+
+/* ── DASHBOARD QoE SECTION ───────────────────────────────── */
+.dqoe-kpi-row {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 14px;
+  margin-bottom: 18px;
+}
+@media (max-width: 860px) { .dqoe-kpi-row { grid-template-columns: repeat(2,1fr); } }
+.dqoe-kpi {
+  background: var(--ink1); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 16px 18px;
+}
+.dqoe-kpi-label { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.dqoe-kpi-val { font-size: 22px; font-weight: 700; color: var(--bright); letter-spacing: -.04em; margin-bottom: 4px; }
+.dqoe-kpi-trend { font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 5px; }
+.dqoe-trend-up { color: var(--emerald); }
+.dqoe-trend-dn { color: var(--crimson); }
+.dqoe-trend-nt { color: var(--muted); }
+.dqoe-spark { display: block; margin-top: 10px; }
+
+.dqoe-charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 680px) { .dqoe-charts-grid { grid-template-columns: 1fr; } }
+.dqoe-chart-panel { }
+.dqoe-chart-sub { font-size: 11px; color: var(--dim); margin-bottom: 14px; }
+
+/* compliance accordions in dashboard */
+.dacc { border-bottom: 1px solid var(--line); }
+.dacc:last-child { border-bottom: none; }
+.dacc-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 4px; cursor: pointer; user-select: none;
+}
+.dacc-icon { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.dacc-title { font-size: 13px; font-weight: 600; color: var(--bright); flex: 1; }
+.dacc-chev { color: var(--dim); font-size: 10px; transition: transform .2s; }
+.dacc-open .dacc-chev { transform: rotate(180deg); }
+.dacc-body { display: none; padding: 0 4px 14px 36px; }
+.dacc-open .dacc-body { display: block; }
+.dacc-txt { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-bottom: 8px; }
+.dacc-find { display: flex; gap: 8px; font-size: 12px; color: var(--body); padding: 2px 0; }
+.dacc-find::before { content: "→"; color: var(--dim); flex-shrink: 0; }
+
+/* Animations */
+@keyframes ldFadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ld-fade-in { opacity: 0; animation: ldFadeIn .6s cubic-bezier(.2,0,.4,1) forwards; }
+
+@keyframes ldReveal {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ld-reveal { opacity: 0; }
+.ld-reveal.visible { animation: ldReveal .55s cubic-bezier(.2,0,.4,1) forwards; }
+
+/* OLD QoE NAV styles – preserved for dashboard usage, remapped */
 .qoe-logo {
   display: flex; align-items: center; gap: 10px;
   font-size: 17px; font-weight: 700; color: var(--bright);
@@ -1569,356 +1799,205 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   <div class="ld-grid"></div>
   <div class="ld-scan"></div>
 
-  <!-- ── STICKY NAV ── -->
-  <nav class="qoe-nav">
-    <a href="#" class="qoe-logo">
-      <div class="qoe-logo-mark">L</div>
-      LedgerIQ
-    </a>
-    <ul class="qoe-nav-links">
-      <li><a href="#qoe-overview" class="qoe-nl">Overview</a></li>
-      <li><a href="#qoe-metrics" class="qoe-nl">Metrics</a></li>
-      <li><a href="#qoe-compliance" class="qoe-nl">Compliance</a></li>
-      <li><a href="#" class="qoe-nl" onclick="showContactModal();return false;">Contact</a></li>
-      <li><a href="#" class="qoe-nl" onclick="showTermsModal();return false;">Terms</a></li>
-    </ul>
-    <button class="ld-enter qoe-enter-sm" id="ld-enter-btn">
-      Start Analysis
+  <!-- ── NAV ── -->
+  <nav class="ld-nav">
+    <div class="ld-nav-brand">Ledger<em>IQ</em></div>
+    <div class="ld-nav-links">
+      <a href="#ld-how" class="ld-nav-link">How it works</a>
+      <a href="#ld-features" class="ld-nav-link">Features</a>
+      <a href="#" class="ld-nav-link" onclick="showContactModal();return false;">Contact</a>
+    </div>
+    <button class="ld-enter" id="ld-enter-btn">
+      Enter Platform
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
     </button>
   </nav>
 
   <!-- ── HERO ── -->
-  <section class="qoe-hero" id="qoe-overview">
-    <div class="qoe-hero-left">
-      <div class="qoe-eyebrow">AI-Powered QoE Analysis</div>
-      <h1 class="qoe-h1">Earnings quality<br>made <em>transparent.</em></h1>
-      <p class="qoe-desc">
-        LedgerIQ scans every financial file you upload — income statements, balance sheets, cash-flow schedules — and surfaces adjustments, one-time items, and working-capital anomalies that matter in M&amp;A due diligence.
+  <section class="ld-hero">
+    <div class="ld-hero-inner">
+      <div class="ld-hero-badge ld-fade-in" style="animation-delay:.05s">AI-Powered Quality of Earnings</div>
+      <h1 class="ld-hero-h1 ld-fade-in" style="animation-delay:.15s">
+        Due diligence<br>that sees <span class="ld-teal-word">everything.</span>
+      </h1>
+      <p class="ld-hero-sub ld-fade-in" style="animation-delay:.28s">
+        LedgerIQ is an AI platform built for M&amp;A professionals. Upload financial documents and get a full Quality of Earnings analysis — flagged anomalies, adjusted EBITDA, compliance review — in minutes, not days.
       </p>
-      <div class="qoe-cta-row">
-        <button class="ld-enter" id="ld-enter-btn-hero" onclick="document.getElementById('ld-enter-btn').click()">
-          Enter Platform
+      <div class="ld-hero-cta ld-fade-in" style="animation-delay:.38s">
+        <button class="ld-enter ld-enter-lg" onclick="document.getElementById('ld-enter-btn').click()">
+          Start Your Analysis
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
         </button>
-        <a href="#qoe-metrics" class="qoe-ghost-btn">View Sample Report</a>
+        <a href="#ld-how" class="ld-ghost-cta">See how it works</a>
       </div>
-      <div class="qoe-stats-strip">
-        <div class="qoe-stat"><div class="qoe-stat-num">$2.4B</div><div class="qoe-stat-lbl">Deal value analyzed</div></div>
-        <div class="qoe-stat"><div class="qoe-stat-num">340+</div><div class="qoe-stat-lbl">QoE reports generated</div></div>
-        <div class="qoe-stat"><div class="qoe-stat-num">94%</div><div class="qoe-stat-lbl">Flag detection accuracy</div></div>
+      <div class="ld-hero-stats ld-fade-in" style="animation-delay:.5s">
+        <div class="ld-hstat"><div class="ld-hstat-num" data-target="2400">$0</div><div class="ld-hstat-lbl">million in deal value analyzed</div></div>
+        <div class="ld-hstat-sep"></div>
+        <div class="ld-hstat"><div class="ld-hstat-num" data-target="340">0</div><div class="ld-hstat-lbl">QoE reports generated</div></div>
+        <div class="ld-hstat-sep"></div>
+        <div class="ld-hstat"><div class="ld-hstat-num" data-target="94">0</div><div class="ld-hstat-lbl">percent flag detection accuracy</div></div>
       </div>
     </div>
 
-    <!-- Hero right: live score card -->
-    <div class="qoe-hero-right">
-      <div class="qoe-score-card">
-        <div class="qoe-sc-header">
-          <span class="qoe-sc-title">QoE Score</span>
-          <span class="qoe-pill qoe-pill-amber">Review Needed</span>
+    <!-- floating card preview -->
+    <div class="ld-preview-wrap ld-fade-in" style="animation-delay:.45s">
+      <div class="ld-preview-card">
+        <div class="ld-pv-header">
+          <div class="ld-pv-dots"><span></span><span></span><span></span></div>
+          <div class="ld-pv-title">QoE Analysis — Acme Corp FY 2024</div>
         </div>
-        <div class="qoe-score-row">
-          <svg width="88" height="88" viewBox="0 0 88 88">
-            <circle cx="44" cy="44" r="36" fill="none" stroke="#1A2840" stroke-width="8"/>
-            <circle cx="44" cy="44" r="36" fill="none" stroke="url(#qoeArcGrad)" stroke-width="8"
-              stroke-linecap="round" stroke-dasharray="160 66" stroke-dashoffset="56.5"
-              transform="rotate(-90 44 44)" id="ld-ring-arc"/>
-            <defs>
-              <linearGradient id="qoeArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <div class="ld-pv-body">
+          <div class="ld-pv-score-row">
+            <svg width="64" height="64" viewBox="0 0 64 64">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="#1A2840" stroke-width="6"/>
+              <circle cx="32" cy="32" r="26" fill="none" stroke="url(#pvGrad)" stroke-width="6"
+                stroke-linecap="round" stroke-dasharray="118 46" stroke-dashoffset="41"
+                transform="rotate(-90 32 32)"/>
+              <defs><linearGradient id="pvGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stop-color="#F0A722"/>
                 <stop offset="100%" stop-color="#12D8DF"/>
-              </linearGradient>
-            </defs>
-          </svg>
-          <div>
-            <div class="qoe-score-num">71<span class="qoe-score-denom">/100</span></div>
-            <div class="qoe-score-co">Acme Corp — FY 2024</div>
+              </linearGradient></defs>
+              <text x="32" y="37" text-anchor="middle" font-size="13" font-weight="700" fill="#E2EAF7" font-family="Inter,sans-serif">71</text>
+            </svg>
+            <div>
+              <div class="ld-pv-score-label">QoE Score</div>
+              <div class="ld-pv-score-grade" style="color:#F0A722">Review Needed</div>
+            </div>
+          </div>
+          <div class="ld-pv-flags">
+            <div class="ld-pv-flag ld-pv-red"><span class="ld-pv-sev">HIGH</span><span>Revenue recognition timing — Q4</span></div>
+            <div class="ld-pv-flag ld-pv-amber"><span class="ld-pv-sev">MED</span><span>D&amp;A add-back inconsistency</span></div>
+            <div class="ld-pv-flag ld-pv-green"><span class="ld-pv-sev">LOW</span><span>Working capital within range</span></div>
+          </div>
+          <div class="ld-pv-metrics">
+            <div class="ld-pv-metric"><div class="ld-pv-m-val">$48.2M</div><div class="ld-pv-m-lbl">Adj. Revenue</div></div>
+            <div class="ld-pv-metric"><div class="ld-pv-m-val" style="color:#0FBD83">$9.1M</div><div class="ld-pv-m-lbl">Adj. EBITDA</div></div>
+            <div class="ld-pv-metric"><div class="ld-pv-m-val" style="color:#E03448">3 flags</div><div class="ld-pv-m-lbl">Need review</div></div>
           </div>
         </div>
-        <div class="qoe-mini-flags">
-          <div class="qoe-mf qoe-mf-high"><span class="qoe-mf-txt">Revenue recognition timing gap — Q4</span><span class="qoe-mf-sev">HIGH</span></div>
-          <div class="qoe-mf qoe-mf-mid"><span class="qoe-mf-txt">D&amp;A add-back inconsistency</span><span class="qoe-mf-sev">MED</span></div>
-          <div class="qoe-mf qoe-mf-low"><span class="qoe-mf-txt">Working capital within normal range</span><span class="qoe-mf-sev">LOW</span></div>
-        </div>
-      </div>
-      <!-- How it works steps -->
-      <div class="ld-steps">
-        <div class="ld-step"><div class="ld-step-num">01</div><div class="ld-step-content"><div class="ld-step-title">Upload your documents</div><div class="ld-step-desc">Income statements, AR aging, debt schedules — 25+ formats.</div></div><div class="ld-step-tag">PDF · XLSX · CSV</div></div>
-        <div class="ld-step"><div class="ld-step-num">02</div><div class="ld-step-content"><div class="ld-step-title">AI parses every line item</div><div class="ld-step-desc">GPT-4o mini flags anomalies and builds a structured dataset.</div></div><div class="ld-step-tag">GPT-4o mini</div></div>
-        <div class="ld-step"><div class="ld-step-num">03</div><div class="ld-step-content"><div class="ld-step-title">Review flags &amp; confidence scores</div><div class="ld-step-desc">Each finding rated 0–100. Red = high risk; yellow = review.</div></div><div class="ld-step-tag">SCORED</div></div>
-        <div class="ld-step"><div class="ld-step-num">04</div><div class="ld-step-content"><div class="ld-step-title">Read the full QoE report</div><div class="ld-step-desc">Narrative analysis with deal-level risk grade and commentary.</div></div><div class="ld-step-tag">REPORT</div></div>
       </div>
     </div>
   </section>
 
-  <div class="qoe-divider"></div>
-
-  <!-- ── KPI CARDS ── -->
-  <section class="qoe-section" id="qoe-metrics">
-    <div class="qoe-section-eyebrow">Financial Metrics</div>
-    <h2 class="qoe-h2">Adjusted Earnings Summary</h2>
-    <p class="qoe-section-sub">Key income metrics after QoE adjustments, compared to prior period and original reported figures.</p>
-
-    <div class="qoe-kpi-grid">
-      <div class="qoe-kpi-card">
-        <div class="qoe-kpi-label">Adjusted Revenue</div>
-        <div class="qoe-kpi-val">$48.2M</div>
-        <div class="qoe-kpi-trend qoe-trend-up"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 2l4 6H1z" fill="currentColor"/></svg>+6.4% YoY</div>
-        <svg class="qoe-spark" width="100%" height="36" viewBox="0 0 200 36" preserveAspectRatio="none">
-          <polyline points="0,30 33,25 66,20 100,22 133,15 166,10 200,8" fill="none" stroke="#12D8DF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="0,30 33,25 66,20 100,22 133,15 166,10 200,8 200,36 0,36" fill="rgba(18,216,223,.07)" stroke="none"/>
-        </svg>
-      </div>
-      <div class="qoe-kpi-card">
-        <div class="qoe-kpi-label">Adjusted EBITDA</div>
-        <div class="qoe-kpi-val">$9.1M</div>
-        <div class="qoe-kpi-trend qoe-trend-up"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 2l4 6H1z" fill="currentColor"/></svg>+2.1% vs reported</div>
-        <svg class="qoe-spark" width="100%" height="36" viewBox="0 0 200 36" preserveAspectRatio="none">
-          <polyline points="0,32 33,28 66,26 100,30 133,22 166,18 200,14" fill="none" stroke="#0FBD83" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="0,32 33,28 66,26 100,30 133,22 166,18 200,14 200,36 0,36" fill="rgba(15,189,131,.07)" stroke="none"/>
-        </svg>
-      </div>
-      <div class="qoe-kpi-card">
-        <div class="qoe-kpi-label">Net Income</div>
-        <div class="qoe-kpi-val">$3.8M</div>
-        <div class="qoe-kpi-trend qoe-trend-down"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 8l4-6H1z" fill="currentColor"/></svg>−1.2% vs reported</div>
-        <svg class="qoe-spark" width="100%" height="36" viewBox="0 0 200 36" preserveAspectRatio="none">
-          <polyline points="0,10 33,14 66,12 100,16 133,20 166,24 200,22" fill="none" stroke="#E03448" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="0,10 33,14 66,12 100,16 133,20 166,24 200,22 200,36 0,36" fill="rgba(224,52,72,.07)" stroke="none"/>
-        </svg>
-      </div>
-      <div class="qoe-kpi-card">
-        <div class="qoe-kpi-label">Free Cash Flow</div>
-        <div class="qoe-kpi-val">$6.3M</div>
-        <div class="qoe-kpi-trend qoe-trend-up"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 2l4 6H1z" fill="currentColor"/></svg>+11.7% YoY</div>
-        <svg class="qoe-spark" width="100%" height="36" viewBox="0 0 200 36" preserveAspectRatio="none">
-          <polyline points="0,30 33,22 66,25 100,18 133,14 166,10 200,6" fill="none" stroke="#12D8DF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="0,30 33,22 66,25 100,18 133,14 166,10 200,6 200,36 0,36" fill="rgba(18,216,223,.07)" stroke="none"/>
-        </svg>
+  <!-- ── HOW IT WORKS ── -->
+  <section class="ld-section" id="ld-how">
+    <div class="ld-section-inner">
+      <div class="ld-section-label">Process</div>
+      <h2 class="ld-section-h2">From documents to deal confidence in four steps.</h2>
+      <div class="ld-steps-grid">
+        <div class="ld-step-card ld-reveal">
+          <div class="ld-step-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div class="ld-step-n">01</div>
+          <div class="ld-step-title">Upload your financials</div>
+          <div class="ld-step-body">Income statements, balance sheets, AR aging reports, debt schedules — drag and drop any combination of PDF, XLSX, or CSV files.</div>
+          <div class="ld-step-tag">25+ document types</div>
+        </div>
+        <div class="ld-step-card ld-reveal" style="animation-delay:.08s">
+          <div class="ld-step-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          </div>
+          <div class="ld-step-n">02</div>
+          <div class="ld-step-title">AI parses every line item</div>
+          <div class="ld-step-body">GPT-4o mini extracts, normalizes, and cross-references every transaction, then scores each item on a 0–100 confidence scale.</div>
+          <div class="ld-step-tag">GPT-4o mini</div>
+        </div>
+        <div class="ld-step-card ld-reveal" style="animation-delay:.16s">
+          <div class="ld-step-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="ld-step-n">03</div>
+          <div class="ld-step-title">Review flags and scores</div>
+          <div class="ld-step-body">Each anomaly is surfaced with severity, context, and an accept/reject workflow. Your decisions update the adjusted score in real time.</div>
+          <div class="ld-step-tag">Live scoring</div>
+        </div>
+        <div class="ld-step-card ld-reveal" style="animation-delay:.24s">
+          <div class="ld-step-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div class="ld-step-n">04</div>
+          <div class="ld-step-title">Export the full QoE report</div>
+          <div class="ld-step-body">Get a narrative analysis, adjusted EBITDA bridge, compliance review, and deal-grade risk summary — ready to share with advisors or the deal team.</div>
+          <div class="ld-step-tag">Export-ready</div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ── DATA TABLE ── -->
-  <section class="qoe-section" style="padding-top:0">
-    <div class="qoe-table-wrap">
-      <div class="qoe-table-toolbar">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="qoe-table-title">Line-Item Detail</span>
-          <span class="qoe-tbl-count">12 items</span>
+  <!-- ── FEATURES ── -->
+  <section class="ld-section ld-feat-section" id="ld-features">
+    <div class="ld-section-inner">
+      <div class="ld-section-label">What you get</div>
+      <h2 class="ld-section-h2">Every layer of a Quality of Earnings analysis.</h2>
+      <div class="ld-feat-grid">
+        <div class="ld-feat ld-reveal">
+          <div class="ld-feat-icon" style="background:var(--teal-dim)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          </div>
+          <div class="ld-feat-title">Adjusted EBITDA bridge</div>
+          <div class="ld-feat-body">Every one-time, non-recurring, and owner-related item identified and broken out in a clean bridge from reported to adjusted earnings.</div>
         </div>
-        <div style="display:flex;gap:8px">
-          <button class="qoe-tbl-btn qoe-tbl-btn-active" onclick="qoeFilter('all',this)">All</button>
-          <button class="qoe-tbl-btn" onclick="qoeFilter('flag',this)">Flagged</button>
-          <button class="qoe-tbl-btn" onclick="qoeFilter('adj',this)">Adjusted</button>
+        <div class="ld-feat ld-reveal" style="animation-delay:.06s">
+          <div class="ld-feat-icon" style="background:var(--amber-dim)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div class="ld-feat-title">Compliance checks</div>
+          <div class="ld-feat-body">Automated review against ASC 606, ASC 842, and off-balance-sheet disclosure requirements. Issues surfaced with specific citations.</div>
         </div>
-      </div>
-      <div style="overflow-x:auto">
-        <table id="qoe-detail-table">
-          <thead><tr>
-            <th>Metric</th>
-            <th>Reported ($K)</th>
-            <th>Adjusted ($K)</th>
-            <th>Δ vs Prior Year</th>
-            <th>Quality</th>
-            <th>Notes</th>
-          </tr></thead>
-          <tbody>
-            <tr data-qtag="flag adj"><td class="qoe-td-metric">Revenue</td><td class="qoe-td-num">48,620</td><td class="qoe-td-num">48,180</td><td class="qoe-td-num qoe-dpos">+6.4%</td><td><span class="qoe-pill qoe-pill-amber">Review</span></td><td class="qoe-td-note">Q4 pull-forward — $440K</td></tr>
-            <tr data-qtag="adj"><td class="qoe-td-metric">Cost of Revenue</td><td class="qoe-td-num">26,140</td><td class="qoe-td-num">26,140</td><td class="qoe-td-num qoe-dpos">+4.1%</td><td><span class="qoe-pill qoe-pill-green">Pass</span></td><td class="qoe-td-note">No adjustment required</td></tr>
-            <tr data-qtag="flag"><td class="qoe-td-metric">Gross Profit</td><td class="qoe-td-num">22,480</td><td class="qoe-td-num">22,040</td><td class="qoe-td-num qoe-dpos">+9.3%</td><td><span class="qoe-pill qoe-pill-amber">Review</span></td><td class="qoe-td-note">Reflects revenue adj.</td></tr>
-            <tr data-qtag=""><td class="qoe-td-metric">S&amp;M Expense</td><td class="qoe-td-num">7,820</td><td class="qoe-td-num">7,820</td><td class="qoe-td-num qoe-dneg">+12.6%</td><td><span class="qoe-pill qoe-pill-green">Pass</span></td><td class="qoe-td-note">In line with growth</td></tr>
-            <tr data-qtag="flag adj"><td class="qoe-td-metric">D&amp;A</td><td class="qoe-td-num">1,440</td><td class="qoe-td-num">1,610</td><td class="qoe-td-num qoe-dneg">−2.0%</td><td><span class="qoe-pill qoe-pill-red">Flag</span></td><td class="qoe-td-note">Underreported vs. capex</td></tr>
-            <tr data-qtag=""><td class="qoe-td-metric">R&amp;D Expense</td><td class="qoe-td-num">3,200</td><td class="qoe-td-num">3,200</td><td class="qoe-td-num qoe-dpos">+8.1%</td><td><span class="qoe-pill qoe-pill-green">Pass</span></td><td class="qoe-td-note">Consistent capitalization</td></tr>
-            <tr data-qtag="adj"><td class="qoe-td-metric">EBITDA</td><td class="qoe-td-num">8,920</td><td class="qoe-td-num">9,100</td><td class="qoe-td-num qoe-dpos">+2.1%</td><td><span class="qoe-pill qoe-pill-green">Pass</span></td><td class="qoe-td-note">Post D&amp;A normalization</td></tr>
-            <tr data-qtag="flag"><td class="qoe-td-metric">Interest Expense</td><td class="qoe-td-num">620</td><td class="qoe-td-num">680</td><td class="qoe-td-num qoe-dneg">+9.7%</td><td><span class="qoe-pill qoe-pill-amber">Review</span></td><td class="qoe-td-note">Off-balance sheet item</td></tr>
-            <tr data-qtag=""><td class="qoe-td-metric">Tax Provision</td><td class="qoe-td-num">1,260</td><td class="qoe-td-num">1,260</td><td class="qoe-td-num qoe-dpos">+1.5%</td><td><span class="qoe-pill qoe-pill-green">Pass</span></td><td class="qoe-td-note">24.9% effective rate</td></tr>
-            <tr data-qtag="adj"><td class="qoe-td-metric">Net Income</td><td class="qoe-td-num">3,840</td><td class="qoe-td-num">3,795</td><td class="qoe-td-num qoe-dneg">−1.2%</td><td><span class="qoe-pill qoe-pill-amber">Review</span></td><td class="qoe-td-note">Reflects all adj.</td></tr>
-            <tr data-qtag=""><td class="qoe-td-metric">Capex</td><td class="qoe-td-num">2,100</td><td class="qoe-td-num">2,100</td><td class="qoe-td-num qoe-dpos">+6.0%</td><td><span class="qoe-pill qoe-pill-green">Pass</span></td><td class="qoe-td-note">Maintenance + growth split</td></tr>
-            <tr data-qtag="adj"><td class="qoe-td-metric">Free Cash Flow</td><td class="qoe-td-num">6,220</td><td class="qoe-td-num">6,310</td><td class="qoe-td-num qoe-dpos">+11.7%</td><td><span class="qoe-pill qoe-pill-green">Pass</span></td><td class="qoe-td-note">Strong conversion ratio</td></tr>
-          </tbody>
-        </table>
+        <div class="ld-feat ld-reveal" style="animation-delay:.12s">
+          <div class="ld-feat-icon" style="background:var(--emer-dim)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </div>
+          <div class="ld-feat-title">Trend analysis</div>
+          <div class="ld-feat-body">Quarterly EBITDA and gross margin trends plotted over eight periods — reported vs. adjusted, with anomaly markers at inflection points.</div>
+        </div>
+        <div class="ld-feat ld-reveal" style="animation-delay:.18s">
+          <div class="ld-feat-icon" style="background:var(--teal-dim)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+          </div>
+          <div class="ld-feat-title">Working capital analysis</div>
+          <div class="ld-feat-body">DSO, inventory turns, and accrual timing reviewed against trailing seasonality. Peg recommendations included.</div>
+        </div>
+        <div class="ld-feat ld-reveal" style="animation-delay:.24s">
+          <div class="ld-feat-icon" style="background:var(--crim-dim)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--crimson)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="ld-feat-title">Risk scoring</div>
+          <div class="ld-feat-body">Every finding rated 0–100 and graded red, amber, or green. Overall QoE score updates live as you accept or reject each flag.</div>
+        </div>
+        <div class="ld-feat ld-reveal" style="animation-delay:.30s">
+          <div class="ld-feat-icon" style="background:var(--emer-dim)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          </div>
+          <div class="ld-feat-title">AI narrative report</div>
+          <div class="ld-feat-body">GPT-4o mini synthesizes all findings into a plain-language executive summary — customized to your approve/reject decisions.</div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ── CHARTS ── -->
-  <section class="qoe-section">
-    <div class="qoe-section-eyebrow">Trend Analysis</div>
-    <h2 class="qoe-h2">Quarterly Performance</h2>
-    <p class="qoe-section-sub">Reported vs. adjusted EBITDA over eight quarters, with gross margin trend.</p>
-    <div class="qoe-charts-grid">
-      <div class="qoe-chart-card">
-        <div class="qoe-chart-title">EBITDA — Reported vs. Adjusted ($K)</div>
-        <div class="qoe-chart-sub">Last 8 quarters</div>
-        <svg width="100%" height="180" viewBox="0 0 400 180">
-          <text x="30" y="18" font-size="10" fill="#3D5068" text-anchor="end">12K</text>
-          <text x="30" y="58" font-size="10" fill="#3D5068" text-anchor="end">9K</text>
-          <text x="30" y="98" font-size="10" fill="#3D5068" text-anchor="end">6K</text>
-          <text x="30" y="138" font-size="10" fill="#3D5068" text-anchor="end">3K</text>
-          <line x1="34" y1="14"  x2="398" y2="14"  stroke="#1A2840" stroke-width=".8"/>
-          <line x1="34" y1="54"  x2="398" y2="54"  stroke="#1A2840" stroke-width=".8"/>
-          <line x1="34" y1="94"  x2="398" y2="94"  stroke="#1A2840" stroke-width=".8"/>
-          <line x1="34" y1="134" x2="398" y2="134" stroke="#1A2840" stroke-width=".8"/>
-          <rect x="38"  y="62" width="14" height="72" rx="3" fill="rgba(18,216,223,.22)"/>
-          <rect x="54"  y="64" width="14" height="70" rx="3" fill="#12D8DF" opacity=".85"/>
-          <rect x="84"  y="56" width="14" height="78" rx="3" fill="rgba(18,216,223,.22)"/>
-          <rect x="100" y="58" width="14" height="76" rx="3" fill="#12D8DF" opacity=".85"/>
-          <rect x="130" y="50" width="14" height="84" rx="3" fill="rgba(18,216,223,.22)"/>
-          <rect x="146" y="53" width="14" height="81" rx="3" fill="#12D8DF" opacity=".85"/>
-          <rect x="176" y="42" width="14" height="92" rx="3" fill="rgba(18,216,223,.22)"/>
-          <rect x="192" y="48" width="14" height="86" rx="3" fill="#12D8DF" opacity=".85"/>
-          <rect x="222" y="48" width="14" height="86" rx="3" fill="rgba(18,216,223,.22)"/>
-          <rect x="238" y="45" width="14" height="89" rx="3" fill="#12D8DF" opacity=".85"/>
-          <rect x="268" y="46" width="14" height="88" rx="3" fill="rgba(18,216,223,.22)"/>
-          <rect x="284" y="43" width="14" height="91" rx="3" fill="#12D8DF" opacity=".85"/>
-          <rect x="314" y="52" width="14" height="82" rx="3" fill="rgba(18,216,223,.22)"/>
-          <rect x="330" y="45" width="14" height="89" rx="3" fill="#12D8DF" opacity=".85"/>
-          <rect x="360" y="44" width="14" height="90" rx="3" fill="rgba(18,216,223,.22)"/>
-          <rect x="376" y="42" width="14" height="92" rx="3" fill="#12D8DF" opacity=".85"/>
-          <text x="52"  y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q1'23</text>
-          <text x="98"  y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q2'23</text>
-          <text x="144" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q3'23</text>
-          <text x="190" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q4'23</text>
-          <text x="236" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q1'24</text>
-          <text x="282" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q2'24</text>
-          <text x="328" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q3'24</text>
-          <text x="374" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q4'24</text>
-          <rect x="38" y="166" width="10" height="8" rx="2" fill="rgba(18,216,223,.22)"/>
-          <text x="52" y="174" font-size="9.5" fill="#6278A0">Reported</text>
-          <rect x="104" y="166" width="10" height="8" rx="2" fill="#12D8DF" opacity=".85"/>
-          <text x="118" y="174" font-size="9.5" fill="#6278A0">Adjusted</text>
-        </svg>
-      </div>
-      <div class="qoe-chart-card">
-        <div class="qoe-chart-title">Gross Margin % — Trend</div>
-        <div class="qoe-chart-sub">Adjusted, 8-quarter rolling view</div>
-        <svg width="100%" height="180" viewBox="0 0 400 180">
-          <text x="30" y="18" font-size="10" fill="#3D5068" text-anchor="end">60%</text>
-          <text x="30" y="58" font-size="10" fill="#3D5068" text-anchor="end">55%</text>
-          <text x="30" y="98" font-size="10" fill="#3D5068" text-anchor="end">50%</text>
-          <text x="30" y="138" font-size="10" fill="#3D5068" text-anchor="end">45%</text>
-          <line x1="34" y1="14"  x2="398" y2="14"  stroke="#1A2840" stroke-width=".8"/>
-          <line x1="34" y1="54"  x2="398" y2="54"  stroke="#1A2840" stroke-width=".8"/>
-          <line x1="34" y1="94"  x2="398" y2="94"  stroke="#1A2840" stroke-width=".8"/>
-          <line x1="34" y1="134" x2="398" y2="134" stroke="#1A2840" stroke-width=".8"/>
-          <defs><linearGradient id="mgGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0FBD83" stop-opacity=".18"/><stop offset="100%" stop-color="#0FBD83" stop-opacity="0"/></linearGradient></defs>
-          <polygon points="52,86 98,74 144,62 190,44 236,50 282,38 328,56 374,32 374,134 52,134" fill="url(#mgGrad)"/>
-          <polyline points="52,86 98,74 144,62 190,44 236,50 282,38 328,56 374,32" fill="none" stroke="#0FBD83" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="52" cy="86" r="3.5" fill="#0FBD83"/>
-          <circle cx="98" cy="74" r="3.5" fill="#0FBD83"/>
-          <circle cx="144" cy="62" r="3.5" fill="#0FBD83"/>
-          <circle cx="190" cy="44" r="3.5" fill="#0FBD83"/>
-          <circle cx="236" cy="50" r="3.5" fill="#0FBD83"/>
-          <circle cx="282" cy="38" r="3.5" fill="#0FBD83"/>
-          <circle cx="328" cy="56" r="3.5" fill="#0FBD83" stroke="#E03448" stroke-width="1.5"/>
-          <circle cx="374" cy="32" r="3.5" fill="#0FBD83"/>
-          <text x="52"  y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q1'23</text>
-          <text x="98"  y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q2'23</text>
-          <text x="144" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q3'23</text>
-          <text x="190" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q4'23</text>
-          <text x="236" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q1'24</text>
-          <text x="282" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q2'24</text>
-          <text x="328" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q3'24</text>
-          <text x="374" y="152" font-size="9.5" fill="#3D5068" text-anchor="middle">Q4'24</text>
-          <line x1="328" y1="40" x2="328" y2="54" stroke="#E03448" stroke-width="1" stroke-dasharray="3,2"/>
-          <text x="334" y="38" font-size="9" fill="#E03448">D&amp;A flag</text>
-        </svg>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── COMPLIANCE ACCORDIONS ── -->
-  <section class="qoe-section" id="qoe-compliance">
-    <div class="qoe-section-eyebrow">Compliance Review</div>
-    <h2 class="qoe-h2">Audit &amp; Disclosure Checks</h2>
-    <p class="qoe-section-sub">Automated review of key disclosure requirements and accounting policy consistency.</p>
-    <div class="qoe-acc-list">
-
-      <div class="qoe-acc qoe-acc-open" onclick="qoeToggleAcc(this)">
-        <div class="qoe-acc-head">
-          <div class="qoe-acc-icon" style="background:rgba(224,52,72,.12)">🚩</div>
-          <div class="qoe-acc-title">Revenue Recognition (ASC 606)</div>
-          <span class="qoe-pill qoe-pill-red">Issue Found</span>
-          <span class="qoe-acc-chev">▼</span>
-        </div>
-        <div class="qoe-acc-body">
-          <p class="qoe-acc-txt">AI scan identified a $440K revenue pull-forward in Q4 2024. Under ASC 606 step 5, performance obligations were not fully satisfied at period-end. The adjustment reduces reported revenue and defers recognition to Q1 2025.</p>
-          <div class="qoe-acc-finds">
-            <div class="qoe-acc-find">Contract modification executed Dec 28 — delivery occurred Jan 6, 2025</div>
-            <div class="qoe-acc-find">Customer acceptance clause not waived in writing at close</div>
-            <div class="qoe-acc-find">Recommend reversing $440K to deferred revenue on the balance sheet</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="qoe-acc" onclick="qoeToggleAcc(this)">
-        <div class="qoe-acc-head">
-          <div class="qoe-acc-icon" style="background:rgba(240,167,34,.12)">⚠️</div>
-          <div class="qoe-acc-title">Depreciation &amp; Amortization Policy</div>
-          <span class="qoe-pill qoe-pill-amber">Review</span>
-          <span class="qoe-acc-chev">▼</span>
-        </div>
-        <div class="qoe-acc-body">
-          <p class="qoe-acc-txt">D&amp;A expense of $1.44M is inconsistent with the $2.1M capex run-rate and disclosed asset useful lives of 5–7 years. Expected straight-line D&amp;A would be approximately $1.61M. The understatement of $170K inflates EBITDA.</p>
-          <div class="qoe-acc-finds">
-            <div class="qoe-acc-find">Useful-life assumptions not revised since FY 2021 acquisition</div>
-            <div class="qoe-acc-find">Software capitalization policy may extend lives beyond practical use</div>
-            <div class="qoe-acc-find">Recommend normalizing D&amp;A to $1.61M in adjusted model</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="qoe-acc" onclick="qoeToggleAcc(this)">
-        <div class="qoe-acc-head">
-          <div class="qoe-acc-icon" style="background:rgba(15,189,131,.12)">✓</div>
-          <div class="qoe-acc-title">Working Capital Analysis</div>
-          <span class="qoe-pill qoe-pill-green">Pass</span>
-          <span class="qoe-acc-chev">▼</span>
-        </div>
-        <div class="qoe-acc-body">
-          <p class="qoe-acc-txt">Working capital of $8.4M is within the normalized range of $7.9M–$9.1M based on trailing 8-quarter seasonality. No manipulation flags detected in AR aging or inventory roll-forward.</p>
-          <div class="qoe-acc-finds">
-            <div class="qoe-acc-find">DSO of 42 days consistent with industry peer median of 38–45 days</div>
-            <div class="qoe-acc-find">Inventory turns of 6.2× within acceptable range for the segment</div>
-            <div class="qoe-acc-find">No material accrual reversals or timing shifts detected</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="qoe-acc" onclick="qoeToggleAcc(this)">
-        <div class="qoe-acc-head">
-          <div class="qoe-acc-icon" style="background:rgba(240,167,34,.12)">⚠️</div>
-          <div class="qoe-acc-title">Off-Balance Sheet Arrangements</div>
-          <span class="qoe-pill qoe-pill-amber">Review</span>
-          <span class="qoe-acc-chev">▼</span>
-        </div>
-        <div class="qoe-acc-body">
-          <p class="qoe-acc-txt">Footnote 14 references an operating lease commitment of $2.1M over 36 months not reflected in the working capital peg. Additionally, a related-party receivable of $320K requires disclosure validation under ASC 850.</p>
-          <div class="qoe-acc-finds">
-            <div class="qoe-acc-find">Operating lease liability should be excluded from net debt calculation</div>
-            <div class="qoe-acc-find">Related-party receivable terms: 90-day non-interest-bearing — confirm arm's-length</div>
-            <div class="qoe-acc-find">Recommend including lease obligations in normalized net debt bridge</div>
-          </div>
-        </div>
-      </div>
-
+  <!-- ── BOTTOM CTA ── -->
+  <section class="ld-bottom-cta">
+    <div class="ld-section-inner" style="text-align:center;max-width:640px">
+      <h2 class="ld-section-h2" style="margin-bottom:16px">Ready to run your first analysis?</h2>
+      <p style="color:var(--muted);font-size:15px;margin-bottom:32px;line-height:1.65">Upload your documents and get a full QoE report in minutes. No setup required.</p>
+      <button class="ld-enter ld-enter-lg" onclick="document.getElementById('ld-enter-btn').click()">
+        Enter Platform
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+      </button>
     </div>
   </section>
 
   <!-- ── FOOTER ── -->
-  <div class="qoe-footer">
-    <div class="qoe-foot-left">
-      <div class="ld-foot-brand">Ledger<em>IQ</em></div>
-      <div class="qoe-foot-copy">© 2024 Henry Long · AI-assisted analysis — not a substitute for professional due diligence.</div>
+  <footer class="ld-footer">
+    <div class="ld-foot-brand">Ledger<em>IQ</em></div>
+    <div class="ld-foot-copy">© 2024 Henry Long · AI-assisted analysis — not a substitute for professional due diligence.</div>
+    <div class="ld-foot-links">
+      <a href="#" onclick="showContactModal();return false;">Contact</a>
+      <a href="#" onclick="showTermsModal();return false;">Terms</a>
     </div>
-    <div class="ld-foot-tags">
-      <div class="ld-foot-tag">GPT-4o mini Powered</div>
-      <div class="ld-foot-tag">25+ Document Types</div>
-      <div class="ld-foot-tag">Real-time Scoring</div>
-      <div class="ld-foot-tag">No login required</div>
-    </div>
-  </div>
+  </footer>
 </div>
 
 <div class="shell">
@@ -2174,6 +2253,34 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
         </div>
         <div class="prose" id="dash-narrative"></div>
       </div>
+    </div>
+
+    <!-- ── QOE CHARTS & BREAKDOWN ── -->
+    <div id="dash-qoe-section" style="display:none; margin-top: 18px;">
+
+      <!-- KPI strip -->
+      <div class="dqoe-kpi-row" id="dash-kpi-row"></div>
+
+      <!-- Charts -->
+      <div class="dqoe-charts-grid">
+        <div class="panel dqoe-chart-panel">
+          <div class="panel-label">EBITDA — Reported vs. Adjusted</div>
+          <div class="dqoe-chart-sub" id="dqoe-ebitda-sub">Last 8 quarters</div>
+          <div id="dqoe-ebitda-chart"></div>
+        </div>
+        <div class="panel dqoe-chart-panel">
+          <div class="panel-label">Gross Margin % Trend</div>
+          <div class="dqoe-chart-sub" id="dqoe-gm-sub">Adjusted, rolling view</div>
+          <div id="dqoe-gm-chart"></div>
+        </div>
+      </div>
+
+      <!-- Compliance accordions -->
+      <div class="panel" style="margin-top:18px">
+        <div class="panel-label">Compliance & Disclosure Review</div>
+        <div id="dash-compliance-list"></div>
+      </div>
+
     </div>
   </div>
 

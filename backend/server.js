@@ -277,7 +277,17 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
     emit('progress', { step: 'claude', pct: 50, message: 'Sending structured summary to GPT-4o mini for scoring…' });
     emit('log', { type: 'info', message: `Sending ${totalTx} pre-classified items to GPT-4o mini for confidence scoring…` });
 
-    const { report, usage } = await scoreWithClaude(parsedFiles, apiKey);
+    let scoreResult;
+    try {
+      scoreResult = await scoreWithClaude(parsedFiles, apiKey);
+    } catch (err) {
+      // Surface rate limit errors with a clear, actionable message
+      if (err?.status === 429 || err?.message?.includes('429') || err?.message?.toLowerCase().includes('rate limit') || err?.message?.toLowerCase().includes('quota')) {
+        throw new Error('OpenAI rate limit reached (429). Your API key has hit its usage quota or per-minute limit. Please wait 60 seconds and try again, or check your OpenAI billing at platform.openai.com/account/billing.');
+      }
+      throw err;
+    }
+    const { report, usage } = scoreResult;
 
     emit('log', { type: 'ok', message: `GPT-4o mini scoring complete — ${usage.totalTokens} tokens used (${usage.inputTokens} in / ${usage.outputTokens} out)` });
     emit('progress', { step: 'claude', pct: 90, message: 'Scoring complete — building report…' });

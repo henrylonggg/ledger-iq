@@ -6,8 +6,9 @@
 <title>Ledger IQ</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
-/* ─── TOKENS ──────────────────────────────────────────────── */
+/* ─── TOKENS — DARK MODE (default) ───────────────────────── */
 :root {
+  /* Surfaces */
   --ink:      #04080F;
   --ink1:     #090E1A;
   --ink2:     #0E1420;
@@ -19,6 +20,7 @@
   --body:     #B8C6DF;
   --bright:   #E2EAF7;
 
+  /* Teal brand */
   --teal:     #12D8DF;
   --teal-dim: rgba(18,216,223,.08);
   --teal-mid: rgba(18,216,223,.2);
@@ -39,10 +41,57 @@
   --viol-dim: rgba(129,140,248,.1);
   --viol-mid: rgba(129,140,248,.2);
 
+  /* Badge color — user-customizable, defaults to teal */
+  --badge-bg:     rgba(18,216,223,.2);
+  --badge-border: #12D8DF;
+  --badge-text:   #12D8DF;
+
+  /* Typography */
   --display: 'Inter', system-ui, sans-serif;
   --ui:      'Inter', system-ui, sans-serif;
   --mono:    'JetBrains Mono', monospace;
   --r: 8px;
+
+  /* Panel shadow */
+  --shadow: 0 2px 12px rgba(0,0,0,.35);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.5);
+}
+
+/* ─── TOKENS — LIGHT MODE ─────────────────────────────────── */
+:root[data-theme="light"] {
+  --ink:      #F0F4FA;
+  --ink1:     #FFFFFF;
+  --ink2:     #F5F7FC;
+  --ink3:     #EDF0F7;
+  --line:     #D6DDE8;
+  --line2:    #C2CBD8;
+  --dim:      #8A97AD;
+  --muted:    #6B7A8D;
+  --body:     #3A4559;
+  --bright:   #0E1626;
+
+  --teal:     #0A99A0;
+  --teal-dim: rgba(10,153,160,.08);
+  --teal-mid: rgba(10,153,160,.18);
+
+  --amber:    #B87A0A;
+  --amber-dim:rgba(184,122,10,.1);
+  --amber-mid:rgba(184,122,10,.2);
+
+  --crimson:  #C0263A;
+  --crim-dim: rgba(192,38,58,.08);
+  --crim-mid: rgba(192,38,58,.18);
+
+  --emerald:  #0A9165;
+  --emer-dim: rgba(10,145,101,.08);
+  --emer-mid: rgba(10,145,101,.2);
+
+  --violet:   #5B5ECA;
+  --viol-dim: rgba(91,94,202,.08);
+  --viol-mid: rgba(91,94,202,.18);
+
+  --shadow: 0 2px 10px rgba(14,22,38,.08);
+  --shadow-lg: 0 8px 32px rgba(14,22,38,.14);
 }
 
 /* ─── RESET ───────────────────────────────────────────────── */
@@ -497,6 +546,8 @@ button { cursor: pointer; font-family: var(--ui); }
   border: 1px solid var(--line);
   border-radius: var(--r);
   padding: 18px;
+  box-shadow: var(--shadow);
+  transition: border-color .2s, box-shadow .2s;
 }
 .panel.full { grid-column: 1 / -1; }
 .panel-label {
@@ -848,14 +899,26 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 }
 
 /* ─── HEADER USER BUTTON ─────────────────────────────────── */
+.theme-toggle-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: transparent; border: 1px solid var(--line2);
+  color: var(--muted); font-size: 13px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.theme-toggle-btn:hover { background: var(--ink2); color: var(--body); border-color: var(--line); }
+[data-theme="light"] .theme-toggle-btn { color: var(--muted); }
+
 .user-menu-btn {
   width: 30px; height: 30px; border-radius: 50%;
-  background: var(--teal-mid); border: 1.5px solid var(--teal);
-  color: var(--teal); font-family: var(--mono); font-size: 10px; font-weight: 700;
+  background: var(--badge-bg); border: 1.5px solid var(--badge-border);
+  color: var(--badge-text); font-family: var(--mono); font-size: 10px; font-weight: 700;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: background .15s;
+  transition: background .15s, border-color .15s;
+  flex-shrink: 0;
 }
-.user-menu-btn:hover { background: var(--teal-dim); }
+.user-menu-btn:hover { opacity: .8; }
 .header-credits {
   font-family: var(--mono); font-size: 10.5px; font-weight: 700;
   color: var(--emerald); background: rgba(16,185,129,.12);
@@ -875,11 +938,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   padding: 22px 24px;
 }
 .profile-avatar {
-  width: 52px; height: 52px; border-radius: 50%;
-  background: var(--teal-mid); border: 2px solid var(--teal);
+  width: 60px; height: 60px; border-radius: 50%;
+  background: var(--badge-bg); border: 2.5px solid var(--badge-border);
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--teal);
+  font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--badge-text);
   flex-shrink: 0;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--badge-border) 10%, transparent);
+  transition: box-shadow .2s;
 }
 .profile-name  { font-family: var(--display); font-size: 18px; font-weight: 700; color: var(--bright); letter-spacing: -.03em; }
 .profile-email { font-size: 13px; color: var(--muted); margin-top: 2px; }
@@ -940,6 +1005,38 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 }
 .logout-btn:hover { background: var(--crim-dim); border-color: var(--crimson); }
 .profile-empty { padding: 48px; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+/* Theme toggle pill in profile */
+.theme-pill-btn {
+  padding: 7px 16px;
+  background: var(--ink2); border: 1px solid var(--line2);
+  border-radius: 20px; color: var(--body);
+  font-size: 12px; font-weight: 600; font-family: var(--ui);
+  cursor: pointer; transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+.theme-pill-btn:hover { background: var(--ink3); border-color: var(--line); }
+
+/* Badge color swatches */
+.badge-color-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge-swatch {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2px solid transparent;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: transform .15s, box-shadow .15s;
+}
+.badge-swatch:hover { transform: scale(1.12); }
+.badge-swatch-active {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 25%, transparent), 0 2px 8px rgba(0,0,0,.2);
+}
+
+/* Light mode overrides for panels/sidebar */
+[data-theme="light"] .topbar { box-shadow: 0 1px 0 var(--line); }
+[data-theme="light"] .sidebar { box-shadow: 1px 0 0 var(--line); }
+[data-theme="light"] .panel { box-shadow: var(--shadow); }
+[data-theme="light"] .auth-box { box-shadow: var(--shadow-lg); }
 
 /* ─── USAGE PAGE ─────────────────────────────────────────── */
 .usage-wrap { max-width: 700px; display: flex; flex-direction: column; gap: 24px; }
@@ -2121,6 +2218,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
       <span class="header-credits" id="header-credits" style="display:none"></span>
       <button class="btn btn-ghost btn-sm" id="btn-export" style="display:none" onclick="exportReport()">Export</button>
       <button class="btn btn-ghost btn-sm" id="btn-reset"  style="display:none" onclick="resetAll()">New analysis</button>
+      <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <span id="theme-icon">☀</span>
+      </button>
       <button class="user-menu-btn" id="user-menu-btn" style="display:none" onclick="go('profile')" title="Profile"></button>
     </div>
   </div>

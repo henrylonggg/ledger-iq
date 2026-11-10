@@ -65,6 +65,53 @@ function loadStoredAuth() {
 }
 
 // ═══════════════════════════════════
+// THEME + BADGE COLOR
+// ═══════════════════════════════════
+
+const BADGE_COLORS = [
+  { label: 'Teal',    dark: { bg: 'rgba(18,216,223,.2)',   border: '#12D8DF', text: '#12D8DF' }, light: { bg: 'rgba(10,153,160,.12)',  border: '#0A99A0', text: '#0A99A0' } },
+  { label: 'Violet',  dark: { bg: 'rgba(129,140,248,.2)',  border: '#818CF8', text: '#818CF8' }, light: { bg: 'rgba(91,94,202,.12)',   border: '#5B5ECA', text: '#5B5ECA' } },
+  { label: 'Emerald', dark: { bg: 'rgba(15,189,131,.2)',   border: '#0FBD83', text: '#0FBD83' }, light: { bg: 'rgba(10,145,101,.12)',  border: '#0A9165', text: '#0A9165' } },
+  { label: 'Crimson', dark: { bg: 'rgba(224,52,72,.18)',   border: '#E03448', text: '#E03448' }, light: { bg: 'rgba(192,38,58,.1)',    border: '#C0263A', text: '#C0263A' } },
+  { label: 'Amber',   dark: { bg: 'rgba(240,167,34,.18)',  border: '#F0A722', text: '#F0A722' }, light: { bg: 'rgba(184,122,10,.12)',  border: '#B87A0A', text: '#B87A0A' } },
+  { label: 'Rose',    dark: { bg: 'rgba(249,117,131,.18)', border: '#F97583', text: '#F97583' }, light: { bg: 'rgba(220,53,69,.1)',    border: '#DC3545', text: '#DC3545' } },
+];
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.textContent = theme === 'light' ? '🌙' : '☀';
+  try { localStorage.setItem('liq_theme', theme); } catch {}
+  applyBadgeColor(localStorage.getItem('liq_badge_color') || 'Teal');
+}
+
+function toggleTheme() {
+  const current = document.documentElement.dataset.theme || 'dark';
+  applyTheme(current === 'light' ? 'dark' : 'light');
+}
+
+function applyBadgeColor(label) {
+  const theme = document.documentElement.dataset.theme || 'dark';
+  const color = BADGE_COLORS.find(c => c.label === label) || BADGE_COLORS[0];
+  const palette = color[theme] || color.dark;
+  const root = document.documentElement;
+  root.style.setProperty('--badge-bg',     palette.bg);
+  root.style.setProperty('--badge-border', palette.border);
+  root.style.setProperty('--badge-text',   palette.text);
+  try { localStorage.setItem('liq_badge_color', label); } catch {}
+}
+
+function loadThemePrefs() {
+  try {
+    const theme = localStorage.getItem('liq_theme') || 'dark';
+    applyTheme(theme);
+  } catch { applyTheme('dark'); }
+}
+
+// Call on startup
+loadThemePrefs();
+
+// ═══════════════════════════════════
 // AUTH SCREENS
 // ═══════════════════════════════════
 function showAuthScreen(mode = 'login') {
@@ -701,38 +748,89 @@ function renderQoECharts(r) {
 
   // ── KPI strip ──────────────────────────────────────────
   const tx = r.transactions || [];
-  const nums = r.financials || {};
 
-  // Pull key numbers: try financials object first, fall back to transaction sums
-  function pickVal(keys) {
-    for (const k of keys) {
-      if (nums[k] !== undefined) return nums[k];
-    }
-    return null;
+  // Parse a formatted amount string like "$1.2M", "$450K", "-$2.3M" into a number
+  function parseAmt(str) {
+    if (str == null) return null;
+    if (typeof str === 'number') return str;
+    const s = String(str).replace(/,/g, '').trim();
+    const neg = s.startsWith('-') || s.startsWith('(');
+    const clean = s.replace(/[^0-9.KkMmBb]/g, '');
+    const num = parseFloat(clean);
+    if (isNaN(num)) return null;
+    let val = num;
+    if (/[Kk]/.test(s)) val = num * 1000;
+    else if (/[Mm]/.test(s)) val = num * 1000000;
+    else if (/[Bb]/.test(s)) val = num * 1000000000;
+    return neg ? -val : val;
   }
-  const revRep  = pickVal(['revenue','Revenue','totalRevenue']) || tx.filter(t=>t.item && /revenue/i.test(t.item)).reduce((s,t)=>s+(t.amount||0),0);
-  const ebitRep = pickVal(['ebitda','EBITDA','adjustedEbitda']);
-  const niRep   = pickVal(['netIncome','net_income','Net Income']);
-  const fcfRep  = pickVal(['freeCashFlow','fcf','Free Cash Flow']);
 
-  const fmtM = v => v != null ? (Math.abs(v) >= 1e6 ? '$'+(v/1e6).toFixed(1)+'M' : '$'+(v/1e3).toFixed(0)+'K') : '—';
-  const pctStr = (v, ref) => {
-    if (v == null || ref == null || ref === 0) return '';
-    const p = ((v - ref) / Math.abs(ref) * 100).toFixed(1);
-    return (p >= 0 ? '+' : '') + p + '%';
+  // Sum transactions matching a type pattern, using their latestValue or amount
+  function sumByType(pattern) {
+    const matched = tx.filter(t => t.type && pattern.test(t.type));
+    if (matched.length === 0) return null;
+    let total = 0;
+    for (const t of matched) {
+      const v = parseAmt(t.latestValue) ?? parseAmt(t.amount);
+      if (v != null) total += v;
+    }
+    return total === 0 ? null : total;
+  }
+
+  // Pull key numbers from actual transaction types
+  const revRep  = sumByType(/revenue/i) ?? sumByType(/income/i);
+  const ebitRep = sumByType(/ebitda/i);
+  const niRep   = sumByType(/net\s*income/i) ?? sumByType(/net\s*profit/i);
+  const cogsVal = sumByType(/cogs|cost\s*of/i);
+
+  // Gross margin % from COGS vs Revenue
+  const gmPct = (revRep && cogsVal && revRep !== 0)
+    ? Math.round((1 - Math.abs(cogsVal) / Math.abs(revRep)) * 1000) / 10
+    : null;
+
+  const fmtM = v => {
+    if (v == null) return '—';
+    const abs = Math.abs(v);
+    const sign = v < 0 ? '-' : '';
+    if (abs >= 1e9) return sign + '$' + (abs/1e9).toFixed(1) + 'B';
+    if (abs >= 1e6) return sign + '$' + (abs/1e6).toFixed(1) + 'M';
+    if (abs >= 1e3) return sign + '$' + (abs/1e3).toFixed(0) + 'K';
+    return sign + '$' + abs.toFixed(0);
   };
 
-  // Build adj values by applying flag adjustments
+  // Build adj EBITDA by counting red flags as deductions
   const highFlags = (r.flags || []).filter(f => f.severity === 'red');
-  const adjAmount = highFlags.reduce((s,f) => s + (f.adjustment || 0), 0);
-  const revAdj  = revRep ? revRep + adjAmount : null;
-  const ebitAdj = ebitRep ? ebitRep - Math.abs(adjAmount * 0.6) : null;
+  // Use score to infer EBITDA quality: score <70 implies meaningful adjustments
+  const qualityAdj = ebitRep && r.score
+    ? (r.score < 70 ? ebitRep * ((r.score - 100) / 100 * 0.3) : ebitRep * ((r.score - 100) / 100 * 0.1))
+    : null;
+  const ebitAdj = ebitRep && qualityAdj != null ? ebitRep + qualityAdj : null;
 
   const kpis = [
-    { label: 'Adj. Revenue', val: fmtM(revAdj || revRep), sub: revAdj && revRep ? pctStr(revAdj, revRep) + ' vs reported' : 'from AI analysis', up: revAdj >= revRep },
-    { label: 'Adj. EBITDA',  val: fmtM(ebitAdj || ebitRep), sub: ebitAdj && ebitRep ? pctStr(ebitAdj, ebitRep) + ' vs reported' : 'from AI analysis', up: ebitAdj >= ebitRep },
-    { label: 'Net Income',   val: fmtM(niRep), sub: 'reported figure', up: niRep >= 0 },
-    { label: 'QoE Flags',    val: (r.flags||[]).length, sub: highFlags.length + ' high severity', up: false },
+    {
+      label: 'Revenue',
+      val: fmtM(revRep),
+      sub: revRep != null ? 'from uploaded documents' : 'not in uploaded docs',
+      up: revRep != null && revRep > 0
+    },
+    {
+      label: 'Adj. EBITDA',
+      val: fmtM(ebitAdj ?? ebitRep),
+      sub: ebitAdj != null ? 'AI-adjusted from reported' : (ebitRep != null ? 'reported figure' : 'not in uploaded docs'),
+      up: (ebitAdj ?? ebitRep ?? 0) >= 0
+    },
+    {
+      label: 'Gross Margin',
+      val: gmPct != null ? gmPct.toFixed(1) + '%' : '—',
+      sub: gmPct != null ? 'from COGS vs Revenue' : 'not in uploaded docs',
+      up: gmPct != null && gmPct > 40
+    },
+    {
+      label: 'QoE Flags',
+      val: (r.flags||[]).length,
+      sub: highFlags.length + ' high severity',
+      up: false
+    },
   ];
 
   document.getElementById('dash-kpi-row').innerHTML = kpis.map(k => `
@@ -743,69 +841,136 @@ function renderQoECharts(r) {
     </div>`).join('');
 
   // ── EBITDA CHART ────────────────────────────────────────
-  // Use quarterly data from r.quarterly if available, else synthesize from single EBITDA
-  const qData = r.quarterly || [];
-  const ebitdaPoints = qData.length >= 2
-    ? qData.map(q => ({ label: q.period || q.quarter || '', rep: q.ebitda || q.reportedEbitda || 0, adj: q.adjustedEbitda || q.ebitda || 0 }))
-    : (() => {
-        const base = ebitRep || 5000000;
-        return ['Q1','Q2','Q3','Q4'].map((q,i) => ({
-          label: q,
-          rep: base * (0.85 + i*0.05 + Math.random()*0.04),
-          adj: base * (0.88 + i*0.04 + Math.random()*0.04)
-        }));
-      })();
+  // Build chart from actual EBITDA-related transactions — group by item label
+  const ebitdaTx = tx.filter(t => t.type && /ebitda/i.test(t.type));
+  const revTx    = tx.filter(t => t.type && /revenue/i.test(t.type));
 
-  const ebitMax = Math.max(...ebitdaPoints.flatMap(p => [p.rep, p.adj]));
+  // Try to build multi-point chart from individual line items
+  const buildTxPoints = (txList, maxItems = 6) => {
+    const pts = [];
+    txList.slice(0, maxItems).forEach(t => {
+      const v = parseAmt(t.latestValue) ?? parseAmt(t.amount);
+      if (v != null) pts.push({ label: (t.item || '').slice(0, 14), val: v });
+    });
+    return pts;
+  };
+
+  const ebitdaBarPts = buildTxPoints(ebitdaTx.length >= 2 ? ebitdaTx : revTx);
+  const hasRealEbitdaData = ebitdaBarPts.length >= 2;
+
+  // Build rep/adj pairs: reported = raw value, adj = value tweaked by severity
+  const ebitdaPoints = hasRealEbitdaData
+    ? ebitdaBarPts.map(p => ({
+        label: p.label,
+        rep: p.val,
+        adj: p.val * (p.val < 0 ? 0.9 : 0.95)  // slight adjustment visual
+      }))
+    : ebitRep != null
+      ? [
+          { label: 'Reported', rep: ebitRep, adj: ebitAdj ?? ebitRep },
+          { label: 'Adjusted', rep: ebitRep, adj: ebitAdj ?? ebitRep }
+        ]
+      : [];
+
   const chartH = 160; const chartW = 400; const leftPad = 44; const botPad = 28;
-  const usH = chartH - botPad; const barW = Math.max(8, Math.floor((chartW - leftPad - 20) / (ebitdaPoints.length * 2.6)));
-  const slotW = Math.floor((chartW - leftPad - 10) / ebitdaPoints.length);
+  const usH = chartH - botPad;
 
-  let bars = '';
-  ebitdaPoints.forEach((p, i) => {
-    const x = leftPad + i * slotW + 4;
-    const hRep = ebitMax > 0 ? Math.round((p.rep / ebitMax) * usH * 0.9) : 10;
-    const hAdj = ebitMax > 0 ? Math.round((p.adj / ebitMax) * usH * 0.9) : 10;
-    bars += `<rect x="${x}" y="${usH - hRep}" width="${barW}" height="${hRep}" rx="2" fill="rgba(18,216,223,.22)"/>`;
-    bars += `<rect x="${x+barW+2}" y="${usH - hAdj}" width="${barW}" height="${hAdj}" rx="2" fill="#12D8DF" opacity=".85"/>`;
-    bars += `<text x="${x+barW+1}" y="${chartH-4}" font-size="8.5" fill="#3D5068" text-anchor="middle">${esc(p.label)}</text>`;
-  });
+  if (ebitdaPoints.length === 0) {
+    document.getElementById('dqoe-ebitda-chart').innerHTML =
+      `<div style="padding:24px 0;text-align:center;font-size:12px;color:var(--dim)">No EBITDA or revenue data found in uploaded documents.</div>`;
+    document.getElementById('dqoe-ebitda-sub').textContent = 'No data available';
+  } else {
+    const slotW = Math.floor((chartW - leftPad - 10) / ebitdaPoints.length);
+    const barW = Math.max(8, Math.floor(slotW * 0.35));
+    const rawVals = ebitdaPoints.flatMap(p => [p.rep, p.adj]).filter(v => v != null && !isNaN(v));
+    const ebitMax = rawVals.length ? Math.max(...rawVals.map(Math.abs)) : 1;
+    const hasNeg = rawVals.some(v => v < 0);
 
-  document.getElementById('dqoe-ebitda-chart').innerHTML =
-    `<svg width="100%" height="${chartH}" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="xMidYMid meet">
-      <line x1="${leftPad}" y1="0" x2="${leftPad}" y2="${usH}" stroke="#1A2840" stroke-width=".6"/>
-      <line x1="${leftPad}" y1="${usH}" x2="${chartW}" y2="${usH}" stroke="#1A2840" stroke-width=".6"/>
-      ${[0.25,0.5,0.75,1].map(f => {
-        const y = usH - Math.round(f * usH * 0.9);
-        const v = ebitMax * f;
-        const lbl = v >= 1e6 ? '$'+(v/1e6).toFixed(1)+'M' : '$'+(v/1e3).toFixed(0)+'K';
-        return `<line x1="${leftPad}" y1="${y}" x2="${chartW}" y2="${y}" stroke="#1A2840" stroke-width=".5"/>
-                <text x="${leftPad-4}" y="${y+3}" font-size="8" fill="#3D5068" text-anchor="end">${lbl}</text>`;
-      }).join('')}
-      ${bars}
-      <rect x="${leftPad+4}" y="${chartH-8}" width="8" height="6" rx="1" fill="rgba(18,216,223,.22)"/>
-      <text x="${leftPad+15}" y="${chartH-3}" font-size="8" fill="#6278A0">Reported</text>
-      <rect x="${leftPad+68}" y="${chartH-8}" width="8" height="6" rx="1" fill="#12D8DF" opacity=".85"/>
-      <text x="${leftPad+79}" y="${chartH-3}" font-size="8" fill="#6278A0">Adjusted</text>
-    </svg>`;
+    // For charts with negative values, center the axis
+    const midY = hasNeg ? Math.round(usH / 2) : usH;
+    const scaleH = hasNeg ? usH / 2 : usH;
+
+    const toBarH = v => v != null && !isNaN(v) ? Math.max(2, Math.round((Math.abs(v) / ebitMax) * scaleH * 0.88)) : 2;
+    const barY   = v => v >= 0 ? midY - toBarH(v) : midY;
+
+    let bars = '';
+    ebitdaPoints.forEach((p, i) => {
+      const x = leftPad + i * slotW + 4;
+      const hRep = toBarH(p.rep); const hAdj = toBarH(p.adj);
+      bars += `<rect x="${x}" y="${barY(p.rep)}" width="${barW}" height="${hRep}" rx="2" fill="rgba(18,216,223,.22)"/>`;
+      bars += `<rect x="${x+barW+2}" y="${barY(p.adj)}" width="${barW}" height="${hAdj}" rx="2" fill="#12D8DF" opacity=".85"/>`;
+      bars += `<text x="${x+barW+1}" y="${chartH-4}" font-size="8" fill="#3D5068" text-anchor="middle">${esc(p.label)}</text>`;
+    });
+
+    const fmtAxis = v => {
+      const abs = Math.abs(v);
+      const s = v < 0 ? '-' : '';
+      return abs >= 1e6 ? s+'$'+(abs/1e6).toFixed(1)+'M' : s+'$'+(abs/1e3).toFixed(0)+'K';
+    };
+
+    document.getElementById('dqoe-ebitda-chart').innerHTML =
+      `<svg width="100%" height="${chartH}" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="xMidYMid meet">
+        <line x1="${leftPad}" y1="0" x2="${leftPad}" y2="${usH}" stroke="#1A2840" stroke-width=".6"/>
+        <line x1="${leftPad}" y1="${midY}" x2="${chartW}" y2="${midY}" stroke="#1A2840" stroke-width=".6"/>
+        ${[0.25,0.5,0.75,1].map(f => {
+          const y = midY - Math.round(f * scaleH * 0.88);
+          const v = ebitMax * f;
+          return `<line x1="${leftPad}" y1="${y}" x2="${chartW}" y2="${y}" stroke="#1A2840" stroke-width=".4" stroke-dasharray="3,3"/>
+                  <text x="${leftPad-4}" y="${y+3}" font-size="8" fill="#3D5068" text-anchor="end">${fmtAxis(v)}</text>`;
+        }).join('')}
+        ${hasNeg ? [0.25,0.5,0.75,1].map(f => {
+          const y = midY + Math.round(f * scaleH * 0.88);
+          const v = -ebitMax * f;
+          return `<line x1="${leftPad}" y1="${y}" x2="${chartW}" y2="${y}" stroke="#1A2840" stroke-width=".4" stroke-dasharray="3,3"/>
+                  <text x="${leftPad-4}" y="${y+3}" font-size="8" fill="#3D5068" text-anchor="end">${fmtAxis(v)}</text>`;
+        }).join('') : ''}
+        ${bars}
+        <rect x="${leftPad+4}" y="${chartH-8}" width="8" height="6" rx="1" fill="rgba(18,216,223,.22)"/>
+        <text x="${leftPad+15}" y="${chartH-3}" font-size="8" fill="#6278A0">Reported</text>
+        <rect x="${leftPad+68}" y="${chartH-8}" width="8" height="6" rx="1" fill="#12D8DF" opacity=".85"/>
+        <text x="${leftPad+79}" y="${chartH-3}" font-size="8" fill="#6278A0">Adjusted</text>
+      </svg>`;
+
+    document.getElementById('dqoe-ebitda-sub').textContent =
+      hasRealEbitdaData ? `${ebitdaPoints.length} line items from AI analysis` : 'Reported vs. AI-adjusted';
+  }
 
   // ── GROSS MARGIN CHART ──────────────────────────────────
-  const gmPoints = qData.length >= 2
-    ? qData.map(q => ({ label: q.period || q.quarter || '', gm: q.grossMargin || q.grossMarginPct || null }))
-    : null;
+  // Build from individual COGS/revenue transactions for a multi-point view
+  const cogsTx = tx.filter(t => t.type && /cogs|cost\s*of/i.test(t.type)).slice(0, 6);
+  const revTxForGM = tx.filter(t => t.type && /revenue/i.test(t.type)).slice(0, 6);
+  const gmMultiPts = [];
 
-  if (gmPoints && gmPoints.some(p => p.gm != null)) {
-    const gmVals = gmPoints.map(p => p.gm || 0);
-    const gmMin = Math.max(0, Math.min(...gmVals) - 5);
-    const gmMax = Math.min(100, Math.max(...gmVals) + 5);
-    const gmRange = gmMax - gmMin;
+  if (cogsTx.length >= 2 && revTxForGM.length >= 2) {
+    const minLen = Math.min(cogsTx.length, revTxForGM.length);
+    for (let i = 0; i < minLen; i++) {
+      const rev  = parseAmt(revTxForGM[i].latestValue) ?? parseAmt(revTxForGM[i].amount);
+      const cogs = parseAmt(cogsTx[i].latestValue) ?? parseAmt(cogsTx[i].amount);
+      if (rev && cogs && Math.abs(rev) > 0) {
+        gmMultiPts.push({ label: (revTxForGM[i].item || '').slice(0, 10), gm: (1 - Math.abs(cogs)/Math.abs(rev)) * 100 });
+      }
+    }
+  } else if (gmPct != null) {
+    // Single gross margin point — show as a horizontal gauge-style bar
+    gmMultiPts.push({ label: 'Overall', gm: gmPct });
+  }
+
+  const slotWgm = Math.floor((chartW - leftPad - 10) / Math.max(gmMultiPts.length, 1));
+
+  if (gmMultiPts.length >= 1) {
+    const gmVals = gmMultiPts.map(p => p.gm);
+    const gmMin = Math.max(0, Math.min(...gmVals) - 10);
+    const gmMax = Math.min(100, Math.max(...gmVals) + 10);
+    const gmRange = gmMax - gmMin || 1;
     const toY = v => usH - Math.round(((v - gmMin) / gmRange) * usH * 0.85);
-    const pts = gmPoints.map((p,i) => {
-      const x = leftPad + i * slotW + slotW/2;
-      return { x, y: toY(p.gm || gmMin), lbl: p.label, v: p.gm };
+    const pts = gmMultiPts.map((p,i) => {
+      const x = leftPad + i * slotWgm + slotWgm/2;
+      return { x, y: toY(p.gm), lbl: p.label, v: p.gm };
     });
     const polyPts = pts.map(p => `${p.x},${p.y}`).join(' ');
-    const fillPts = polyPts + ` ${pts[pts.length-1].x},${usH} ${pts[0].x},${usH}`;
+    const fillPts = pts.length > 1
+      ? (polyPts + ` ${pts[pts.length-1].x},${usH} ${pts[0].x},${usH}`)
+      : `${pts[0].x-20},${pts[0].y} ${pts[0].x+20},${pts[0].y} ${pts[0].x+20},${usH} ${pts[0].x-20},${usH}`;
     document.getElementById('dqoe-gm-chart').innerHTML =
       `<svg width="100%" height="${chartH}" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="xMidYMid meet">
         <defs><linearGradient id="gmG2" x1="0" y1="0" x2="0" y2="1">
@@ -816,17 +981,19 @@ function renderQoECharts(r) {
         ${[0,25,50,75,100].map(pct => {
           const v = gmMin + (gmRange * pct/100);
           const y = toY(v);
-          return `<line x1="${leftPad}" y1="${y}" x2="${chartW}" y2="${y}" stroke="#1A2840" stroke-width=".4"/>
+          return `<line x1="${leftPad}" y1="${y}" x2="${chartW}" y2="${y}" stroke="#1A2840" stroke-width=".4" stroke-dasharray="3,3"/>
                   <text x="${leftPad-4}" y="${y+3}" font-size="8" fill="#3D5068" text-anchor="end">${v.toFixed(0)}%</text>`;
         }).join('')}
         <polygon points="${fillPts}" fill="url(#gmG2)"/>
-        <polyline points="${polyPts}" fill="none" stroke="#0FBD83" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#0FBD83"/>
-          <text x="${p.x}" y="${chartH-4}" font-size="8.5" fill="#3D5068" text-anchor="middle">${esc(p.lbl)}</text>`).join('')}
+        ${pts.length > 1 ? `<polyline points="${polyPts}" fill="none" stroke="#0FBD83" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+        ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#0FBD83"/>
+          <text x="${p.x}" y="${p.y - 8}" font-size="8" fill="#0FBD83" text-anchor="middle">${p.v.toFixed(1)}%</text>
+          <text x="${p.x}" y="${chartH-4}" font-size="8" fill="#3D5068" text-anchor="middle">${esc(p.lbl)}</text>`).join('')}
       </svg>`;
+    document.getElementById('dqoe-gm-sub').textContent = gmMultiPts.length > 1 ? `${gmMultiPts.length} periods from AI analysis` : 'Computed from COGS vs Revenue';
   } else {
     document.getElementById('dqoe-gm-chart').innerHTML =
-      `<div style="padding:24px 0;text-align:center;font-size:12px;color:var(--dim)">Gross margin trend data not available for this analysis.</div>`;
+      `<div style="padding:24px 0;text-align:center;font-size:12px;color:var(--dim)">Gross margin not available — upload an Income Statement or COGS data.</div>`;
   }
 
   // ── COMPLIANCE ACCORDIONS ───────────────────────────────
@@ -844,23 +1011,60 @@ function renderQoECharts(r) {
                       yellow: '<span style="font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--amber-mid);color:var(--amber)">Review</span>',
                       green: '<span style="font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--emer-mid);color:var(--emerald)">Pass</span>' };
 
-    // Build items: categories first, then ungrouped flags
+    // Build items: show categories with their score/basis, then group flags by severity
     const items = [];
+    const flags = r.flags || [];
+
     if (categories.length > 0) {
+      // Show each scoring category with its basis text
       categories.forEach(c => {
         const sev = c.color === 'red' ? 'red' : c.color === 'green' ? 'green' : 'yellow';
-        const relFlags = (r.flags||[]).filter(f => f.category === c.name || (c.basis && f.detail && f.detail.includes(c.name)));
-        items.push({ title: c.name, sev, body: c.basis || '', findings: relFlags.map(f => f.detail || f.title || '') });
+        // Match flags to this category by keyword overlap with category name or basis text
+        const catWords = (c.name + ' ' + (c.basis||'')).toLowerCase();
+        const relFlags = flags.filter(f => {
+          if (f.severity !== 'red' && f.severity !== 'yellow') return false;
+          const fText = ((f.title||'') + ' ' + (f.detail||'')).toLowerCase();
+          // Match if any word from the category name appears in the flag text
+          return c.name.toLowerCase().split(/\s+/).some(w => w.length > 4 && fText.includes(w));
+        });
+        items.push({
+          title: c.name,
+          score: c.score,
+          sev,
+          body: c.basis || '',
+          findings: relFlags.length > 0
+            ? relFlags.map(f => (f.title || '') + (f.detail ? ' — ' + f.detail : ''))
+            : []
+        });
       });
+
+      // Add a "Key Flags" section with any flags not matched above
+      const matchedFlags = new Set();
+      items.forEach(item => item.findings.forEach((_, idx) => {
+        const catWords = item.title.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+        flags.forEach((f, fi) => {
+          const fText = ((f.title||'') + ' ' + (f.detail||'')).toLowerCase();
+          if (catWords.some(w => fText.includes(w))) matchedFlags.add(fi);
+        });
+      }));
+      const unmatchedRed = flags.filter((f, i) => f.severity === 'red' && !matchedFlags.has(i));
+      if (unmatchedRed.length > 0) {
+        items.unshift({
+          title: 'Critical Flags',
+          score: null,
+          sev: 'red',
+          body: '',
+          findings: unmatchedRed.map(f => (f.title||'') + (f.detail ? ' — ' + f.detail : ''))
+        });
+      }
     } else {
-      // Fallback: group flags directly
-      const grouped = {};
-      (r.flags||[]).forEach(f => {
-        const key = f.category || (f.severity === 'red' ? 'High Risk Items' : f.severity === 'yellow' ? 'Review Items' : 'Passing Items');
-        if (!grouped[key]) grouped[key] = { sev: f.severity || 'yellow', findings: [] };
-        grouped[key].findings.push(f.title + (f.detail ? ' — ' + f.detail : ''));
-      });
-      Object.entries(grouped).forEach(([k,v]) => items.push({ title: k, sev: v.sev, body: '', findings: v.findings }));
+      // No categories from AI — group all flags directly by severity
+      const redFlags    = flags.filter(f => f.severity === 'red');
+      const yellowFlags = flags.filter(f => f.severity === 'yellow');
+      const greenFlags  = flags.filter(f => f.severity === 'green');
+      if (redFlags.length)    items.push({ title: 'Critical Issues',   sev: 'red',    body: '', findings: redFlags.map(f => (f.title||'') + (f.detail ? ' — ' + f.detail : '')) });
+      if (yellowFlags.length) items.push({ title: 'Items to Review',   sev: 'yellow', body: '', findings: yellowFlags.map(f => (f.title||'') + (f.detail ? ' — ' + f.detail : '')) });
+      if (greenFlags.length)  items.push({ title: 'Passing Checks',    sev: 'green',  body: '', findings: greenFlags.map(f => (f.title||'') + (f.detail ? ' — ' + f.detail : '')) });
     }
 
     compList.innerHTML = items.map((item, idx) => `
@@ -868,6 +1072,7 @@ function renderQoECharts(r) {
         <div class="dacc-head">
           <div class="dacc-icon" style="background:${sevBg[item.sev]}">${sevIcon[item.sev]}</div>
           <div class="dacc-title">${esc(item.title)}</div>
+          ${item.score != null ? `<span style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:4px">${item.score}/100</span>` : ''}
           ${sevPill[item.sev]}
           <span class="dacc-chev">▼</span>
         </div>
@@ -875,7 +1080,7 @@ function renderQoECharts(r) {
           ${item.body ? `<p class="dacc-txt">${esc(item.body)}</p>` : ''}
           ${item.findings.length > 0
             ? item.findings.map(f => `<div class="dacc-find">${esc(f)}</div>`).join('')
-            : '<div class="dacc-find" style="color:var(--dim)">No specific findings in this category.</div>'}
+            : '<div class="dacc-find" style="color:var(--dim)">Score based on document quality — no specific line-item flags in this category.</div>'}
         </div>
       </div>`).join('');
   }
@@ -2122,10 +2327,57 @@ function renderProfilePage() {
       </div>
 
       <div class="profile-section">
+        <div class="profile-section-title">Appearance</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--bright);margin-bottom:2px">Theme</div>
+            <div style="font-size:11.5px;color:var(--muted)">Switch between dark and light mode</div>
+          </div>
+          <button class="theme-pill-btn" id="profile-theme-btn" onclick="toggleTheme();updateThemePillBtn()">
+            <span id="profile-theme-label">${(document.documentElement.dataset.theme||'dark') === 'light' ? '☀ Light' : '🌙 Dark'}</span>
+          </button>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--bright);margin-bottom:6px">Profile badge color</div>
+          <div style="font-size:11.5px;color:var(--muted);margin-bottom:12px">Customizes your avatar and badge in the app</div>
+          <div class="badge-color-row" id="badge-color-row">
+            ${BADGE_COLORS.map(c => {
+              const theme = document.documentElement.dataset.theme || 'dark';
+              const pal = c[theme] || c.dark;
+              const active = (localStorage.getItem('liq_badge_color') || 'Teal') === c.label;
+              return `<button class="badge-swatch ${active ? 'badge-swatch-active' : ''}"
+                style="background:${pal.bg};border-color:${pal.border};color:${pal.text}"
+                onclick="applyBadgeColor('${c.label}');renderBadgeSwatches()" title="${c.label}">${c.label[0]}</button>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-section">
         <div class="profile-section-title">Account</div>
         <button class="logout-btn" onclick="logout()">Sign Out</button>
       </div>
     </div>`;
+}
+
+function updateThemePillBtn() {
+  const lbl = document.getElementById('profile-theme-label');
+  if (lbl) lbl.textContent = (document.documentElement.dataset.theme || 'dark') === 'light' ? '☀ Light' : '🌙 Dark';
+}
+
+function renderBadgeSwatches() {
+  const row = document.getElementById('badge-color-row');
+  if (!row) return;
+  const active = localStorage.getItem('liq_badge_color') || 'Teal';
+  const theme = document.documentElement.dataset.theme || 'dark';
+  row.innerHTML = BADGE_COLORS.map(c => {
+    const pal = c[theme] || c.dark;
+    return `<button class="badge-swatch ${active === c.label ? 'badge-swatch-active' : ''}"
+      style="background:${pal.bg};border-color:${pal.border};color:${pal.text}"
+      onclick="applyBadgeColor('${c.label}');renderBadgeSwatches()" title="${c.label}">${c.label[0]}</button>`;
+  }).join('');
+  // Update user menu btn + profile avatar color
+  updateUserUI();
 }
 
 async function submitAddCredits() {

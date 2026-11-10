@@ -1692,56 +1692,15 @@ async function loadDemo() {
   try {
     await wakeBackend();
 
-    addLog('Loading demo files…', 'info');
+    addLog('Loading demo analysis…', 'info');
     setProg(10, 'Connecting to server…');
 
-    let resp = null;
-    let attempt = 0;
-    while (true) {
-      attempt++;
-      const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 300000);
-      try {
-        resp = await fetch(`${API_BASE}/api/demo`, { signal: ctrl.signal });
-      } catch (fetchErr) {
-        clearTimeout(tid);
-        if (attempt >= 6) {
-          // Fall back to hardcoded demo if server unreachable
-          addLog('Server unreachable — loading cached demo', 'info');
-          report = DEMO_REPORT;
-          finishReport();
-          showDemoBanner();
-          return;
-        }
-        addLog(`Connection error — retrying (${attempt})…`, 'info');
-        await new Promise(r => setTimeout(r, 8000));
-        continue;
-      }
-      clearTimeout(tid);
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 600000); // 10 min max
+    const resp = await fetch(`${API_BASE}/api/demo`, { signal: ctrl.signal });
+    clearTimeout(tid);
 
-      if (resp.status === 502 || resp.status === 503 || resp.status === 504) {
-        if (attempt >= 6) {
-          addLog('Server not ready — loading cached demo', 'info');
-          report = DEMO_REPORT;
-          finishReport();
-          showDemoBanner();
-          return;
-        }
-        addLog(`Server warming up — retrying (${attempt})…`, 'info');
-        await new Promise(r => setTimeout(r, 10000 * attempt));
-        continue;
-      }
-
-      break;
-    }
-
-    if (!resp.ok) {
-      addLog('Demo load failed — using cached demo', 'info');
-      report = DEMO_REPORT;
-      finishReport();
-      showDemoBanner();
-      return;
-    }
+    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
 
     await readSSEStream(resp, () => {
       finishReport();
@@ -1749,11 +1708,12 @@ async function loadDemo() {
     });
 
   } catch (err) {
-    // Fall back to hardcoded demo on any error
-    addLog('Error — loading cached demo: ' + err.message, 'info');
-    report = DEMO_REPORT;
-    finishReport();
-    showDemoBanner();
+    addLog('Demo failed: ' + err.message, 'err');
+    setProg(0, 'Demo failed', err.message);
+    const b = document.createElement('button');
+    b.className = 'btn btn-ghost'; b.style.marginTop = '16px';
+    b.textContent = 'Back'; b.onclick = () => go('upload');
+    document.getElementById('page-progress').appendChild(b);
   }
 }
 

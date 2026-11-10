@@ -88,11 +88,45 @@ app.get('/api/health', async (req, res) => {
 
 // ─── Demo analysis endpoint ───────────────────────────────────────────────────
 // Runs a real GPT-4o mini analysis on the built-in demo files.
-// The API key lives only on the server — it is never sent to or from the client.
+// Result is cached in memory so subsequent requests are instant.
+let _demoCache = null;
+let _demoCacheRunning = false;
+let _demoCacheWaiters = [];
+
 app.get('/api/demo', async (req, res) => {
   if (!DEMO_API_KEY) {
     return res.status(503).json({ error: 'Demo not configured on this server.' });
   }
+
+  // If we have a cached result, stream it immediately
+  if (_demoCache) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    res.write(`event: progress\ndata: ${JSON.stringify({ step: 'done', pct: 95, message: 'Loading cached demo…' })}\n\n`);
+    res.write(`event: result\ndata: ${JSON.stringify({ report: _demoCache })}\n\n`);
+    res.write(`event: done\ndata: ${JSON.stringify({ success: true })}\n\n`);
+    res.end();
+    return;
+  }
+
+  // If already running, wait for it then serve cache
+  if (_demoCacheRunning) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    res.write(`event: progress\ndata: ${JSON.stringify({ step: 'claude', pct: 50, message: 'Demo analysis in progress, please wait…' })}\n\n`);
+    await new Promise(resolve => _demoCacheWaiters.push(resolve));
+    res.write(`event: progress\ndata: ${JSON.stringify({ step: 'done', pct: 95, message: 'Demo ready!' })}\n\n`);
+    res.write(`event: result\ndata: ${JSON.stringify({ report: _demoCache })}\n\n`);
+    res.write(`event: done\ndata: ${JSON.stringify({ success: true })}\n\n`);
+    res.end();
+    return;
+  }
+
+  _demoCacheRunning = true;
 
   // Use SSE so the frontend gets live progress (same as /api/analyze)
   res.setHeader('Content-Type', 'text/event-stream');
@@ -155,12 +189,21 @@ app.get('/api/demo', async (req, res) => {
       isDemo: true
     };
 
+    // Cache the result so future requests are instant
+    _demoCache = report;
+    _demoCacheRunning = false;
+    _demoCacheWaiters.forEach(r => r());
+    _demoCacheWaiters = [];
+
     emit('progress', { step: 'done', pct: 100, message: 'Demo report ready' });
     emit('result', { report });
     emit('done', { success: true });
 
   } catch (err) {
     console.error('Demo analysis error:', err);
+    _demoCacheRunning = false;
+    _demoCacheWaiters.forEach(r => r());
+    _demoCacheWaiters = [];
     emit('error', { message: err.message || 'Demo analysis failed' });
   } finally {
     res.end();

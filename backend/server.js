@@ -138,6 +138,7 @@ app.get('/api/demo', async (req, res) => {
     report._meta = {
       filesProcessed: parsedFiles.length,
       totalTransactions: totalTx,
+      scoredTransactions: (report.transactions || []).length,
       tokenUsage: usage,
       parsedAt: new Date().toISOString(),
       isDemo: true
@@ -320,6 +321,7 @@ app.post('/api/analyze', upload.array('files', 50), async (req, res) => {
     report._meta = {
       filesProcessed: parsedFiles.length,
       totalTransactions: totalTx,
+      scoredTransactions: (report.transactions || []).length,
       tokenUsage: usage,
       parsedAt: new Date().toISOString(),
       backendStats: {

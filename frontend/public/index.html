@@ -2966,6 +2966,11 @@ button.sum-score-tile:hover { transform: translateY(-2px); border-color: var(--t
 
   <!-- ── TRANSACTIONS TABLE ── -->
   <div class="page" id="page-transactions">
+    <div id="tx-scope-bar" style="display:none;padding:7px 16px 0;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.02em">
+      Showing <span id="tx-scored-count" style="color:var(--teal)">—</span> AI-scored items
+      of <span id="tx-total-count" style="color:var(--bright)">—</span> total parsed
+      · highest-severity items prioritized, all files represented
+    </div>
     <div class="table-wrap">
       <table>
         <thead>

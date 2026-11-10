@@ -1426,6 +1426,16 @@ function finishReport() {
   renderReview();
   renderTxTable();
 
+  // Transaction scope bar — shows scored vs total counts
+  const scopeBar = document.getElementById('tx-scope-bar');
+  if (scopeBar && r._meta) {
+    const scored = r._meta.scoredTransactions || (r.transactions || []).length;
+    const total  = r._meta.totalTransactions  || scored;
+    document.getElementById('tx-scored-count').textContent = scored.toLocaleString();
+    document.getElementById('tx-total-count').textContent  = total.toLocaleString();
+    scopeBar.style.display = scored < total ? '' : 'none';
+  }
+
   document.getElementById('rev-badge').textContent  = pending;
   document.getElementById('rev-badge').className    = 'nb-badge' + (pending > 0 ? ' on' : '');
   recalcMetrics();   // topbar + KPIs use the review-adjusted score
@@ -1670,7 +1680,7 @@ const DEMO_REPORT = {
     { id:"banking-relationship",        item:"Primary Bank Relationship — 12-Year History, No Defaults", type:"Debt & Leverage", amount:"N/A", finding:"12-year relationship with First National Midwest. No formal defaults outside of the FY2022 covenant breach (waived in writing). Bank has expressed verbal interest in supporting a qualified buyer with assumption or refinancing.", severity:"green", confidence:85, needsReview:false, confidenceReasoning:"Debt schedule lists loan history. CEO confirmed bank relationship and change of control stance in management Q&A notes.", recommendation:"Obtain written bank consent to assignment; explore refinancing terms in parallel with deal timeline" }
   ],
   _meta: {
-    filesProcessed: 18, totalTransactions: 487,
+    filesProcessed: 25, totalTransactions: 683, scoredTransactions: 112,
     tokenUsage: { inputTokens: 24840, outputTokens: 9180, totalTokens: 34020 },
     parsedAt: "2024-01-15T18:29:41.000Z", isDemo: true
   }

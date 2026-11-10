@@ -65,7 +65,7 @@ function buildClaudeSummary(parsedFiles) {
   const typeOverview = Object.entries(byType).map(([type, items]) => ({
     type,
     count: items.length,
-    items: items.slice(0, 10).map(t => ({
+    items: items.slice(0, 20).map(t => ({
       label:             t.label,
       latestValue:       t.latestValue,
       priorValue:        t.priorValue,
@@ -94,8 +94,8 @@ function buildClaudeSummary(parsedFiles) {
     })),
     typeOverview,
     flaggedItems: {
-      red:    redItems.slice(0, 15).map(t => ({ label: t.label, type: t.type, pctChange: t.pctChange, amount: t.formattedAmount, meta: t.meta })),
-      yellow: yellowItems.slice(0, 15).map(t => ({ label: t.label, type: t.type, pctChange: t.pctChange, amount: t.formattedAmount, meta: t.meta }))
+      red:    redItems.slice(0, 25).map(t => ({ label: t.label, type: t.type, pctChange: t.pctChange, amount: t.formattedAmount, meta: t.meta })),
+      yellow: yellowItems.slice(0, 25).map(t => ({ label: t.label, type: t.type, pctChange: t.pctChange, amount: t.formattedAmount, meta: t.meta }))
     },
     rawTextSnippets: parsedFiles
       .filter(f => f.rawText && f.rawText.length > 100)
@@ -106,6 +106,10 @@ function buildClaudeSummary(parsedFiles) {
 
 async function scoreWithClaude(parsedFiles, apiKey) {
   const summary = buildClaudeSummary(parsedFiles);
+  // Tag each transaction with its source file (for per-file coverage sampling)
+  for (const f of parsedFiles) {
+    for (const t of f.transactions) { t._sourceFilename = f.filename; }
+  }
   const allTxFull = parsedFiles.flatMap(f => f.transactions);
 
   // Deduplicate by label — prefer the most informative copy (most periods, lowest heuristic severity)
@@ -124,11 +128,29 @@ async function scoreWithClaude(parsedFiles, apiKey) {
   }
   const deduped = Array.from(txByLabel.values());
 
-  // Prioritize: red first, then yellow, then green — cap at 200 for gpt-4o-mini context
+  // Prioritize: red first, then yellow, then green
+  // Also ensure coverage across all files — take top items from each file, not just global top N
   const red    = deduped.filter(t => t.severity === 'red');
   const yellow = deduped.filter(t => t.severity === 'yellow');
   const green  = deduped.filter(t => t.severity === 'green');
-  const allTx  = [...red, ...yellow, ...green].slice(0, 200);
+
+  // Ensure every file contributes at least some transactions (up to 8 per file)
+  const coveredByFile = new Set();
+  const ensuredItems = [];
+  for (const f of parsedFiles) {
+    const fileTx = deduped.filter(t => t._sourceFilename === f.filename);
+    // Take up to 8 red/yellow items per file to guarantee coverage
+    const fileRed = fileTx.filter(t => t.severity === 'red').slice(0, 5);
+    const fileYellow = fileTx.filter(t => t.severity === 'yellow').slice(0, 3);
+    [...fileRed, ...fileYellow].forEach(t => {
+      if (!coveredByFile.has(t)) { coveredByFile.add(t); ensuredItems.push(t); }
+    });
+  }
+
+  // Build final list: ensured items first, then fill remaining budget with priority order
+  const ensuredSet = new Set(ensuredItems);
+  const remaining = [...red, ...yellow, ...green].filter(t => !ensuredSet.has(t));
+  const allTx = [...ensuredItems, ...remaining].slice(0, 300);
 
   const docContext = summary.uploadedDocTypes.map(d => {
     const qoeLink = DOC_TO_QOE_CATEGORY[d] || 'General';
